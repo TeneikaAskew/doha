@@ -27,16 +27,22 @@ An LLM-powered system for analyzing security clearance reports against SEAD-4 ad
 # Install dependencies
 pip install -r requirements.txt
 
-# Set your API key
+# Set your API key (Gemini by default)
+export GOOGLE_API_KEY=your_key_here
+
+# Or use Claude
 export ANTHROPIC_API_KEY=your_key_here
 
-# Analyze a single report
+# Analyze a single report (uses Gemini by default)
 python analyze.py --input report.pdf --output result.json
 
-# Analyze with precedent matching (requires DOHA index)
-python analyze.py --input report.pdf --use-rag
+# Analyze using Claude instead
+python analyze.py --input report.pdf --output result.json --provider claude
 
-# Batch process
+# Analyze with precedent matching (requires DOHA index)
+python analyze.py --input report.pdf --use-rag --index ./doha_index
+
+# Batch process (uses Gemini by default)
 python analyze.py --input-dir ./reports --output-dir ./results
 ```
 
@@ -51,14 +57,13 @@ sead4_llm/
 ├── prompts/
 │   └── templates.py       # Structured prompts
 ├── analyzers/
-│   └── claude_analyzer.py # Claude API implementation
+│   ├── claude_analyzer.py # Claude API implementation
+│   └── gemini_analyzer.py # Google Gemini API implementation (default)
 ├── rag/
 │   ├── indexer.py         # DOHA case indexer
 │   ├── retriever.py       # Precedent retriever
 │   └── scraper.py         # DOHA website scraper
-├── parsers/
-│   └── document.py        # PDF/text extraction
-├── analyze.py             # Main entry point
+├── analyze.py             # Main entry point with PDF parsing
 ├── build_index.py         # DOHA index builder CLI
 └── requirements.txt
 ```
@@ -124,8 +129,11 @@ python build_index.py --test --index ./doha_index
 Once built, use the index with the analyzer:
 
 ```bash
-# Analyze with precedent matching
+# Analyze with precedent matching (uses Gemini by default)
 python analyze.py --input report.pdf --use-rag --index ./doha_index
+
+# Use with Claude
+python analyze.py --input report.pdf --use-rag --index ./doha_index --provider claude
 ```
 
 ## Output Format
@@ -176,10 +184,22 @@ python analyze.py --input report.pdf --use-rag --index ./doha_index
 }
 ```
 
+## Supported LLM Providers
+
+| Provider | Model | Environment Variable | Default |
+|----------|-------|---------------------|---------|
+| Google Gemini | gemini-2.0-flash | `GOOGLE_API_KEY` | ✓ |
+| Anthropic Claude | claude-sonnet-4 | `ANTHROPIC_API_KEY` | |
+
+Use the `--provider` flag to select your LLM:
+- `--provider gemini` (default)
+- `--provider claude`
+
 ## Configuration
 
 Environment variables:
-- `ANTHROPIC_API_KEY` - Claude API key
+- `GOOGLE_API_KEY` - Google Gemini API key (required for default provider)
+- `ANTHROPIC_API_KEY` - Claude API key (required for Claude provider)
 - `DOHA_INDEX_PATH` - Path to DOHA vector index (for RAG)
 
 ## License

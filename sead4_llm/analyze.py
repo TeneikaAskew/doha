@@ -63,11 +63,11 @@ def analyze_single(
     use_rag: bool = False,
     index_path: Optional[str] = None,
     quick: bool = False,
-    verbose: bool = False
+    verbose: bool = False,
+    provider: str = "gemini"
 ):
     """Analyze a single document"""
     from schemas.models import SEAD4AnalysisResult
-    from analyzers.claude_analyzer import SEAD4Analyzer
 
     # Load document
     input_path = Path(input_path)
@@ -75,9 +75,15 @@ def analyze_single(
     document_text = load_document(input_path)
     logger.info(f"Document length: {len(document_text)} characters")
 
-    # Create analyzer
-    analyzer = SEAD4Analyzer()
-    logger.info("Using Claude analyzer")
+    # Create analyzer based on provider
+    if provider == "gemini":
+        from analyzers.gemini_analyzer import GeminiSEAD4Analyzer
+        analyzer = GeminiSEAD4Analyzer()
+        logger.info("Using Google Gemini analyzer")
+    else:
+        from analyzers.claude_analyzer import SEAD4Analyzer
+        analyzer = SEAD4Analyzer()
+        logger.info("Using Claude analyzer")
     
     # Get precedents if RAG enabled
     precedents = None
@@ -198,11 +204,10 @@ def analyze_batch(
     input_dir: str,
     output_dir: str,
     report_type: Optional[str] = None,
-    quick: bool = True
+    quick: bool = True,
+    provider: str = "gemini"
 ):
     """Analyze multiple documents in a directory"""
-    from analyzers.claude_analyzer import SEAD4Analyzer
-
     input_dir = Path(input_dir)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -211,9 +216,15 @@ def analyze_batch(
     documents = list(input_dir.glob("*.pdf")) + list(input_dir.glob("*.txt"))
     logger.info(f"Found {len(documents)} documents to analyze")
 
-    # Create analyzer
-    analyzer = SEAD4Analyzer()
-    logger.info("Using Claude analyzer")
+    # Create analyzer based on provider
+    if provider == "gemini":
+        from analyzers.gemini_analyzer import GeminiSEAD4Analyzer
+        analyzer = GeminiSEAD4Analyzer()
+        logger.info("Using Google Gemini analyzer")
+    else:
+        from analyzers.claude_analyzer import SEAD4Analyzer
+        analyzer = SEAD4Analyzer()
+        logger.info("Using Claude analyzer")
     
     results = []
     for i, doc_path in enumerate(documents):
@@ -309,6 +320,10 @@ Examples:
                        help='Use precedent retrieval (RAG)')
     parser.add_argument('--index', help='Path to DOHA case index for RAG')
 
+    # Provider options
+    parser.add_argument('--provider', '-p', choices=['claude', 'gemini'], default='gemini',
+                       help='LLM provider to use (default: gemini)')
+
     # Other options
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='Verbose output')
@@ -319,11 +334,17 @@ Examples:
     log_level = "DEBUG" if args.verbose else "INFO"
     logger.add("sead4_analysis.log", rotation="10 MB", level=log_level)
 
-    # Check for API key
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        print("Error: ANTHROPIC_API_KEY environment variable not set")
-        print("Set it with: export ANTHROPIC_API_KEY=your_key_here")
-        return 1
+    # Check for API key based on provider
+    if args.provider == "gemini":
+        if not os.getenv("GOOGLE_API_KEY"):
+            print("Error: GOOGLE_API_KEY environment variable not set")
+            print("Set it with: export GOOGLE_API_KEY=your_key_here")
+            return 1
+    else:
+        if not os.getenv("ANTHROPIC_API_KEY"):
+            print("Error: ANTHROPIC_API_KEY environment variable not set")
+            print("Set it with: export ANTHROPIC_API_KEY=your_key_here")
+            return 1
     
     # Run appropriate mode
     if args.batch or args.input_dir:
@@ -335,7 +356,8 @@ Examples:
             input_dir=args.input_dir,
             output_dir=args.output_dir,
             report_type=args.type,
-            quick=True  # Always quick for batch
+            quick=True,  # Always quick for batch
+            provider=args.provider
         )
 
     elif args.input:
@@ -346,7 +368,8 @@ Examples:
             use_rag=args.use_rag,
             index_path=args.index,
             quick=args.quick,
-            verbose=args.verbose
+            verbose=args.verbose,
+            provider=args.provider
         )
         
     else:

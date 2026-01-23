@@ -70,7 +70,9 @@ class DOHAScraper:
     # Base URLs for DOHA cases - Updated to correct structure
     DOHA_BASE_URL = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/"
     # Pattern for recent years (current structure)
+    # Note: 2024 uses different pattern (2024-ISCR-Hearing vs 2025-ISCR-Hearing-Decisions)
     DOHA_YEAR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/{year}-ISCR-Hearing-Decisions/"
+    DOHA_2024_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/2024-ISCR-Hearing/"
     # For archived years
     DOHA_ARCHIVE_BASE = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/Archived-ISCR-Hearing-Decisions/"
     DOHA_ARCHIVE_YEAR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/Archived-ISCR-Hearing-Decisions/{year}-ISCR-Hearing-Decisions/"
@@ -228,10 +230,13 @@ class DOHAScraper:
         """
         # Auto-detect if year should use archive pattern
         if is_archived is None:
-            is_archived = year < 2023  # Adjust threshold as needed
+            is_archived = year < 2019  # Years 2019-2022 are in main section, 2017-2018 in archive
 
         # Choose URL pattern based on year
-        if year >= 2023 or not is_archived:
+        # Special case for 2024 which has different URL structure
+        if year == 2024:
+            url = self.DOHA_2024_PATTERN
+        elif year >= 2019 and not is_archived:
             url = self.DOHA_YEAR_PATTERN.format(year=year)
         else:
             url = self.DOHA_ARCHIVE_YEAR_PATTERN.format(year=year)
