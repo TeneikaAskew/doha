@@ -54,8 +54,12 @@ def download_and_parse_pdfs(
         logger.info(f"Limited to {max_cases} cases")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    pdf_dir = output_dir / "pdfs"
-    pdf_dir.mkdir(exist_ok=True)
+
+    # Create separate PDF directories for hearings and appeals
+    hearing_pdf_dir = output_dir / "hearing_pdfs"
+    appeal_pdf_dir = output_dir / "appeal_pdfs"
+    hearing_pdf_dir.mkdir(exist_ok=True)
+    appeal_pdf_dir.mkdir(exist_ok=True)
 
     # Load existing parsed cases (for resume support)
     processed_cases = set()
@@ -73,13 +77,21 @@ def download_and_parse_pdfs(
     # Filter links to only unprocessed cases
     links_to_process = []
     for link in all_links:
-        year, case_number, url = link
+        # Handle both old format (year, case_number, url) and new format (case_type, year, case_number, url)
+        if len(link) == 3:
+            # Old format - assume hearing type
+            year, case_number, url = link
+            case_type = "hearing"
+            link = (case_type, year, case_number, url)  # Convert to new format
+        else:
+            case_type, year, case_number, url = link
+
+        # Choose PDF directory based on case type
+        pdf_dir = hearing_pdf_dir if case_type == "hearing" else appeal_pdf_dir
         pdf_path = pdf_dir / f"{case_number}.pdf"
 
         if force or (case_number not in processed_cases or not pdf_path.exists()):
             links_to_process.append(link)
-        else:
-            logger.debug(f"Skipping already processed: {case_number}")
 
     logger.info(f"Will process {len(links_to_process)} cases (skipped {len(all_links) - len(links_to_process)})")
 
@@ -102,7 +114,9 @@ def download_and_parse_pdfs(
         if HAS_TQDM:
             iterator = tqdm(iterator, total=len(links_to_process), desc="Downloading PDFs", unit="case")
 
-        for i, (year, case_number, url) in iterator:
+        for i, (case_type, year, case_number, url) in iterator:
+            # Choose PDF directory based on case type
+            pdf_dir = hearing_pdf_dir if case_type == "hearing" else appeal_pdf_dir
             pdf_path = pdf_dir / f"{case_number}.pdf"
 
             try:
@@ -110,9 +124,10 @@ def download_and_parse_pdfs(
                 pdf_bytes = browser_scraper.download_case_pdf_bytes(url)
 
                 if pdf_bytes is None:
-                    logger.error(f"[{i}/{len(links_to_process)}] ✗ {case_number}: Failed to download")
+                    logger.error(f"[{i}/{len(links_to_process)}] ✗ [{case_type}] {case_number}: Failed to download")
                     failed.append({
                         "error": "Failed to download (no bytes returned)",
+                        "case_type": case_type,
                         "case_number": case_number,
                         "url": url
                     })
@@ -132,9 +147,15 @@ def download_and_parse_pdfs(
 
                 # Parse case text
                 case = scraper.parse_case_text(case_number, full_text, url)
+                # Add case_type to the case metadata
+                if hasattr(case, '__dict__'):
+                    case.case_type = case_type
+                elif isinstance(case, dict):
+                    case['case_type'] = case_type
                 cases.append(case)
 
-                logger.success(f"[{i}/{len(links_to_process)}] ✓ {case_number}: {case.outcome}")
+                outcome = case.outcome if hasattr(case, 'outcome') else case.get('outcome', 'Unknown')
+                logger.success(f"[{i}/{len(links_to_process)}] ✓ [{case_type}] {case_number}: {outcome}")
 
                 # Save checkpoint every 50 cases
                 if i % 50 == 0:
@@ -151,9 +172,10 @@ def download_and_parse_pdfs(
                         logger.error(f"  Failed to save checkpoint: {e}")
 
             except Exception as e:
-                logger.error(f"[{i}/{len(links_to_process)}] ✗ {case_number}: {str(e)}")
+                logger.error(f"[{i}/{len(links_to_process)}] ✗ [{case_type}] {case_number}: {str(e)}")
                 failed.append({
                     "error": f"Parse error: {str(e)}",
+                    "case_type": case_type,
                     "case_number": case_number,
                     "url": url
                 })
@@ -173,13 +195,35 @@ def download_and_parse_pdfs(
     with open(failed_file, 'w') as f:
         json.dump(failed, f, indent=2)
 
+    # Calculate statistics
+    from collections import Counter
+    new_case_types = Counter()
+    all_case_types = Counter()
+
+    for case in cases:
+        case_type = case.case_type if hasattr(case, 'case_type') else case.get('case_type', 'unknown')
+        new_case_types[case_type] += 1
+
+    for case in all_parsed_cases:
+        case_type = case.get('case_type', 'unknown')
+        all_case_types[case_type] += 1
+
     logger.info(f"\n{'='*80}")
     logger.success(f"DOWNLOAD COMPLETE!")
     logger.info(f"{'='*80}")
     logger.info(f"Successfully parsed: {len(cases)} new cases")
-    logger.info(f"Total cases in index: {len(all_parsed_cases)} cases")
-    logger.info(f"Failed: {len(failed)} cases")
+    for case_type, count in sorted(new_case_types.items()):
+        logger.info(f"  - {case_type}: {count}")
+
+    logger.info(f"\nTotal cases in index: {len(all_parsed_cases)} cases")
+    for case_type, count in sorted(all_case_types.items()):
+        logger.info(f"  - {case_type}: {count}")
+
+    logger.info(f"\nFailed: {len(failed)} cases")
     logger.info(f"Results saved to: {final_file}")
+    logger.info(f"PDFs organized in:")
+    logger.info(f"  - Hearings: {hearing_pdf_dir}")
+    logger.info(f"  - Appeals: {appeal_pdf_dir}")
     if failed:
         logger.info(f"Failed cases logged to: {failed_file}")
 

@@ -14,7 +14,7 @@ import requests
 import time
 
 def run_full_scrape():
-    """Run comprehensive scrape of all DOHA cases"""
+    """Run comprehensive scrape of all DOHA cases (Hearings + Appeals)"""
     from datetime import datetime
 
     output_dir = Path("./doha_full_scrape")
@@ -27,7 +27,7 @@ def run_full_scrape():
 
     all_links = []
 
-    logger.info(f"Starting comprehensive DOHA scrape...")
+    logger.info(f"Starting comprehensive DOHA scrape (Hearings + Appeals)...")
     logger.info(f"Current year: {current_year}")
     logger.info(f"Will scrape years: {years + archived_years}")
 
@@ -36,29 +36,29 @@ def run_full_scrape():
         rate_limit=3.0,
         headless=True
     ) as scraper:
-        # Scrape current years
+        # Scrape HEARING current years
         for year in years:
             logger.info(f"\n{'='*60}")
-            logger.info(f"Scraping year {year}")
+            logger.info(f"Scraping HEARINGS for year {year}")
             logger.info(f"{'='*60}")
 
             # Check if already scraped
-            links_file = output_dir / f"links_{year}.json"
+            links_file = output_dir / f"hearing_links_{year}.json"
             if links_file.exists():
-                logger.info(f"⏭️  Year {year} already scraped, loading from {links_file}")
+                logger.info(f"⏭️  Hearing year {year} already scraped, loading from {links_file}")
                 try:
                     with open(links_file) as f:
                         existing_links = json.load(f)
                     all_links.extend(existing_links)
-                    logger.success(f"Loaded {len(existing_links)} cases for {year}")
+                    logger.success(f"Loaded {len(existing_links)} hearing cases for {year}")
                     continue
                 except Exception as e:
-                    logger.warning(f"Failed to load existing links, will re-scrape: {e}")
+                    logger.warning(f"Failed to load existing hearing links, will re-scrape: {e}")
 
             try:
                 links = scraper.get_case_links(year, is_archived=False)
-                logger.success(f"Found {len(links)} cases for {year}")
-                year_links = [(year, case_num, url) for case_num, url in links]
+                logger.success(f"Found {len(links)} hearing cases for {year}")
+                year_links = [("hearing", year, case_num, url) for case_num, url in links]
                 all_links.extend(year_links)
 
                 # Save intermediate results
@@ -66,31 +66,63 @@ def run_full_scrape():
                     json.dump(year_links, f, indent=2)
 
             except Exception as e:
-                logger.error(f"Error scraping {year}: {e}")
+                logger.error(f"Error scraping hearings for {year}: {e}")
 
-        # Scrape archived years
-        for year in archived_years:
+        # Scrape APPEAL current years
+        for year in years:
             logger.info(f"\n{'='*60}")
-            logger.info(f"Scraping ARCHIVED year {year}")
+            logger.info(f"Scraping APPEALS for year {year}")
             logger.info(f"{'='*60}")
 
             # Check if already scraped
-            links_file = output_dir / f"links_{year}.json"
+            links_file = output_dir / f"appeal_links_{year}.json"
             if links_file.exists():
-                logger.info(f"⏭️  Year {year} already scraped, loading from {links_file}")
+                logger.info(f"⏭️  Appeal year {year} already scraped, loading from {links_file}")
                 try:
                     with open(links_file) as f:
                         existing_links = json.load(f)
                     all_links.extend(existing_links)
-                    logger.success(f"Loaded {len(existing_links)} cases for {year}")
+                    logger.success(f"Loaded {len(existing_links)} appeal cases for {year}")
+                    continue
+                except Exception as e:
+                    logger.warning(f"Failed to load existing appeal links, will re-scrape: {e}")
+
+            try:
+                links = scraper.get_appeal_case_links(year, is_archived=False)
+                logger.success(f"Found {len(links)} appeal cases for {year}")
+                year_links = [("appeal", year, case_num, url) for case_num, url in links]
+                all_links.extend(year_links)
+
+                # Save intermediate results
+                with open(links_file, 'w') as f:
+                    json.dump(year_links, f, indent=2)
+
+            except Exception as e:
+                logger.error(f"Error scraping appeals for {year}: {e}")
+
+        # Scrape HEARING archived years
+        for year in archived_years:
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Scraping ARCHIVED HEARINGS for year {year}")
+            logger.info(f"{'='*60}")
+
+            # Check if already scraped
+            links_file = output_dir / f"hearing_links_{year}.json"
+            if links_file.exists():
+                logger.info(f"⏭️  Archived hearing year {year} already scraped, loading from {links_file}")
+                try:
+                    with open(links_file) as f:
+                        existing_links = json.load(f)
+                    all_links.extend(existing_links)
+                    logger.success(f"Loaded {len(existing_links)} archived hearing cases for {year}")
                     continue
                 except Exception as e:
                     logger.warning(f"Failed to load existing links, will re-scrape: {e}")
 
             try:
                 links = scraper.get_case_links(year, is_archived=True)
-                logger.success(f"Found {len(links)} cases for {year}")
-                year_links = [(year, case_num, url) for case_num, url in links]
+                logger.success(f"Found {len(links)} archived hearing cases for {year}")
+                year_links = [("hearing", year, case_num, url) for case_num, url in links]
                 all_links.extend(year_links)
 
                 # Save intermediate results
@@ -98,29 +130,61 @@ def run_full_scrape():
                     json.dump(year_links, f, indent=2)
 
             except Exception as e:
-                logger.error(f"Error scraping archived {year}: {e}")
+                logger.error(f"Error scraping archived hearings for {year}: {e}")
 
-        # Scrape 2016 and prior
+        # Scrape APPEAL archived years
+        for year in archived_years:
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Scraping ARCHIVED APPEALS for year {year}")
+            logger.info(f"{'='*60}")
+
+            # Check if already scraped
+            links_file = output_dir / f"appeal_links_{year}.json"
+            if links_file.exists():
+                logger.info(f"⏭️  Archived appeal year {year} already scraped, loading from {links_file}")
+                try:
+                    with open(links_file) as f:
+                        existing_links = json.load(f)
+                    all_links.extend(existing_links)
+                    logger.success(f"Loaded {len(existing_links)} archived appeal cases for {year}")
+                    continue
+                except Exception as e:
+                    logger.warning(f"Failed to load existing links, will re-scrape: {e}")
+
+            try:
+                links = scraper.get_appeal_case_links(year, is_archived=True)
+                logger.success(f"Found {len(links)} archived appeal cases for {year}")
+                year_links = [("appeal", year, case_num, url) for case_num, url in links]
+                all_links.extend(year_links)
+
+                # Save intermediate results
+                with open(links_file, 'w') as f:
+                    json.dump(year_links, f, indent=2)
+
+            except Exception as e:
+                logger.error(f"Error scraping archived appeals for {year}: {e}")
+
+        # Scrape 2016 and prior HEARINGS (17 pages)
         logger.info(f"\n{'='*60}")
-        logger.info(f"Scraping 2016 and Prior (17 pages)")
+        logger.info(f"Scraping 2016 and Prior HEARINGS (17 pages)")
         logger.info(f"{'='*60}")
 
         # Check if already scraped
-        prior_links_file = output_dir / "links_2016.json"
+        prior_links_file = output_dir / "hearing_links_2016.json"
         if prior_links_file.exists():
-            logger.info(f"⏭️  2016 and Prior already scraped, loading from {prior_links_file}")
+            logger.info(f"⏭️  2016 and Prior hearings already scraped, loading from {prior_links_file}")
             try:
                 with open(prior_links_file) as f:
                     existing_links = json.load(f)
                 all_links.extend(existing_links)
-                logger.success(f"Loaded {len(existing_links)} pre-2017 cases")
+                logger.success(f"Loaded {len(existing_links)} pre-2017 hearing cases")
             except Exception as e:
                 logger.warning(f"Failed to load existing links, will re-scrape: {e}")
         else:
             try:
                 prior_links = scraper.get_2016_and_prior_links()
-                logger.success(f"Found {len(prior_links)} pre-2017 cases")
-                prior_year_links = [(2016, case_num, url) for case_num, url in prior_links]
+                logger.success(f"Found {len(prior_links)} pre-2017 hearing cases")
+                prior_year_links = [("hearing", 2016, case_num, url) for case_num, url in prior_links]
                 all_links.extend(prior_year_links)
 
                 # Save results
@@ -141,12 +205,27 @@ def run_full_scrape():
     logger.info(f"Total cases found: {len(all_links)}")
     logger.info(f"Links saved to: {all_links_file}")
 
-    # Print summary by year
-    from collections import Counter
-    year_counts = Counter(y for y, _, _ in all_links)
+    # Print summary by case type and year
+    from collections import Counter, defaultdict
+    type_counts = Counter(case_type for case_type, _, _, _ in all_links)
+    year_counts = Counter(year for _, year, _, _ in all_links)
+    type_year_counts = defaultdict(lambda: defaultdict(int))
+    for case_type, year, _, _ in all_links:
+        type_year_counts[case_type][year] += 1
+
+    logger.info("\nCases by type:")
+    for case_type in sorted(type_counts.keys()):
+        logger.info(f"  {case_type}: {type_counts[case_type]} cases")
+
     logger.info("\nCases by year:")
     for year in sorted(year_counts.keys()):
         logger.info(f"  {year}: {year_counts[year]} cases")
+
+    logger.info("\nDetailed breakdown:")
+    for case_type in sorted(type_year_counts.keys()):
+        logger.info(f"\n  {case_type.upper()}:")
+        for year in sorted(type_year_counts[case_type].keys()):
+            logger.info(f"    {year}: {type_year_counts[case_type][year]} cases")
 
     return all_links
 
