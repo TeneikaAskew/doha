@@ -31,7 +31,8 @@ def download_and_parse_pdfs(
     output_dir: Path,
     max_cases: int = None,
     force: bool = False,
-    rate_limit: float = 2.0
+    rate_limit: float = 2.0,
+    case_type: str = "both"
 ):
     """Download PDFs using browser automation and parse them
 
@@ -41,6 +42,7 @@ def download_and_parse_pdfs(
         max_cases: Maximum number of cases to download (for testing)
         force: Force re-download even if PDFs exist
         rate_limit: Seconds to wait between requests (default: 2.0)
+        case_type: Which case types to download - 'hearings', 'appeals', or 'both' (default)
     """
 
     # Load links
@@ -48,6 +50,16 @@ def download_and_parse_pdfs(
         all_links = json.load(f)
 
     logger.info(f"Loaded {len(all_links)} case links")
+
+    # Filter by case type if specified
+    if case_type != "both":
+        original_count = len(all_links)
+        all_links = [
+            link for link in all_links
+            if (len(link) == 4 and link[0] == case_type) or
+               (len(link) == 3 and case_type == "hearings")  # Old format assumes hearings
+        ]
+        logger.info(f"Filtered to {len(all_links)} {case_type} (excluded {original_count - len(all_links)})")
 
     if max_cases:
         all_links = all_links[:max_cases]
@@ -233,11 +245,23 @@ def download_and_parse_pdfs(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Download and parse DOHA case PDFs using browser automation")
+    parser = argparse.ArgumentParser(
+        description="Download and parse DOHA case PDFs using browser automation",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python download_pdfs.py                         # Download all cases (hearings + appeals)
+  python download_pdfs.py --case-type appeals     # Download only appeals
+  python download_pdfs.py --case-type hearings    # Download only hearings
+  python download_pdfs.py --max-cases 10          # Test with 10 cases
+        """
+    )
     parser.add_argument("--links", default="./doha_full_scrape/all_case_links.json",
                        help="Path to links JSON file")
     parser.add_argument("--output", default="./doha_parsed_cases",
                        help="Output directory for parsed cases")
+    parser.add_argument("--case-type", choices=["hearings", "appeals", "both"], default="both",
+                       help="Type of cases to download (default: both)")
     parser.add_argument("--max-cases", type=int,
                        help="Maximum number of cases to download (for testing)")
     parser.add_argument("--force", action="store_true",
@@ -259,7 +283,8 @@ if __name__ == "__main__":
         output_dir=Path(args.output),
         max_cases=args.max_cases,
         force=args.force,
-        rate_limit=args.rate_limit
+        rate_limit=args.rate_limit,
+        case_type=args.case_type
     )
 
     logger.info(f"\nNext step: Build index from parsed cases")
