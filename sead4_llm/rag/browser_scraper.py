@@ -256,6 +256,94 @@ class DOHABrowserScraper(DOHAScraper):
         logger.info(f"Found total of {len(all_links)} cases in 2016 and Prior pages")
         return all_links
 
+    def get_appeal_case_links(self, year: int, is_archived: bool = None) -> List[Tuple[str, str]]:
+        """
+        Get links to Appeal Board decisions for a given year using browser
+
+        Args:
+            year: The year to scrape
+            is_archived: Whether to use archived URL pattern (auto-detect if None)
+
+        Returns:
+            List of (case_number, url) tuples
+        """
+        from bs4 import BeautifulSoup
+        import re
+
+        # Auto-detect if year should use archive pattern
+        if is_archived is None:
+            is_archived = year < 2019
+
+        # Choose URL pattern based on year
+        # Appeal Board has different URL patterns for different years
+        if is_archived:
+            url = self.DOHA_APPEAL_ARCHIVE_BASE
+        elif year == 2022:
+            url = self.DOHA_APPEAL_2022_PATTERN
+        elif year == 2021:
+            url = self.DOHA_APPEAL_2021_PATTERN
+        elif year == 2020:
+            url = self.DOHA_APPEAL_2020_PATTERN
+        elif year == 2019:
+            url = self.DOHA_APPEAL_2019_PATTERN
+        else:
+            # 2023 and later use the standard pattern
+            url = self.DOHA_APPEAL_YEAR_PATTERN.format(year=year)
+
+        logger.info(f"Fetching Appeal Board case list for year {year} from {url}")
+
+        html = self._browser_get(url)
+
+        if not html or len(html) < 100:
+            logger.error(f"Failed to get Appeal Board content for year {year}")
+            return []
+
+        soup = BeautifulSoup(html, 'html.parser')
+
+        links = []
+        # Look for FileId links which point to individual cases
+        for a in soup.find_all('a', href=True):
+            href = a['href']
+
+            # New structure uses /FileId/{number}/ pattern
+            if '/FileId/' in href:
+                file_id_match = re.search(r'/FileId/(\d+)', href)
+                if file_id_match:
+                    file_id = file_id_match.group(1)
+                    case_number = f"appeal-{year}-{file_id}"
+
+                    # Make absolute URL
+                    if not href.startswith('http'):
+                        if href.startswith('/'):
+                            href = 'https://doha.ogc.osd.mil' + href
+                        else:
+                            href = url + href
+
+                    links.append((case_number, href))
+
+            # Also look for old-style case number patterns as fallback
+            elif re.search(r'\d{2}-\d+', href):
+                case_match = re.search(r'(\d{2}-\d+)', href)
+                if case_match:
+                    case_number = f"appeal-{case_match.group(1)}"
+                    if not href.startswith('http'):
+                        if href.startswith('/'):
+                            href = 'https://doha.ogc.osd.mil' + href
+                        else:
+                            href = url + href
+                    links.append((case_number, href))
+
+        # Remove duplicates
+        seen = set()
+        unique_links = []
+        for case_num, case_url in links:
+            if case_num not in seen:
+                seen.add(case_num)
+                unique_links.append((case_num, case_url))
+
+        logger.info(f"Found {len(unique_links)} Appeal Board cases for year {year}")
+        return unique_links
+
     def scrape_case_html(self, url: str) -> Optional[str]:
         """Scrape case text from HTML page using browser"""
         from bs4 import BeautifulSoup

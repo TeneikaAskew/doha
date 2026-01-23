@@ -67,7 +67,10 @@ class DOHAScraper:
     2. DOHA case archives
     """
 
-    # Base URLs for DOHA cases - Updated to correct structure
+    # ========================================
+    # HEARING DECISIONS URL PATTERNS
+    # ========================================
+    # Base URLs for DOHA Hearing cases
     DOHA_BASE_URL = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/"
     # Pattern for recent years (current structure)
     # Note: 2024 uses different pattern (2024-ISCR-Hearing vs 2025-ISCR-Hearing-Decisions)
@@ -79,6 +82,22 @@ class DOHAScraper:
     # For 2016 and prior (split across multiple pages)
     DOHA_2016_PRIOR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/Archived-ISCR-Hearing-Decisions/2016-and-Prior-ISCR-Hearing-Decisions-{page}/"
     DOHA_2016_PRIOR_PAGES = 17  # There are 17 pages for 2016 and prior cases
+
+    # ========================================
+    # APPEAL BOARD DECISIONS URL PATTERNS
+    # ========================================
+    # Base URL for DOHA Appeal Board decisions
+    DOHA_APPEAL_BASE_URL = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/"
+    # Pattern for recent appeal years (2019-current)
+    # Note: URL patterns vary by year (some use "DOHA-Appeal-Board" others use "DOHA-Appeal-Board-Decisions")
+    DOHA_APPEAL_YEAR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/{year}-DOHA-Appeal-Board-Decisions/"
+    # Special patterns for years with different URL structure
+    DOHA_APPEAL_2022_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/2022-DOHA-Appeal-Board/"
+    DOHA_APPEAL_2021_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/2021-DOHA-Appeal-Board/"
+    DOHA_APPEAL_2020_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/2020-DOHA-Appeal-Board/"
+    DOHA_APPEAL_2019_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/2019-DOHA-Appeal-Board/"
+    # For archived appeal years
+    DOHA_APPEAL_ARCHIVE_BASE = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/Archived-DOHA-Appeal-Board/"
 
     # Guideline patterns for extraction
     GUIDELINE_PATTERNS = {
