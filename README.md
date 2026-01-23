@@ -223,6 +223,23 @@ python analyze.py --input-dir <directory> --output-dir <directory> [--provider <
 python build_index.py --scrape --start-year <year> --end-year <year> --output <path>
 ```
 
+## References
+
+### Official Resources
+
+- **[CDSE Training Toolkits](https://www.cdse.edu/Training/Toolkits/)** - Center for Development of Security Excellence training resources
+- **[Personnel Vetting Toolkit](https://www.cdse.edu/Training/Toolkits/Personnel-Vetting-Toolkit/#personnel-vetting-policy)** - Personnel vetting policy and procedures
+- **[Adjudicator Toolkit](https://www.cdse.edu/Training/Toolkits/Adjudicator-Toolkit/)** - Resources for security clearance adjudicators
+
+### Policy Documents
+
+- **[SEAD-4 Adjudicative Guidelines](https://www.dni.gov/files/NCSC/documents/Regulations/SEAD-4-Adjudicative-Guidelines-U.pdf)** - Security Executive Agent Directive 4 (official guidelines used by this tool)
+- **[SEAD-8 Temporary Eligibility](https://www.odni.gov/files/NCSC/documents/Regulations/SEAD-8_Temporary_Eligibility_U.pdf)** - Temporary eligibility standards
+- **[Federal Personnel Vetting Guidelines](https://www.dni.gov/files/NCSC/documents/Regulations/Federal_Personnel_Vetting_Guidelines_10FEB2022-15Jul22.pdf)** - Federal personnel vetting standards and procedures
+- **[Trusted Workforce Policy Index](https://assets.performance.gov/files/Trusted_Workforce_Policy_Index.pdf)** - Trusted Workforce 2.0 policy framework
+- **[Suitability Guide for Employees](https://www.dcpas.osd.mil/sites/default/files/2021-04/Suitability_Guide_for_Employees.pdf)** - DOD suitability adjudication guide
+- **[DoDI 5200.02](https://www.esd.whs.mil/Portals/54/Documents/DD/issuances/dodi/520002p.pdf)** - DOD Personnel Security Program
+
 ## License
 
 This project is intended for educational use only. It is provided as-is for learning purposes and should not be used for production security clearance adjudication or other official government purposes.
