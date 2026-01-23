@@ -53,10 +53,13 @@ def download_and_parse_pdfs(
 
     # Filter by case type if specified
     if case_type != "both":
+        # Map plural CLI argument to singular data format
+        case_type_singular = case_type.rstrip('s')  # "appeals" -> "appeal", "hearings" -> "hearing"
+
         original_count = len(all_links)
         all_links = [
             link for link in all_links
-            if (len(link) == 4 and link[0] == case_type) or
+            if (len(link) == 4 and link[0] == case_type_singular) or
                (len(link) == 3 and case_type == "hearings")  # Old format assumes hearings
         ]
         logger.info(f"Filtered to {len(all_links)} {case_type} (excluded {original_count - len(all_links)})")
