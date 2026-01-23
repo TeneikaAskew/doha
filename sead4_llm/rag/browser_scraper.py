@@ -296,18 +296,11 @@ class DOHABrowserScraper(DOHAScraper):
                 logger.error(f"Failed to download PDF: HTTP {response.status if response else 'no response'}")
                 return None
 
-            # Wait for download to potentially start
-            time.sleep(2)
-
-            # Get PDF content directly
-            # For PDFs, the page content might be the raw PDF data or a viewer
-            # We'll use requests as fallback for PDF downloads
-            import requests
-            pdf_response = requests.get(url, timeout=30)
-            pdf_response.raise_for_status()
+            # Get PDF content from response body (through browser)
+            pdf_bytes = response.body()
 
             # Parse PDF from bytes
-            doc = fitz.open(stream=pdf_response.content, filetype="pdf")
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
             text_parts = []
 
             for page in doc:
@@ -318,6 +311,36 @@ class DOHABrowserScraper(DOHAScraper):
 
         except Exception as e:
             logger.error(f"Failed to scrape PDF from {url}: {e}")
+            return None
+
+    def download_case_pdf_bytes(self, url: str) -> Optional[bytes]:
+        """
+        Download PDF bytes using browser (bypasses bot protection)
+
+        Args:
+            url: URL to PDF file
+
+        Returns:
+            PDF bytes or None on failure
+        """
+        try:
+            logger.debug(f"Downloading PDF bytes from {url}")
+
+            # Use playwright's request context to fetch the PDF
+            # This goes through the browser's session (with cookies, etc.) but doesn't navigate
+            response = self.page.context.request.get(url, timeout=60000)
+
+            if response.status != 200:
+                logger.error(f"Failed to download PDF: HTTP {response.status}")
+                return None
+
+            # Get the response body
+            pdf_bytes = response.body()
+
+            return pdf_bytes
+
+        except Exception as e:
+            logger.error(f"Failed to download PDF from {url}: {e}")
             return None
 
 
