@@ -62,7 +62,8 @@ sead4_llm/
 ├── rag/
 │   ├── indexer.py         # DOHA case indexer
 │   ├── retriever.py       # Precedent retriever
-│   └── scraper.py         # DOHA website scraper
+│   ├── scraper.py         # HTTP-based scraper (blocked)
+│   └── browser_scraper.py # Playwright browser scraper (works)
 ├── analyze.py             # Main entry point with PDF parsing
 ├── build_index.py         # DOHA index builder CLI
 └── requirements.txt
@@ -72,17 +73,35 @@ sead4_llm/
 
 For improved analysis with precedent matching (RAG), you can build an index of DOHA case decisions. This helps the model make better-informed decisions by referencing similar historical cases.
 
-### Option 1: Scrape from DOHA Website
+### Option 1: Browser-Based Scraping (Recommended)
+
+⚠️ **Note**: The `--scrape` option below uses HTTP requests which are blocked by bot protection. For successful scraping, use the **Playwright-based browser scraper** in the root directory:
 
 ```bash
-# Scrape recent cases and build index
+# Return to root directory
+cd ..
+
+# Collect all case links with browser automation (recommended)
+python run_full_scrape.py
+
+# Download and parse PDFs
+python download_pdfs.py --max-cases 100  # Test with 100 cases
+python download_pdfs.py                   # Download all 30K+ cases
+
+# Build index from parsed cases
+cd sead4_llm
+python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ./doha_index
+```
+
+See [DOHA_SCRAPING_GUIDE.md](../DOHA_SCRAPING_GUIDE.md) for complete details on browser-based scraping.
+
+### Option 1b: HTTP Scraping (Currently Blocked)
+
+The built-in HTTP scraper is blocked by Akamai bot protection but included for reference:
+
+```bash
+# ⚠️ This will likely fail with 403 errors
 python build_index.py --scrape --start-year 2020 --end-year 2024 --output ./doha_index
-
-# Scrape with a limit on total cases
-python build_index.py --scrape --start-year 2020 --end-year 2024 --max-cases 500 --output ./doha_index
-
-# Adjust rate limiting (default: 1 second between requests)
-python build_index.py --scrape --start-year 2022 --end-year 2024 --rate-limit 2.0 --output ./doha_index
 ```
 
 ### Option 2: Build from Local Files
