@@ -80,9 +80,8 @@ sead4_llm/
     └── browser_scraper.py # Playwright browser scraper (recommended)
 
 # Root-level scraping scripts
-├── run_full_scrape.py         # Automated link collection (30K+ cases)
-├── download_pdfs_browser.py   # Browser-based PDF downloader (WORKS - use this!)
-└── download_pdfs.py           # Parallel downloader (doesn't work - bot protection)
+├── run_full_scrape.py     # Automated link collection (30K+ cases)
+└── download_pdfs.py       # Browser-based PDF downloader
 ```
 
 ## Building the DOHA Precedent Index
@@ -105,8 +104,8 @@ See [**DOHA_SCRAPING_GUIDE.md**](DOHA_SCRAPING_GUIDE.md) for complete details on
 python run_full_scrape.py
 
 # 2. Download and parse PDFs using browser automation (~8-9 hours)
-python download_pdfs_browser.py --max-cases 10  # Test with 10 cases first
-python download_pdfs_browser.py                 # Download all 30K+ cases
+python download_pdfs.py --max-cases 10  # Test with 10 cases first
+python download_pdfs.py                 # Download all 30K+ cases
 
 # 3. Build RAG index from parsed cases
 cd sead4_llm
@@ -116,7 +115,7 @@ python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output .
 python build_index.py --test --index ./doha_index
 ```
 
-**Note**: Use `download_pdfs_browser.py` (not `download_pdfs.py`). Individual PDF URLs are also protected by bot protection and require browser-based downloads.
+**Note**: Individual PDF URLs are protected by Akamai bot protection and require browser-based downloads to bypass the 403 errors.
 
 ### Alternative: Build from Local Files
 

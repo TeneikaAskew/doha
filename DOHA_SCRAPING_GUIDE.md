@@ -31,8 +31,8 @@ sudo apt-get update && sudo apt-get install -y \
 python run_full_scrape.py
 
 # 2. Download and parse PDFs (browser-based, bypasses bot protection)
-python download_pdfs_browser.py --max-cases 10  # Test with 10 cases
-python download_pdfs_browser.py                 # Download all 30K+ cases (~8-9 hours)
+python download_pdfs.py --max-cases 10  # Test with 10 cases
+python download_pdfs.py                 # Download all 30K+ cases (~8-9 hours)
 
 # 3. Build RAG index
 cd sead4_llm
@@ -78,7 +78,7 @@ Successfully scraped **30,850 cases** across all years:
 ### Individual Cases
 Cases are accessed via `/FileId/{number}/` URLs which serve PDF files directly.
 
-**⚠️ IMPORTANT**: Individual PDF URLs are ALSO protected by Akamai bot protection (403 errors). Use `download_pdfs_browser.py` which uses Playwright's browser request context to bypass protection.
+**⚠️ IMPORTANT**: Individual PDF URLs are ALSO protected by Akamai bot protection (403 errors). Use `download_pdfs.py` which uses Playwright's browser request context to bypass protection.
 
 ## 🔧 How It Works
 
@@ -158,7 +158,7 @@ Both scripts are **smart about avoiding re-work**:
 - Only scrapes missing years
 - Shows ⏭️ emoji when skipping completed years
 
-**PDF Download** (`download_pdfs_browser.py`):
+**PDF Download** (`download_pdfs.py`):
 - Checks for existing PDFs on disk
 - Loads `all_cases.json` to see which cases are parsed
 - Skips cases that have both PDF file AND parsed entry
@@ -169,7 +169,7 @@ Both scripts are **smart about avoiding re-work**:
 
 **Why Browser-Based?**
 
-Initially, we attempted parallel downloads using Python's `requests` library with ThreadPoolExecutor. However, **ALL PDF URLs return 403 Forbidden errors** due to Akamai bot protection:
+Individual PDF URLs are **also protected by Akamai bot protection** and return 403 Forbidden errors with standard HTTP requests:
 
 ```bash
 # Standard HTTP requests FAIL:
@@ -179,27 +179,19 @@ Access Denied (403)
 
 **Solution: Browser Request Context**
 
-The working solution uses Playwright's browser request context API:
+The `download_pdfs.py` script uses Playwright's browser request context API:
 - `page.context.request.get(url)` makes HTTP requests through the browser's session
 - Inherits browser cookies and authentication state
 - Bypasses Akamai protection without triggering download dialogs
 - Fast: ~8-10 cases/second (~0.1-0.2 seconds per PDF)
-
-**Why Sequential Instead of Parallel?**
-
-Browser contexts have concurrency limitations:
-- Each Playwright context can't easily handle parallel requests
-- The request API is already very fast
 - Sequential processing: ~8-9 hours for 30,850 cases (reasonable for overnight run)
-- Alternative would require multiple browser instances (complex, higher resource usage)
 
 ## 📝 Scripts Overview
 
 | Script | Purpose | Status | Notes |
 |--------|---------|--------|-------|
 | `run_full_scrape.py` | Collect case links | ✅ Works | Uses browser, ~11 minutes for 30K links |
-| `download_pdfs_browser.py` | Download PDFs | ✅ Works | **Use this one!** Browser-based, ~8-9 hours |
-| `download_pdfs.py` | Download PDFs (parallel) | ❌ Doesn't work | All requests return 403 (bot protection) |
+| `download_pdfs.py` | Download PDFs | ✅ Works | Browser-based, ~8-9 hours for 30K cases |
 
 ## 📝 Usage
 
@@ -232,18 +224,18 @@ python run_full_scrape.py
 
 ```bash
 # Test with first 10 cases
-python download_pdfs_browser.py --max-cases 10
+python download_pdfs.py --max-cases 10
 
 # Download all cases (~8-9 hours for 30K+)
-python download_pdfs_browser.py
+python download_pdfs.py
 
 # Custom paths and rate limiting
-python download_pdfs_browser.py --links ./doha_full_scrape/all_case_links.json \
-                                --output ./my_parsed_cases \
-                                --rate-limit 1.5
+python download_pdfs.py --links ./doha_full_scrape/all_case_links.json \
+                        --output ./my_parsed_cases \
+                        --rate-limit 1.5
 
 # Force re-download everything
-python download_pdfs_browser.py --force
+python download_pdfs.py --force
 ```
 
 **The browser-based downloader**:
@@ -389,9 +381,8 @@ From our scrape:
 
 - [README.md](README.md) - Main project documentation
 - [INVESTIGATION_SUMMARY.md](INVESTIGATION_SUMMARY.md) - How we got here
-- [run_full_scrape.py](run_full_scrape.py) - Link collection script (works)
-- [download_pdfs_browser.py](download_pdfs_browser.py) - Browser-based PDF downloader (✅ USE THIS)
-- [download_pdfs.py](download_pdfs.py) - Parallel downloader (❌ doesn't work due to 403 errors)
+- [run_full_scrape.py](run_full_scrape.py) - Link collection script
+- [download_pdfs.py](download_pdfs.py) - Browser-based PDF downloader
 - [sead4_llm/rag/browser_scraper.py](sead4_llm/rag/browser_scraper.py) - Browser scraper implementation
 - [sead4_llm/build_index.py](sead4_llm/build_index.py) - Index builder
 
