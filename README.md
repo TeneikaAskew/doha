@@ -115,9 +115,8 @@ sead4_llm/
 
 Environment variables:
 - `ANTHROPIC_API_KEY` - Claude API key
-- `OPENAI_API_KEY` - OpenAI API key (optional)
 - `DOHA_INDEX_PATH` - Path to DOHA vector index (for RAG)
 
 ## License
 
-For government/educational use.
+This project is intended for educational use only. It is provided as-is for learning purposes and should not be used for production security clearance adjudication or other official government purposes.

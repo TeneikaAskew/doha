@@ -67,9 +67,16 @@ class DOHAScraper:
     2. DOHA case archives
     """
 
-    # Base URLs for DOHA cases
-    DOHA_BASE_URL = "https://ogc.osd.mil/doha/industrial/"
-    DOHA_ARCHIVE_PATTERN = "https://ogc.osd.mil/doha/industrial/{year}/"
+    # Base URLs for DOHA cases - Updated to correct structure
+    DOHA_BASE_URL = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/"
+    # Pattern for recent years (current structure)
+    DOHA_YEAR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/{year}-ISCR-Hearing-Decisions/"
+    # For archived years
+    DOHA_ARCHIVE_BASE = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/Archived-ISCR-Hearing-Decisions/"
+    DOHA_ARCHIVE_YEAR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/Archived-ISCR-Hearing-Decisions/{year}-ISCR-Hearing-Decisions/"
+    # For 2016 and prior (split across multiple pages)
+    DOHA_2016_PRIOR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/Archived-ISCR-Hearing-Decisions/2016-and-Prior-ISCR-Hearing-Decisions-{page}/"
+    DOHA_2016_PRIOR_PAGES = 17  # There are 17 pages for 2016 and prior cases
 
     # Guideline patterns for extraction
     GUIDELINE_PATTERNS = {
@@ -98,8 +105,8 @@ class DOHAScraper:
     def __init__(
         self,
         output_dir: Path = Path("./doha_cases"),
-        rate_limit: float = 1.0,  # seconds between requests
-        user_agent: str = "SEAD4-Analyzer/1.0 (Research Tool)"
+        rate_limit: float = 2.0,  # seconds between requests (increased for politeness)
+        user_agent: str = None
     ):
         if not HAS_REQUESTS:
             raise ImportError("requests and beautifulsoup4 required. Install with: pip install requests beautifulsoup4")
@@ -108,35 +115,136 @@ class DOHAScraper:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.rate_limit = rate_limit
         self.session = requests.Session()
+
+        # Use realistic browser headers to avoid bot detection
+        if user_agent is None:
+            user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
         self.session.headers.update({
-            'User-Agent': user_agent
+            'User-Agent': user_agent,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
         })
         self._last_request = 0
+        self.max_retries = 3
 
     def _rate_limited_get(self, url: str, **kwargs) -> requests.Response:
-        """Make a rate-limited GET request"""
+        """Make a rate-limited GET request with retry logic"""
         elapsed = time.time() - self._last_request
         if elapsed < self.rate_limit:
             time.sleep(self.rate_limit - elapsed)
 
         logger.debug(f"Fetching: {url}")
-        response = self.session.get(url, timeout=30, **kwargs)
-        self._last_request = time.time()
+
+        # Retry logic for handling temporary failures
+        for attempt in range(self.max_retries):
+            try:
+                response = self.session.get(url, timeout=30, **kwargs)
+                self._last_request = time.time()
+
+                # If we get a 403, wait longer and retry
+                if response.status_code == 403:
+                    if attempt < self.max_retries - 1:
+                        wait_time = (attempt + 1) * 5  # Progressive backoff
+                        logger.warning(f"Got 403 for {url}, waiting {wait_time}s before retry {attempt + 1}/{self.max_retries}")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        logger.error(f"Failed with 403 after {self.max_retries} attempts: {url}")
+
+                return response
+
+            except requests.RequestException as e:
+                if attempt < self.max_retries - 1:
+                    wait_time = (attempt + 1) * 3
+                    logger.warning(f"Request failed: {e}, retrying in {wait_time}s")
+                    time.sleep(wait_time)
+                else:
+                    raise
 
         return response
 
-    def get_case_links(self, year: int) -> List[Tuple[str, str]]:
+    def discover_available_years(self) -> List[int]:
+        """
+        Discover all available years from the DOHA website
+
+        Returns:
+            List of years with available cases
+        """
+        available_years = []
+
+        # Try recent years (2015-2026)
+        current_year = datetime.now().year
+        for year in range(2015, current_year + 2):
+            url = self.DOHA_YEAR_PATTERN.format(year=year)
+            try:
+                response = self._rate_limited_get(url)
+                if response.status_code == 200:
+                    available_years.append(year)
+                    logger.info(f"Year {year} is available")
+                elif response.status_code == 404:
+                    logger.debug(f"Year {year} not found (404)")
+                elif response.status_code == 403:
+                    logger.warning(f"Access denied for year {year} (403) - may need different access method")
+                    # Still add it, might work later or from different network
+                    available_years.append(year)
+            except requests.RequestException as e:
+                logger.debug(f"Could not check year {year}: {e}")
+
+        # Also check archived years section
+        try:
+            response = self._rate_limited_get(self.DOHA_ARCHIVE_BASE)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                for a in soup.find_all('a', href=True):
+                    # Look for year patterns in archive links
+                    year_match = re.search(r'(\d{4})-ISCR', a['href'])
+                    if year_match:
+                        year = int(year_match.group(1))
+                        if year not in available_years:
+                            available_years.append(year)
+                            logger.info(f"Found archived year {year}")
+        except requests.RequestException as e:
+            logger.warning(f"Could not check archived years: {e}")
+
+        available_years.sort()
+        logger.info(f"Discovered {len(available_years)} available years: {available_years}")
+        return available_years
+
+    def get_case_links(self, year: int, is_archived: bool = None) -> List[Tuple[str, str]]:
         """
         Get links to case decisions for a given year
+
+        Args:
+            year: The year to scrape
+            is_archived: Whether to use archived URL pattern (auto-detect if None)
 
         Returns:
             List of (case_number, url) tuples
         """
-        url = self.DOHA_ARCHIVE_PATTERN.format(year=year)
+        # Auto-detect if year should use archive pattern
+        if is_archived is None:
+            is_archived = year < 2023  # Adjust threshold as needed
+
+        # Choose URL pattern based on year
+        if year >= 2023 or not is_archived:
+            url = self.DOHA_YEAR_PATTERN.format(year=year)
+        else:
+            url = self.DOHA_ARCHIVE_YEAR_PATTERN.format(year=year)
 
         try:
             response = self._rate_limited_get(url)
             response.raise_for_status()
+
+            if response.status_code == 403:
+                logger.error(f"Access denied (403) for {year}. DOHA website may be blocking automated access.")
+                logger.info("Consider: 1) Running from different network, 2) Manual download, 3) Contact DOHA for bulk access")
+                return []
+
         except requests.RequestException as e:
             logger.error(f"Failed to fetch case list for {year}: {e}")
             return []
@@ -144,25 +252,48 @@ class DOHAScraper:
         soup = BeautifulSoup(response.text, 'html.parser')
 
         links = []
+        # Look for FileId links which point to individual cases
         for a in soup.find_all('a', href=True):
             href = a['href']
-            # Look for case links (typically .html or .pdf)
-            if re.search(r'\d{2}-\d+', href):
+
+            # New structure uses /FileId/{number}/ pattern
+            if '/FileId/' in href:
+                # Extract FileId number
+                file_id_match = re.search(r'/FileId/(\d+)', href)
+                if file_id_match:
+                    file_id = file_id_match.group(1)
+                    # Use FileId as case identifier
+                    case_number = f"{year}-{file_id}"
+
+                    # Make absolute URL
+                    if not href.startswith('http'):
+                        if href.startswith('/'):
+                            href = 'https://doha.ogc.osd.mil' + href
+                        else:
+                            href = url + href
+
+                    links.append((case_number, href))
+
+            # Also look for old-style case number patterns as fallback
+            elif re.search(r'\d{2}-\d+', href):
                 case_match = re.search(r'(\d{2}-\d+)', href)
                 if case_match:
                     case_number = case_match.group(1)
                     # Make absolute URL
                     if not href.startswith('http'):
-                        href = url + href
+                        if href.startswith('/'):
+                            href = 'https://doha.ogc.osd.mil' + href
+                        else:
+                            href = url + href
                     links.append((case_number, href))
 
         # Remove duplicates
         seen = set()
         unique_links = []
-        for case_num, url in links:
+        for case_num, case_url in links:
             if case_num not in seen:
                 seen.add(case_num)
-                unique_links.append((case_num, url))
+                unique_links.append((case_num, case_url))
 
         logger.info(f"Found {len(unique_links)} cases for year {year}")
         return unique_links
@@ -404,25 +535,95 @@ class DOHAScraper:
         # Fallback: use first 1500 chars
         return re.sub(r'\s+', ' ', text[:1500]).strip()
 
+    def get_2016_and_prior_links(self) -> List[Tuple[str, str]]:
+        """
+        Get links from all "2016 and Prior" pages
+
+        Returns:
+            List of (case_number, url) tuples
+        """
+        all_links = []
+
+        for page in range(1, self.DOHA_2016_PRIOR_PAGES + 1):
+            url = self.DOHA_2016_PRIOR_PATTERN.format(page=page)
+            logger.info(f"Fetching 2016 and Prior page {page}/{self.DOHA_2016_PRIOR_PAGES}...")
+
+            try:
+                response = self._rate_limited_get(url)
+                if response.status_code != 200:
+                    logger.warning(f"Failed to fetch page {page}: HTTP {response.status_code}")
+                    continue
+
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                page_links = []
+                for a in soup.find_all('a', href=True):
+                    href = a['href']
+
+                    # Look for FileId links
+                    if '/FileId/' in href:
+                        file_id_match = re.search(r'/FileId/(\d+)', href)
+                        if file_id_match:
+                            file_id = file_id_match.group(1)
+                            case_number = f"pre2016-{file_id}"
+
+                            if not href.startswith('http'):
+                                if href.startswith('/'):
+                                    href = 'https://doha.ogc.osd.mil' + href
+                                else:
+                                    href = url + href
+
+                            page_links.append((case_number, href))
+
+                    # Also look for old-style case numbers
+                    elif re.search(r'\d{2}-\d+', href):
+                        case_match = re.search(r'(\d{2}-\d+)', href)
+                        if case_match:
+                            case_number = case_match.group(1)
+                            if not href.startswith('http'):
+                                if href.startswith('/'):
+                                    href = 'https://doha.ogc.osd.mil' + href
+                                else:
+                                    href = url + href
+                            page_links.append((case_number, href))
+
+                # Remove duplicates within this page
+                seen = set()
+                for case_num, case_url in page_links:
+                    if case_num not in seen:
+                        seen.add(case_num)
+                        all_links.append((case_num, case_url))
+
+                logger.info(f"Found {len(page_links)} cases on page {page}")
+
+            except Exception as e:
+                logger.error(f"Error fetching 2016 and Prior page {page}: {e}")
+
+        logger.info(f"Found total of {len(all_links)} cases in 2016 and Prior pages")
+        return all_links
+
     def scrape_years(
         self,
         start_year: int,
         end_year: int,
-        max_cases_per_year: Optional[int] = None
+        max_cases_per_year: Optional[int] = None,
+        include_2016_and_prior: bool = False
     ) -> List[ScrapedCase]:
         """
         Scrape cases for a range of years
 
         Args:
-            start_year: Starting year (2-digit or 4-digit)
-            end_year: Ending year
+            start_year: Starting year (4-digit)
+            end_year: Ending year (4-digit)
             max_cases_per_year: Optional limit per year
+            include_2016_and_prior: If True, also scrape "2016 and Prior" archives
 
         Returns:
             List of scraped cases
         """
         all_cases = []
 
+        # Scrape requested years
         for year in range(start_year, end_year + 1):
             logger.info(f"Scraping cases for year {year}...")
 
@@ -440,10 +641,57 @@ class DOHAScraper:
                 except Exception as e:
                     logger.error(f"Error scraping case {case_number}: {e}")
 
-            # Save intermediate results
+            # Save intermediate results after each year
             self._save_cases(all_cases, f"cases_{start_year}_{year}.json")
 
+        # Optionally scrape 2016 and Prior
+        if include_2016_and_prior:
+            logger.info("Scraping 2016 and Prior cases...")
+            prior_links = self.get_2016_and_prior_links()
+
+            if max_cases_per_year:
+                prior_links = prior_links[:max_cases_per_year]
+
+            for case_number, url in prior_links:
+                try:
+                    case = self.scrape_case(case_number, url)
+                    if case:
+                        all_cases.append(case)
+                        logger.info(f"Scraped case {case_number}: {case.outcome}")
+                except Exception as e:
+                    logger.error(f"Error scraping case {case_number}: {e}")
+
+            # Save final results including prior cases
+            self._save_cases(all_cases, f"cases_{start_year}_{end_year}_all.json")
+
         return all_cases
+
+    def scrape_all_available(self, max_cases_per_year: Optional[int] = None) -> List[ScrapedCase]:
+        """
+        Scrape all available DOHA cases including current years and archives
+
+        Args:
+            max_cases_per_year: Optional limit per year
+
+        Returns:
+            List of all scraped cases
+        """
+        logger.info("Starting comprehensive scrape of all DOHA cases...")
+
+        # Get current year
+        current_year = datetime.now().year
+
+        # Scrape recent years (2017-current)
+        # Years 2017-2022 are in archives, 2023+ are in current section
+        cases = self.scrape_years(
+            start_year=2017,
+            end_year=current_year + 1,
+            max_cases_per_year=max_cases_per_year,
+            include_2016_and_prior=True  # Also get all pre-2017 cases
+        )
+
+        logger.info(f"Comprehensive scrape complete! Total cases: {len(cases)}")
+        return cases
 
     def _save_cases(self, cases: List[ScrapedCase], filename: str):
         """Save cases to JSON file"""
