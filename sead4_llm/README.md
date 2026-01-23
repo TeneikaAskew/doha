@@ -60,15 +60,16 @@ sead4_llm/
 ├── prompts/
 │   └── templates.py       # Structured prompts
 ├── analyzers/
-│   ├── base.py            # Base analyzer class
 │   ├── claude_analyzer.py # Claude API implementation
 │   └── gemini_analyzer.py # Google Gemini API implementation
 ├── rag/
 │   ├── indexer.py         # DOHA case indexer
-│   └── retriever.py       # Precedent retriever
+│   ├── retriever.py       # Precedent retriever
+│   └── scraper.py         # DOHA website scraper
 ├── parsers/
 │   └── document.py        # PDF/text extraction
 ├── analyze.py             # Main entry point
+├── build_index.py         # DOHA index builder CLI
 └── requirements.txt
 ```
 
@@ -82,6 +83,74 @@ sead4_llm/
 Use the `--provider` flag to select your LLM:
 - `--provider claude` (default)
 - `--provider gemini`
+
+## Building the DOHA Precedent Index
+
+For improved analysis with precedent matching (RAG), you can build an index of DOHA case decisions. This helps the model make better-informed decisions by referencing similar historical cases.
+
+### Option 1: Scrape from DOHA Website
+
+```bash
+# Scrape recent cases and build index
+python build_index.py --scrape --start-year 2020 --end-year 2024 --output ./doha_index
+
+# Scrape with a limit on total cases
+python build_index.py --scrape --start-year 2020 --end-year 2024 --max-cases 500 --output ./doha_index
+
+# Adjust rate limiting (default: 1 second between requests)
+python build_index.py --scrape --start-year 2022 --end-year 2024 --rate-limit 2.0 --output ./doha_index
+```
+
+### Option 2: Build from Local Files
+
+If you've already downloaded DOHA case PDFs or HTML files:
+
+```bash
+# Build from a directory of case files
+python build_index.py --local-dir ./downloaded_cases --output ./doha_index
+```
+
+Supported file formats: `.pdf`, `.html`, `.txt`
+
+### Option 3: Build from Pre-extracted JSON
+
+If you have case data in JSON format:
+
+```bash
+python build_index.py --from-json ./cases.json --output ./doha_index
+```
+
+Expected JSON format:
+```json
+[
+  {
+    "case_number": "22-01234",
+    "overall_decision": "DENIED",
+    "guidelines": {"F": {"relevant": true}, "E": {"relevant": true}},
+    "text": "Full case text...",
+    "sor_allegations": ["Allegation 1", "Allegation 2"]
+  }
+]
+```
+
+### Testing the Index
+
+```bash
+# Test with a sample financial query
+python build_index.py --test --index ./doha_index
+```
+
+### Using the Index for Analysis
+
+Once built, use the index with the analyzer:
+
+```bash
+# Analyze with precedent matching
+python analyze.py --input report.pdf --use-rag --index ./doha_index
+
+# Combine with Gemini provider
+python analyze.py --input report.pdf --use-rag --index ./doha_index --provider gemini
+```
 
 ## Output Format
 

@@ -10,6 +10,10 @@ PyMuPDF>=1.23.0
 sentence-transformers>=2.2.0
 numpy>=1.24.0
 
+# Web scraping (for DOHA case scraping)
+requests>=2.28.0
+beautifulsoup4>=4.12.0
+
 # Google Gemini support
 google-generativeai>=0.5.0
 
