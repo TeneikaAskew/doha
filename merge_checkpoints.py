@@ -104,15 +104,23 @@ def merge_checkpoints(input_dir: str = "doha_parsed_cases", output_parquet: bool
             with open(checkpoint_file) as f:
                 cases = json.load(f)
 
+            # Validate structure
+            if not isinstance(cases, list):
+                logger.error(f"{checkpoint_file.name}: Invalid format (expected list, got {type(cases).__name__}), skipping")
+                continue
+
             new_count = 0
             for case in cases:
+                if not isinstance(case, dict):
+                    logger.warning(f"{checkpoint_file.name}: Skipping non-dict case")
+                    continue
                 case_number = case.get('case_number')
                 if case_number and case_number not in cases_by_number:
                     cases_by_number[case_number] = case
                     new_count += 1
 
             logger.info(f"{checkpoint_file.name}: {len(cases)} cases ({new_count} new)")
-        except Exception as e:
+        except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
             logger.error(f"Error loading {checkpoint_file}: {e}")
 
     # Convert to list

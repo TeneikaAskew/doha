@@ -162,21 +162,28 @@ class DOHAIndexer:
             raise FileNotFoundError(f"Index not found at {path}")
             
         # Load cases
-        with open(path / "cases.json") as f:
-            cases_data = json.load(f)
-            
-        self.cases = [
-            IndexedCase(
-                case_number=c['case_number'],
-                year=c['year'],
-                outcome=c['outcome'],
-                guidelines=c['guidelines'],
-                summary=c['summary'],
-                key_facts=c['key_facts'],
-                judge=c['judge']
-            )
-            for c in cases_data
-        ]
+        try:
+            with open(path / "cases.json") as f:
+                cases_data = json.load(f)
+
+            # Validate structure
+            if not isinstance(cases_data, list):
+                raise ValueError(f"Invalid cases.json format: expected list, got {type(cases_data).__name__}")
+
+            self.cases = [
+                IndexedCase(
+                    case_number=c['case_number'],
+                    year=c['year'],
+                    outcome=c['outcome'],
+                    guidelines=c['guidelines'],
+                    summary=c['summary'],
+                    key_facts=c['key_facts'],
+                    judge=c['judge']
+                )
+                for c in cases_data
+            ]
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            raise ValueError(f"Failed to load cases from {path / 'cases.json'}: {e}") from e
         
         # Load embeddings
         embeddings_path = path / "embeddings.npy"
@@ -267,9 +274,17 @@ def create_index_from_extracted_cases(
     Returns:
         Populated DOHAIndexer
     """
-    with open(cases_path) as f:
-        cases_data = json.load(f)
-        
+    try:
+        with open(cases_path) as f:
+            cases_data = json.load(f)
+
+        # Validate structure
+        if not isinstance(cases_data, list):
+            raise ValueError(f"Invalid cases file format: expected list, got {type(cases_data).__name__}")
+
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        raise ValueError(f"Failed to load cases from {cases_path}: {e}") from e
+
     indexer = DOHAIndexer(index_path=output_path)
     
     indexed_cases = []

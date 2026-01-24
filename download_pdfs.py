@@ -110,8 +110,26 @@ def download_and_parse_pdfs(
     """
 
     # Load links
-    with open(links_file) as f:
-        all_links = json.load(f)
+    try:
+        with open(links_file) as f:
+            all_links = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.error(f"Failed to load links file {links_file}: {e}")
+        raise
+
+    # Validate data structure
+    if not isinstance(all_links, list):
+        logger.error(f"Invalid links file format: expected list, got {type(all_links).__name__}")
+        raise ValueError(f"Links file must contain a list, not {type(all_links).__name__}")
+
+    # Validate each link has expected format (3 or 4 elements)
+    for i, link in enumerate(all_links):
+        if not isinstance(link, (list, tuple)):
+            logger.error(f"Invalid link format at index {i}: expected list/tuple, got {type(link).__name__}")
+            raise ValueError(f"Link at index {i} must be a list or tuple")
+        if len(link) not in [3, 4]:
+            logger.error(f"Invalid link format at index {i}: expected 3 or 4 elements, got {len(link)}")
+            raise ValueError(f"Link at index {i} has {len(link)} elements, expected 3 or 4")
 
     logger.info(f"Loaded {len(all_links)} case links")
 
@@ -149,14 +167,26 @@ def download_and_parse_pdfs(
         try:
             with open(output_dir / "all_cases.json") as f:
                 existing_cases = json.load(f)
-                processed_cases = {c["case_number"] for c in existing_cases}
-            logger.info(f"Found {len(processed_cases)} already processed cases")
 
-            # Check for cases with UNKNOWN outcome - warn user to run reprocess script
-            unknown_count = sum(1 for c in existing_cases if c.get('outcome') in ('UNKNOWN', 'Unknown', None, ''))
-            if unknown_count > 0:
-                logger.warning(f"Found {unknown_count} cases with UNKNOWN outcome. Run 'python reprocess_cases.py' to fix.")
-        except Exception as e:
+            # Validate structure
+            if not isinstance(existing_cases, list):
+                logger.warning(f"Invalid existing cases format: expected list, got {type(existing_cases).__name__}, ignoring")
+            else:
+                # Extract case numbers, handling both dict and object formats
+                for case in existing_cases:
+                    if isinstance(case, dict):
+                        if "case_number" in case:
+                            processed_cases.add(case["case_number"])
+                    elif hasattr(case, 'case_number'):
+                        processed_cases.add(case.case_number)
+
+                logger.info(f"Found {len(processed_cases)} already processed cases")
+
+                # Check for cases with UNKNOWN outcome - warn user to run reprocess script
+                unknown_count = sum(1 for c in existing_cases if c.get('outcome') in ('UNKNOWN', 'Unknown', None, ''))
+                if unknown_count > 0:
+                    logger.warning(f"Found {unknown_count} cases with UNKNOWN outcome. Run 'python reprocess_cases.py' to fix.")
+        except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
             logger.warning(f"Could not load existing cases: {e}")
 
     # Filter links to only unprocessed cases

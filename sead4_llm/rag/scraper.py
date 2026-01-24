@@ -640,58 +640,61 @@ class DOHAScraper:
         order_text = text_lower[-1500:]
 
         # Pattern 1: Explicit "adverse decision" or "favorable decision" in Order
-        if re.search(r'the\s+adverse\s+decision\s+is\s+affirmed', order_text):
+        # Allow for case numbers like "in iscr case no. 24-01718" between words
+        if re.search(r'the\s+adverse\s+decision.{0,50}is\s+affirmed', order_text):
             return "DENIED"
-        if re.search(r'the\s+favorable\s+decision\s+is\s+affirmed', order_text):
+        if re.search(r'the\s+favorable\s+decision.{0,50}is\s+affirmed', order_text):
             return "GRANTED"
-        if re.search(r'the\s+adverse\s+decision\s+is\s+reversed', order_text):
+        if re.search(r'the\s+adverse\s+decision.{0,50}is\s+reversed', order_text):
             return "GRANTED"
-        if re.search(r'the\s+favorable\s+decision\s+is\s+reversed', order_text):
+        if re.search(r'the\s+favorable\s+decision.{0,50}is\s+reversed', order_text):
             return "DENIED"
 
         # Pattern 2: Check for remand
-        if re.search(r'(?:case|decision)\s+is\s+remanded', order_text):
+        if re.search(r'(?:case|decision).{0,50}is\s+remanded', order_text):
             return "REMANDED"
         if re.search(r'remanded\s+(?:to|for)', order_text):
             return "REMANDED"
 
         # Pattern 3: "The decision is AFFIRMED" - need to determine underlying decision
-        if re.search(r'the\s+decision\s+is\s+affirmed', order_text):
+        # Allow for case numbers like "in iscr case no. 24-01718" between words
+        # Also handle "the judge's decision" variations
+        if re.search(r'the\s+(?:judge.{0,5}\s+)?decision.{0,50}is\s+affirmed', order_text):
             # Look for context about what was the underlying decision
             # Check the body text for "denied" or "granted" near "eligibility"
             body_text = text_lower[:len(text_lower) - 1500]
 
             # Look for phrases indicating the AJ denied eligibility
-            # Use .{0,10} to handle possessives, quotes, newlines between words
+            # Use .{0,50} to handle possessives, quotes, newlines, and phrases like "national security"
             # Be specific to avoid false positives from discussion of the decision
             denial_indicators = [
-                r'(?:administrative\s+)?judge.{0,100}denied\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
-                r'denied\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
-                r'denied\s+applicant.{0,10}eligibility',
-                r'denied\s+(?:the\s+)?eligibility',
+                r'(?:administrative\s+)?judge.{0,100}denied\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:(?:national\s+)?security\s+)?clearance',
+                r'denied\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:(?:national\s+)?security\s+)?clearance',
+                r'denied\s+applicant.{0,50}(?:(?:national\s+)?security\s+)?eligibility',
+                r'denied\s+(?:the\s+)?(?:(?:national\s+)?security\s+)?eligibility',
                 r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+denying',
                 r'judge\s+(?:issued\s+)?(?:an?\s+)?adverse\s+decision',  # More specific
                 r'judge\s+denied',  # More specific
-                r'unfavorable\s+(?:security\s+)?(?:clearance\s+)?decision',
+                r'unfavorable\s+(?:(?:national\s+)?security\s+)?(?:clearance\s+)?decision',
                 # Applicant appealed (usually against denial)
                 r'applicant\s+(?:has\s+)?appealed',
                 # Common language when applicant's appeal is rejected
                 r'applicant\s+failed\s+to\s+(?:establish|demonstrate)',
-                r'applicant.{0,10}arguments\s+(?:are|do)\s+not',
+                r'applicant.{0,50}arguments\s+(?:are|do)\s+not',
                 # Decision is sustainable (usually used when affirming denial)
                 r'decision\s+is\s+sustainable',
             ]
 
             # Look for phrases indicating the AJ granted eligibility
-            # Use .{0,10} to handle possessives, quotes, newlines between words
+            # Use .{0,50} to handle possessives, quotes, newlines, and phrases like "national security"
             grant_indicators = [
-                r'(?:administrative\s+)?judge.{0,100}granted\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
-                r'granted\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
-                r'granted\s+applicant.{0,10}eligibility',
-                r'granted\s+(?:the\s+)?eligibility',
+                r'(?:administrative\s+)?judge.{0,100}granted\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:(?:national\s+)?security\s+)?clearance',
+                r'granted\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:(?:national\s+)?security\s+)?clearance',
+                r'granted\s+applicant.{0,50}(?:(?:national\s+)?security\s+)?eligibility',
+                r'granted\s+(?:the\s+)?(?:(?:national\s+)?security\s+)?eligibility',
                 r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+granting',
-                r'judge.{0,10}(?:favorable\s+)?decision\s+(?:granting|was\s+to\s+grant)',
-                r'favorable\s+(?:security\s+)?(?:clearance\s+)?decision',
+                r'judge.{0,50}(?:favorable\s+)?decision\s+(?:granting|was\s+to\s+grant)',
+                r'favorable\s+(?:(?:national\s+)?security\s+)?(?:clearance\s+)?decision',
                 # Government appealed (usually against grant)
                 r'(?:department\s+counsel|government)\s+(?:has\s+)?appealed',
             ]
@@ -705,16 +708,18 @@ class DOHAScraper:
                     return "GRANTED"  # Grant affirmed = still granted
 
         # Pattern 4: "The decision is REVERSED" - opposite of underlying
-        if re.search(r'the\s+decision\s+is\s+reversed', order_text):
+        # Allow for case numbers like "in iscr case no. 24-01718" between words
+        # Also handle "the judge's decision" variations
+        if re.search(r'the\s+(?:judge.{0,5}\s+)?decision.{0,50}is\s+reversed', order_text):
             body_text = text_lower[:len(text_lower) - 1500]
 
             # If underlying was denial, reversed means granted
-            # Use .{0,10} to handle possessives, quotes, newlines between words
+            # Use .{0,50} to handle possessives, quotes, newlines, and phrases like "national security"
             # Be specific to avoid false positives from discussion of the decision
             denial_indicators = [
-                r'(?:administrative\s+)?judge.{0,100}denied\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
-                r'denied\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
-                r'denied\s+applicant.{0,10}eligibility',
+                r'(?:administrative\s+)?judge.{0,100}denied\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:(?:national\s+)?security\s+)?clearance',
+                r'denied\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:(?:national\s+)?security\s+)?clearance',
+                r'denied\s+applicant.{0,50}(?:(?:national\s+)?security\s+)?eligibility',
                 r'judge\s+(?:issued\s+)?(?:an?\s+)?adverse\s+decision',  # More specific: "judge issued an adverse decision"
                 r'judge\s+denied',  # More specific: "judge denied"
                 r'adverse\s+findings\s+are\s+not\s+sustainable',
@@ -725,19 +730,19 @@ class DOHAScraper:
                     return "GRANTED"  # Denial reversed = now granted
 
             # If underlying was grant, reversed means denied
-            # Use .{0,10} to handle possessives, quotes, newlines between words
+            # Use .{0,50} to handle possessives, quotes, newlines, and phrases like "national security"
             grant_indicators = [
-                r'(?:administrative\s+)?judge.{0,100}granted\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
-                r'granted\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
-                r'granted\s+applicant.{0,10}eligibility',
+                r'(?:administrative\s+)?judge.{0,100}granted\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:(?:national\s+)?security\s+)?clearance',
+                r'granted\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:(?:national\s+)?security\s+)?clearance',
+                r'granted\s+applicant.{0,50}(?:(?:national\s+)?security\s+)?eligibility',
                 r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+granting',
-                r'judge.{0,10}favorable\s+(?:findings|decision)',
-                r'favorable\s+(?:security\s+)?(?:clearance\s+)?decision',
+                r'judge.{0,50}favorable\s+(?:findings|decision)',
+                r'favorable\s+(?:(?:national\s+)?security\s+)?(?:clearance\s+)?decision',
                 # Appeal Board language indicating they disagree with a favorable decision
                 r'record\s+(?:evidence\s+)?(?:is\s+)?not\s+sufficient\s+to\s+mitigate',
                 r'not\s+sufficient\s+to\s+mitigate\s+the\s+government',
                 r'decision\s+runs\s+contrary\s+to\s+the\s+(?:weight\s+of\s+the\s+)?record',
-                r'favorable\s+(?:security\s+)?(?:clearance\s+)?determination\s+cannot\s+be\s+sustained',
+                r'favorable\s+(?:(?:national\s+)?security\s+)?(?:clearance\s+)?determination\s+cannot\s+be\s+sustained',
                 r'cannot\s+be\s+sustained',
             ]
 
@@ -1439,12 +1444,20 @@ class DOHAScraper:
         """Load cases from JSON file"""
         input_path = self.output_dir / filename
 
-        with open(input_path) as f:
-            data = json.load(f)
+        try:
+            with open(input_path) as f:
+                data = json.load(f)
 
-        return [
-            ScrapedCase(**c) for c in data
-        ]
+            # Validate structure
+            if not isinstance(data, list):
+                raise ValueError(f"Invalid cases file format: expected list, got {type(data).__name__}")
+
+            return [
+                ScrapedCase(**c) for c in data
+            ]
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            logger.error(f"Failed to load cases from {input_path}: {e}")
+            raise
 
 
 class DOHALocalParser:

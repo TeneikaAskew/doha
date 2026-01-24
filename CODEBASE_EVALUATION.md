@@ -687,14 +687,21 @@ find /workspaces/doha -name "*test*.py"
    - [x] Added logging with context to all fixed handlers
    - Note: `except Exception as e` handlers retained where they log errors appropriately
 
-- [ ] **3. Fix resource leaks in JSON file handling** (1 hour)
-   - [ ] Add context managers (`with` statements)
-   - [ ] Add proper exception handling
+- [x] **3. Fix resource leaks in JSON file handling** (1 hour) ✅ **COMPLETED**
+   - [x] Fixed `regenerate_links.py` - added context managers for JSON file operations
+   - [x] Verified all other files already use context managers (`with` statements)
+   - [x] Added proper exception handling (FileNotFoundError, json.JSONDecodeError)
 
-- [ ] **4. Add schema validation for loaded JSON data** (2 hours)
-   - [ ] Validate link structure
-   - [ ] Validate case structure
-   - [ ] Add helpful error messages
+- [x] **4. Add schema validation for loaded JSON data** (2 hours) ✅ **COMPLETED**
+   - [x] `download_pdfs.py:114` - validate all_links is list, each link is 3-4 elements
+   - [x] `download_pdfs.py:151` - validate existing_cases is list of dicts
+   - [x] `regenerate_links.py` - validate links are lists before extending
+   - [x] `reprocess_cases.py:127` - validate cases is list
+   - [x] `merge_checkpoints.py:105` - validate cases is list, each case is dict
+   - [x] `sead4_llm/rag/indexer.py:166` - validate cases_data is list
+   - [x] `sead4_llm/rag/indexer.py:277` - validate cases_data is list
+   - [x] `sead4_llm/rag/scraper.py:1448` - validate data is list
+   - [x] Added helpful error messages with type information
 
 - [ ] **5. Add parquet validation after saves** (1 hour)
    ```python

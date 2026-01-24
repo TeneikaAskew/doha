@@ -20,6 +20,62 @@ try:
 except ImportError:
     HAS_PANDAS = False
 
+# GitHub file size limit with buffer
+MAX_PARQUET_SIZE_MB = 90  # Stay under GitHub's 100MB limit
+
+
+def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size_mb: float = MAX_PARQUET_SIZE_MB):
+    """Save DataFrame to Parquet, splitting into multiple files if needed to stay under size limit.
+
+    Args:
+        df: DataFrame to save
+        output_path: Base path for output (e.g., all_cases.parquet)
+        max_size_mb: Maximum file size in MB (default: 90MB to stay under GitHub's 100MB limit)
+
+    Returns:
+        List of created file paths
+    """
+    import tempfile
+    import os
+
+    # First, try saving the whole thing to estimate size
+    with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as tmp:
+        tmp_path = tmp.name
+
+    try:
+        df.to_parquet(tmp_path, index=False, engine='pyarrow', compression='gzip')
+        total_size_mb = os.path.getsize(tmp_path) / (1024 * 1024)
+    finally:
+        os.unlink(tmp_path)
+
+    # If it fits in one file, save directly
+    if total_size_mb <= max_size_mb:
+        df.to_parquet(output_path, index=False, engine='pyarrow', compression='gzip')
+        size_mb = output_path.stat().st_size / (1024 * 1024)
+        logger.success(f"Saved {len(df)} cases to {output_path} ({size_mb:.1f}MB)")
+        return [output_path]
+
+    # Need to split - estimate cases per file
+    bytes_per_case = (total_size_mb * 1024 * 1024) / len(df)
+    cases_per_file = int((max_size_mb * 1024 * 1024) / bytes_per_case * 0.95)  # 5% buffer
+
+    logger.info(f"Total size would be {total_size_mb:.1f}MB, splitting into ~{cases_per_file} cases per file")
+
+    created_files = []
+    base_name = output_path.stem  # e.g., "all_cases"
+    suffix = output_path.suffix   # e.g., ".parquet"
+    parent = output_path.parent
+
+    for i, start_idx in enumerate(range(0, len(df), cases_per_file), 1):
+        chunk = df.iloc[start_idx:start_idx + cases_per_file]
+        chunk_path = parent / f"{base_name}_{i}{suffix}"
+        chunk.to_parquet(chunk_path, index=False, engine='pyarrow', compression='gzip')
+        size_mb = chunk_path.stat().st_size / (1024 * 1024)
+        logger.success(f"Saved {len(chunk)} cases to {chunk_path} ({size_mb:.1f}MB)")
+        created_files.append(chunk_path)
+
+    return created_files
+
 
 def is_empty_or_unknown(value):
     """Safely check if a value is empty, None, or Unknown - handles both scalars and pandas arrays"""
@@ -67,9 +123,19 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
         cases = df.to_dict('records')
         logger.info(f"Loaded {len(cases)} cases from parquet")
     else:
-        with open(input_path) as f:
-            cases = json.load(f)
-        logger.info(f"Loaded {len(cases)} cases from JSON")
+        try:
+            with open(input_path) as f:
+                cases = json.load(f)
+
+            # Validate structure
+            if not isinstance(cases, list):
+                logger.error(f"Invalid cases file format: expected list, got {type(cases).__name__}")
+                raise ValueError(f"Cases file must contain a list, not {type(cases).__name__}")
+
+            logger.info(f"Loaded {len(cases)} cases from JSON")
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            logger.error(f"Failed to load cases from {input_path}: {e}")
+            raise
 
     # Create scraper instance for extraction methods
     scraper = DOHAScraper(output_dir=input_path.parent)
@@ -133,7 +199,7 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
             if updated_count % 100 == 0:
                 if is_parquet:
                     df = pd.DataFrame(cases)
-                    df.to_parquet(output_path, index=False, engine='pyarrow', compression='gzip')
+                    save_parquet_with_size_limit(df, output_path, max_size_mb=MAX_PARQUET_SIZE_MB)
                 else:
                     with open(output_path, 'w') as f:
                         json.dump(cases, f, indent=2)
@@ -147,9 +213,7 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
     if is_parquet:
         logger.info(f"Saving to parquet: {output_path}")
         df = pd.DataFrame(cases)
-        df.to_parquet(output_path, index=False, engine='pyarrow', compression='gzip')
-        size_mb = output_path.stat().st_size / (1024 * 1024)
-        logger.info(f"Saved {len(cases)} cases to parquet ({size_mb:.1f}MB)")
+        save_parquet_with_size_limit(df, output_path, max_size_mb=MAX_PARQUET_SIZE_MB)
     else:
         with open(output_path, 'w') as f:
             json.dump(cases, f, indent=2)
