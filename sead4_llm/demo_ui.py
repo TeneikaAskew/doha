@@ -16,11 +16,15 @@ import fitz  # PyMuPDF
 import json
 from datetime import datetime
 import base64
+import os
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
 
 from analyzers.native_analyzer import NativeSEAD4Analyzer
 from analyzers.gemini_analyzer import GeminiSEAD4Analyzer
 from schemas.models import SEAD4AnalysisResult
-import os
 
 # Lazy import for heavy ML dependencies with background loading
 # This makes the app start instantly, then loads models in background
@@ -824,7 +828,7 @@ if st.session_state.analysis_run:
                 "Cost": "~$0.02"
             })
 
-        st.dataframe(summary_data, use_container_width=True)
+        st.dataframe(summary_data, width='stretch')
 
         # Ground truth comparison
         if selected_file in GROUND_TRUTH:
@@ -975,11 +979,19 @@ st.sidebar.divider()
 st.sidebar.caption("SEAD-4 Analyzer Demo v1.0")
 st.sidebar.caption("Built with Streamlit")
 
-# Background loading: Pre-load ML models after UI renders
+# Background loading: Pre-load ML models and parsers after UI renders
 # This ensures models are ready when user clicks "Run Comparison Analysis"
 # First load takes ~3-5 seconds, cached for all subsequent uses
 try:
     get_enhanced_analyzer()
 except Exception:
     # Silent fail - models will load on first use instead
+    pass
+
+# Pre-load Gemini parser for instant cache loading
+# First load takes ~15-20s (imports google.generativeai), then cached
+try:
+    get_gemini_parser()
+except Exception:
+    # Silent fail - parser will load on first use instead
     pass
