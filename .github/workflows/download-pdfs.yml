@@ -14,7 +14,7 @@ on:
 jobs:
   download-pdfs:
     runs-on: ubuntu-latest
-    timeout-minutes: 180  # 3 hour timeout for link scraping + PDF downloads
+    timeout-minutes: 200  # 3.3 hour timeout for link scraping + PDF downloads + index updates
 
     steps:
       - name: Checkout repository
@@ -65,15 +65,31 @@ jobs:
           echo "Running: $CMD"
           $CMD
 
+      - name: Update RAG index incrementally
+        run: |
+          echo "Updating RAG index with new cases..."
+          cd sead4_llm
+
+          # Check if index exists
+          if [ -d "../doha_index" ]; then
+            echo "Existing index found - updating incrementally"
+            python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index --update
+          else
+            echo "No existing index - building from scratch"
+            python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index
+          fi
+
+          cd ..
+
       - name: Check for changes
         id: check_changes
         run: |
-          # Check if there are any new or modified files (links + PDFs)
-          git add doha_full_scrape/ doha_parsed_cases/hearing_pdfs/ doha_parsed_cases/appeal_pdfs/ doha_parsed_cases/all_cases.json || true
+          # Check if there are any new or modified files (links + PDFs + index)
+          git add doha_full_scrape/ doha_parsed_cases/hearing_pdfs/ doha_parsed_cases/appeal_pdfs/ doha_parsed_cases/all_cases.json doha_parsed_cases/all_cases.parquet doha_index/ || true
 
           if git diff --staged --quiet; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "No new case links or PDFs found"
+            echo "No new case links, PDFs, or index updates found"
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
 
@@ -85,7 +101,15 @@ jobs:
             NEW_LINKS=$(git diff --staged --name-only | grep -c "doha_full_scrape/.*\.json$" || echo "0")
             echo "new_links=$NEW_LINKS" >> $GITHUB_OUTPUT
 
-            echo "Found $NEW_FILES new PDF(s) and $NEW_LINKS updated link file(s)"
+            # Check if index was updated
+            INDEX_UPDATED=$(git diff --staged --name-only | grep -c "doha_index/" || echo "0")
+            echo "index_updated=$INDEX_UPDATED" >> $GITHUB_OUTPUT
+
+            # Check if parquet was updated
+            PARQUET_UPDATED=$(git diff --staged --name-only | grep -c "all_cases\.parquet" || echo "0")
+            echo "parquet_updated=$PARQUET_UPDATED" >> $GITHUB_OUTPUT
+
+            echo "Found $NEW_FILES new PDF(s), $NEW_LINKS updated link file(s), index updated: $INDEX_UPDATED, parquet updated: $PARQUET_UPDATED"
           fi
 
       - name: Commit and push changes
@@ -97,9 +121,11 @@ jobs:
           # Get counts
           NEW_PDFS="${{ steps.check_changes.outputs.new_pdfs }}"
           NEW_LINKS="${{ steps.check_changes.outputs.new_links }}"
+          INDEX_UPDATED="${{ steps.check_changes.outputs.index_updated }}"
+          PARQUET_UPDATED="${{ steps.check_changes.outputs.parquet_updated }}"
 
           # Build commit message
-          COMMIT_MSG="Update DOHA case data"
+          COMMIT_MSG="Update DOHA case data and RAG index"
           COMMIT_BODY=""
 
           if [ "$NEW_LINKS" -gt 0 ]; then
@@ -108,6 +134,14 @@ jobs:
 
           if [ "$NEW_PDFS" -gt 0 ]; then
             COMMIT_BODY="${COMMIT_BODY}Downloaded $NEW_PDFS new case PDF(s)"$'\n'
+          fi
+
+          if [ "$PARQUET_UPDATED" -gt 0 ]; then
+            COMMIT_BODY="${COMMIT_BODY}Updated parquet case database"$'\n'
+          fi
+
+          if [ "$INDEX_UPDATED" -gt 0 ]; then
+            COMMIT_BODY="${COMMIT_BODY}Incrementally updated RAG index with new cases"$'\n'
           fi
 
           COMMIT_BODY="${COMMIT_BODY}"$'\n'"Automated update on $(date -u +%Y-%m-%d) at $(date -u +%H:%M:%S) UTC"
@@ -126,6 +160,8 @@ jobs:
           if [ "${{ steps.check_changes.outputs.has_changes }}" == "true" ]; then
             NEW_LINKS="${{ steps.check_changes.outputs.new_links }}"
             NEW_PDFS="${{ steps.check_changes.outputs.new_pdfs }}"
+            INDEX_UPDATED="${{ steps.check_changes.outputs.index_updated }}"
+            PARQUET_UPDATED="${{ steps.check_changes.outputs.parquet_updated }}"
 
             if [ "$NEW_LINKS" -gt 0 ]; then
               echo "🔗 **Updated $NEW_LINKS case link file(s)**" >> $GITHUB_STEP_SUMMARY
@@ -135,11 +171,19 @@ jobs:
               echo "📄 **Downloaded $NEW_PDFS new PDF(s)**" >> $GITHUB_STEP_SUMMARY
             fi
 
-            if [ "$NEW_LINKS" -eq 0 ] && [ "$NEW_PDFS" -eq 0 ]; then
+            if [ "$PARQUET_UPDATED" -gt 0 ]; then
+              echo "💾 **Updated parquet case database**" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            if [ "$INDEX_UPDATED" -gt 0 ]; then
+              echo "🔍 **Updated RAG index incrementally**" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            if [ "$NEW_LINKS" -eq 0 ] && [ "$NEW_PDFS" -eq 0 ] && [ "$INDEX_UPDATED" -eq 0 ]; then
               echo "ℹ️ **Files updated but no new cases found**" >> $GITHUB_STEP_SUMMARY
             fi
           else
-            echo "ℹ️ **No new case links or PDFs found**" >> $GITHUB_STEP_SUMMARY
+            echo "ℹ️ **No new case links, PDFs, or index updates found**" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
