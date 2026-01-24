@@ -295,7 +295,9 @@ SEAD4_GUIDELINES = {
 # Sidebar - File selection
 st.sidebar.header("Select Test Case")
 
-test_reports_dir = Path("test_reports")
+# Use path relative to this script file (works on Streamlit Cloud and locally)
+script_dir = Path(__file__).parent
+test_reports_dir = script_dir / "test_reports"
 if test_reports_dir.exists():
     pdf_files = sorted(test_reports_dir.glob("*.pdf"))
     pdf_names = [f.name for f in pdf_files]
