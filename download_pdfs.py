@@ -177,20 +177,26 @@ def download_and_parse_pdfs(
                 outcome = case.outcome if hasattr(case, 'outcome') else case.get('outcome', 'Unknown')
                 logger.success(f"[{i}/{len(links_to_process)}] ✓ [{case_type}] {case_number}: {outcome}")
 
-                # Save checkpoint every 50 cases
+                # Save checkpoint every 50 cases - only save the last 50 cases, not cumulative
                 if i % 50 == 0:
-                    checkpoint_file = output_dir / f"checkpoint_{i}.json"
-                    all_cases_file = output_dir / "all_cases.json"
-                    all_parsed = existing_cases + [
+                    # Get only the last 50 cases for this checkpoint
+                    checkpoint_cases = cases[-50:]
+                    checkpoint_cases_dicts = [
                         c.to_dict() if hasattr(c, 'to_dict') else c
-                        for c in cases
+                        for c in checkpoint_cases
                     ]
+
+                    # Determine checkpoint type based on majority of cases in batch
+                    batch_types = [c.get('case_type', 'hearing') if isinstance(c, dict) else getattr(c, 'case_type', 'hearing') for c in checkpoint_cases]
+                    checkpoint_type = max(set(batch_types), key=batch_types.count) if batch_types else 'hearing'
+
+                    # Use type-specific checkpoint naming
+                    checkpoint_file = output_dir / f"checkpoint_{checkpoint_type}_{i}.json"
+
                     try:
                         with open(checkpoint_file, 'w') as f:
-                            json.dump(all_parsed, f, indent=2)
-                        with open(all_cases_file, 'w') as f:
-                            json.dump(all_parsed, f, indent=2)
-                        logger.info(f"  Checkpoint saved: {checkpoint_file} + all_cases.json ({len(all_parsed)} cases)")
+                            json.dump(checkpoint_cases_dicts, f, indent=2)
+                        logger.info(f"  Checkpoint saved: {checkpoint_file} ({len(checkpoint_cases_dicts)} cases)")
                     except Exception as e:
                         logger.error(f"  Failed to save checkpoint: {e}")
 
