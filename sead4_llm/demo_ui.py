@@ -379,15 +379,12 @@ if analyze_button:
 
 # Main area
 if st.session_state.analysis_run:
-    # Load PDF
-    with st.spinner(f"Loading {selected_file}..."):
-        doc = fitz.open(selected_path)
-        document_text = ""
-        for page in doc:
-            document_text += page.get_text()
-        doc.close()
-
-        st.success(f"Loaded {len(document_text):,} characters from PDF")
+    # Load PDF silently (success message will show in Document View tab)
+    doc = fitz.open(selected_path)
+    document_text = ""
+    for page in doc:
+        document_text += page.get_text()
+    doc.close()
 
     # Create tabs for each approach
     if include_llm:
@@ -414,6 +411,8 @@ if st.session_state.analysis_run:
     with tab_pdf:
         st.subheader("Case Document & Analyst Assessment")
         st.caption(f"Viewing: {selected_file}")
+
+        st.success(f"Loaded {len(document_text):,} characters from PDF")
 
         # Create two columns: PDF on left, analyst input on right
         col_pdf, col_analyst = st.columns([2, 1])
