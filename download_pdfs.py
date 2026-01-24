@@ -14,7 +14,7 @@ from typing import List, Tuple
 sys.path.insert(0, str(Path(__file__).parent / "sead4_llm"))
 
 from rag.scraper import DOHAScraper, ScrapedCase
-from rag.browser_scraper import DOHABrowserScraper, ParallelBrowserDownloader
+from rag.browser_scraper import DOHABrowserScraper
 from loguru import logger
 import fitz  # PyMuPDF
 
@@ -136,218 +136,13 @@ def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size
     return created_files
 
 
-def _download_sequential(links_to_process, output_dir, hearing_pdf_dir, appeal_pdf_dir, scraper, rate_limit):
-    """Download PDFs sequentially using a single browser instance"""
-    cases = []
-    failed = []
-    browser_restart_interval = 5000
-
-    total_processed = 0
-
-    iterator = enumerate(links_to_process, 1)
-    if HAS_TQDM:
-        iterator = tqdm(iterator, total=len(links_to_process), desc="Downloading PDFs", unit="case")
-
-    browser_scraper = DOHABrowserScraper(
-        output_dir=output_dir,
-        rate_limit=rate_limit,
-        headless=True
-    )
-    browser_scraper.start_browser()
-
-    try:
-        for i, (case_type, year, case_number, url) in iterator:
-            if total_processed > 0 and total_processed % browser_restart_interval == 0:
-                logger.info(f"  Restarting browser after {browser_restart_interval} cases to clear memory...")
-                browser_scraper.stop_browser()
-                time.sleep(1)
-                browser_scraper.start_browser()
-
-            pdf_dir = hearing_pdf_dir if case_type == "hearing" else appeal_pdf_dir
-            pdf_path = pdf_dir / f"{case_number}.pdf"
-
-            try:
-                pdf_bytes = browser_scraper.download_case_pdf_bytes(url)
-
-                if pdf_bytes is None:
-                    logger.error(f"[{i}/{len(links_to_process)}] ✗ [{case_type}] {case_number}: Failed to download")
-                    failed.append({
-                        "error": "Failed to download (no bytes returned)",
-                        "case_type": case_type,
-                        "case_number": case_number,
-                        "url": url
-                    })
-                    total_processed += 1
-                    continue
-
-                pdf_path.write_bytes(pdf_bytes)
-
-                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                text_parts = []
-                for page in doc:
-                    text_parts.append(page.get_text())
-                doc.close()
-
-                full_text = "\n".join(text_parts)
-                del pdf_bytes
-                del text_parts
-
-                case = scraper.parse_case_text(case_number, full_text, url)
-                if hasattr(case, '__dict__'):
-                    case.case_type = case_type
-                elif isinstance(case, dict):
-                    case['case_type'] = case_type
-                cases.append(case)
-
-                outcome = case.outcome if hasattr(case, 'outcome') else case.get('outcome', 'Unknown')
-                logger.success(f"[{i}/{len(links_to_process)}] ✓ [{case_type}] {case_number}: {outcome}")
-
-                total_processed += 1
-
-                if i % 50 == 0:
-                    checkpoint_cases = cases[-50:]
-                    checkpoint_cases_dicts = [
-                        c.to_dict() if hasattr(c, 'to_dict') else c
-                        for c in checkpoint_cases
-                    ]
-                    batch_types = [c.get('case_type', 'hearing') if isinstance(c, dict) else getattr(c, 'case_type', 'hearing') for c in checkpoint_cases]
-                    checkpoint_type = max(set(batch_types), key=batch_types.count) if batch_types else 'hearing'
-                    checkpoint_file = output_dir / f"checkpoint_{checkpoint_type}_{i}.json"
-
-                    try:
-                        with open(checkpoint_file, 'w') as f:
-                            json.dump(checkpoint_cases_dicts, f, indent=2)
-                        logger.info(f"  Checkpoint saved: {checkpoint_file} ({len(checkpoint_cases_dicts)} cases)")
-                    except Exception as e:
-                        logger.error(f"  Failed to save checkpoint: {e}")
-
-            except Exception as e:
-                logger.error(f"[{i}/{len(links_to_process)}] ✗ [{case_type}] {case_number}: {str(e)}")
-                failed.append({
-                    "error": f"Parse error: {str(e)}",
-                    "case_type": case_type,
-                    "case_number": case_number,
-                    "url": url
-                })
-                total_processed += 1
-
-    finally:
-        browser_scraper.stop_browser()
-
-    return cases, failed
-
-
-def _download_parallel(links_to_process, output_dir, hearing_pdf_dir, appeal_pdf_dir, scraper, workers):
-    """Download PDFs in parallel using multiple browser contexts"""
-    import threading
-
-    cases = []
-    failed = []
-    cases_lock = threading.Lock()
-
-    total = len(links_to_process)
-    processed_count = [0]  # Use list to allow modification in nested function
-    checkpoint_batch = []
-
-    # Process in batches to manage memory and save checkpoints
-    batch_size = 50
-
-    with ParallelBrowserDownloader(num_workers=workers, headless=True) as downloader:
-        # Process all links
-        for batch_start in range(0, total, batch_size):
-            batch_end = min(batch_start + batch_size, total)
-            batch_links = links_to_process[batch_start:batch_end]
-
-            logger.info(f"Processing batch {batch_start+1}-{batch_end} of {total}...")
-
-            # Download batch in parallel
-            results = downloader.download_batch(batch_links)
-
-            # Process results (parsing must be sequential due to fitz)
-            batch_cases = []
-            for result in results:
-                processed_count[0] += 1
-                i = processed_count[0]
-
-                case_type = result["case_type"]
-                case_number = result["case_number"]
-                url = result["url"]
-                pdf_bytes = result["pdf_bytes"]
-                error = result["error"]
-
-                pdf_dir = hearing_pdf_dir if case_type == "hearing" else appeal_pdf_dir
-                pdf_path = pdf_dir / f"{case_number}.pdf"
-
-                if pdf_bytes is None:
-                    logger.error(f"[{i}/{total}] ✗ [{case_type}] {case_number}: {error or 'Failed to download'}")
-                    failed.append({
-                        "error": error or "Failed to download",
-                        "case_type": case_type,
-                        "case_number": case_number,
-                        "url": url
-                    })
-                    continue
-
-                try:
-                    pdf_path.write_bytes(pdf_bytes)
-
-                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                    text_parts = []
-                    for page in doc:
-                        text_parts.append(page.get_text())
-                    doc.close()
-
-                    full_text = "\n".join(text_parts)
-
-                    case = scraper.parse_case_text(case_number, full_text, url)
-                    if hasattr(case, '__dict__'):
-                        case.case_type = case_type
-                    elif isinstance(case, dict):
-                        case['case_type'] = case_type
-
-                    cases.append(case)
-                    batch_cases.append(case)
-
-                    outcome = case.outcome if hasattr(case, 'outcome') else case.get('outcome', 'Unknown')
-                    logger.success(f"[{i}/{total}] ✓ [{case_type}] {case_number}: {outcome}")
-
-                except Exception as e:
-                    logger.error(f"[{i}/{total}] ✗ [{case_type}] {case_number}: Parse error: {str(e)}")
-                    failed.append({
-                        "error": f"Parse error: {str(e)}",
-                        "case_type": case_type,
-                        "case_number": case_number,
-                        "url": url
-                    })
-
-            # Save checkpoint after each batch
-            if batch_cases:
-                checkpoint_cases_dicts = [
-                    c.to_dict() if hasattr(c, 'to_dict') else c
-                    for c in batch_cases
-                ]
-                batch_types = [c.get('case_type', 'hearing') if isinstance(c, dict) else getattr(c, 'case_type', 'hearing') for c in batch_cases]
-                checkpoint_type = max(set(batch_types), key=batch_types.count) if batch_types else 'hearing'
-                checkpoint_file = output_dir / f"checkpoint_{checkpoint_type}_{batch_end}.json"
-
-                try:
-                    with open(checkpoint_file, 'w') as f:
-                        json.dump(checkpoint_cases_dicts, f, indent=2)
-                    logger.info(f"  Checkpoint saved: {checkpoint_file} ({len(checkpoint_cases_dicts)} cases)")
-                except Exception as e:
-                    logger.error(f"  Failed to save checkpoint: {e}")
-
-    return cases, failed
-
-
 def download_and_parse_pdfs(
     links_file: Path,
     output_dir: Path,
     max_cases: int = None,
     force: bool = False,
     rate_limit: float = 0.15,
-    case_type: str = "both",
-    workers: int = 1
+    case_type: str = "both"
 ):
     """Download PDFs using browser automation and parse them
 
@@ -358,7 +153,6 @@ def download_and_parse_pdfs(
         force: Force re-download even if PDFs exist
         rate_limit: Seconds to wait between requests (default: 0.15, currently unused by PDF downloads)
         case_type: Which case types to download - 'hearings', 'appeals', or 'both' (default)
-        workers: Number of parallel download workers (default: 1 for sequential)
     """
 
     # Load links
@@ -466,21 +260,119 @@ def download_and_parse_pdfs(
         logger.success("All cases already processed!")
         return existing_cases
 
-    # Download PDFs
+    # Download with browser - restart browser every 5000 cases to prevent memory buildup
     cases = []
     failed = []
+    browser_restart_interval = 5000  # Restart browser every N cases to clear memory
 
-    if workers > 1:
-        # Parallel download mode
-        logger.info(f"Using parallel download with {workers} workers")
-        cases, failed = _download_parallel(
-            links_to_process, output_dir, hearing_pdf_dir, appeal_pdf_dir, scraper, workers
-        )
-    else:
-        # Sequential download mode (original behavior)
-        cases, failed = _download_sequential(
-            links_to_process, output_dir, hearing_pdf_dir, appeal_pdf_dir, scraper, rate_limit
-        )
+    # Process in batches to restart browser periodically
+    total_processed = 0
+
+    iterator = enumerate(links_to_process, 1)
+    if HAS_TQDM:
+        iterator = tqdm(iterator, total=len(links_to_process), desc="Downloading PDFs", unit="case")
+
+    # Create browser context for first batch
+    browser_scraper = DOHABrowserScraper(
+        output_dir=output_dir,
+        rate_limit=rate_limit,
+        headless=True
+    )
+    browser_scraper.start_browser()
+
+    try:
+        for i, (case_type, year, case_number, url) in iterator:
+            # Restart browser every N cases to prevent memory buildup
+            if total_processed > 0 and total_processed % browser_restart_interval == 0:
+                logger.info(f"  Restarting browser after {browser_restart_interval} cases to clear memory...")
+                browser_scraper.stop_browser()
+                time.sleep(1)  # Brief pause before restart
+                browser_scraper.start_browser()
+            # Choose PDF directory based on case type
+            pdf_dir = hearing_pdf_dir if case_type == "hearing" else appeal_pdf_dir
+            pdf_path = pdf_dir / f"{case_number}.pdf"
+
+            try:
+                # Download PDF through browser
+                pdf_bytes = browser_scraper.download_case_pdf_bytes(url)
+
+                if pdf_bytes is None:
+                    logger.error(f"[{i}/{len(links_to_process)}] ✗ [{case_type}] {case_number}: Failed to download")
+                    failed.append({
+                        "error": "Failed to download (no bytes returned)",
+                        "case_type": case_type,
+                        "case_number": case_number,
+                        "url": url
+                    })
+                    total_processed += 1
+                    continue
+
+                # Save PDF
+                pdf_path.write_bytes(pdf_bytes)
+
+                # Parse PDF
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                text_parts = []
+                for page in doc:
+                    text_parts.append(page.get_text())
+                doc.close()
+
+                full_text = "\n".join(text_parts)
+
+                # Clear large objects to help with memory
+                del pdf_bytes
+                del text_parts
+
+                # Parse case text
+                case = scraper.parse_case_text(case_number, full_text, url)
+                # Add case_type to the case metadata
+                if hasattr(case, '__dict__'):
+                    case.case_type = case_type
+                elif isinstance(case, dict):
+                    case['case_type'] = case_type
+                cases.append(case)
+
+                outcome = case.outcome if hasattr(case, 'outcome') else case.get('outcome', 'Unknown')
+                logger.success(f"[{i}/{len(links_to_process)}] ✓ [{case_type}] {case_number}: {outcome}")
+
+                total_processed += 1
+
+                # Save checkpoint every 50 cases - only save the last 50 cases, not cumulative
+                if i % 50 == 0:
+                    # Get only the last 50 cases for this checkpoint
+                    checkpoint_cases = cases[-50:]
+                    checkpoint_cases_dicts = [
+                        c.to_dict() if hasattr(c, 'to_dict') else c
+                        for c in checkpoint_cases
+                    ]
+
+                    # Determine checkpoint type based on majority of cases in batch
+                    batch_types = [c.get('case_type', 'hearing') if isinstance(c, dict) else getattr(c, 'case_type', 'hearing') for c in checkpoint_cases]
+                    checkpoint_type = max(set(batch_types), key=batch_types.count) if batch_types else 'hearing'
+
+                    # Use type-specific checkpoint naming
+                    checkpoint_file = output_dir / f"checkpoint_{checkpoint_type}_{i}.json"
+
+                    try:
+                        with open(checkpoint_file, 'w') as f:
+                            json.dump(checkpoint_cases_dicts, f, indent=2)
+                        logger.info(f"  Checkpoint saved: {checkpoint_file} ({len(checkpoint_cases_dicts)} cases)")
+                    except Exception as e:
+                        logger.error(f"  Failed to save checkpoint: {e}")
+
+            except Exception as e:
+                logger.error(f"[{i}/{len(links_to_process)}] ✗ [{case_type}] {case_number}: {str(e)}")
+                failed.append({
+                    "error": f"Parse error: {str(e)}",
+                    "case_type": case_type,
+                    "case_number": case_number,
+                    "url": url
+                })
+                total_processed += 1  # Count failed attempts too
+
+    finally:
+        # Always stop the browser
+        browser_scraper.stop_browser()
 
     # Merge new cases with existing
     all_parsed_cases = existing_cases + [
@@ -559,7 +451,6 @@ if __name__ == "__main__":
         epilog="""
 Examples:
   python download_pdfs.py                         # Download all cases (hearings + appeals)
-  python download_pdfs.py --workers 4             # Download with 4 parallel workers
   python download_pdfs.py --case-type appeals     # Download only appeals
   python download_pdfs.py --case-type hearings    # Download only hearings
   python download_pdfs.py --max-cases 10          # Test with 10 cases
@@ -581,8 +472,6 @@ Output:
                        help="Force re-download even if PDFs exist")
     parser.add_argument("--rate-limit", type=float, default=0.15,
                        help="Seconds to wait between requests (default: 0.15 for ~6 cases/sec)")
-    parser.add_argument("--workers", "-w", type=int, default=1,
-                       help="Number of parallel download workers (default: 1 for sequential)")
     parser.add_argument("--no-archive", action="store_true",
                        help="Skip archiving existing checkpoint files before starting")
 
@@ -630,8 +519,7 @@ Output:
         max_cases=args.max_cases,
         force=args.force,
         rate_limit=args.rate_limit,
-        case_type=args.case_type,
-        workers=args.workers
+        case_type=args.case_type
     )
 
     logger.info(f"\nNext step: Build index from parsed cases")
