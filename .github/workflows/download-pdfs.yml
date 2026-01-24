@@ -14,7 +14,7 @@ on:
 jobs:
   download-pdfs:
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 hour timeout for large downloads
+    timeout-minutes: 180  # 3 hour timeout for link scraping + PDF downloads
 
     steps:
       - name: Checkout repository
@@ -40,6 +40,17 @@ jobs:
           playwright install chromium
           playwright install-deps chromium
 
+      - name: Scrape latest case links
+        run: |
+          echo "Collecting latest case links from DOHA website..."
+          python run_full_scrape.py
+
+          # Count total links collected
+          if [ -f doha_full_scrape/all_case_links.json ]; then
+            LINK_COUNT=$(python -c "import json; print(len(json.load(open('doha_full_scrape/all_case_links.json'))))")
+            echo "Collected $LINK_COUNT total case links"
+          fi
+
       - name: Run PDF download script
         env:
           # Set max cases from input or use empty for all new cases
@@ -57,19 +68,24 @@ jobs:
       - name: Check for changes
         id: check_changes
         run: |
-          # Check if there are any new or modified files
-          git add doha_parsed_cases/hearing_pdfs/ doha_parsed_cases/appeal_pdfs/ doha_parsed_cases/all_cases.json || true
+          # Check if there are any new or modified files (links + PDFs)
+          git add doha_full_scrape/ doha_parsed_cases/hearing_pdfs/ doha_parsed_cases/appeal_pdfs/ doha_parsed_cases/all_cases.json || true
 
           if git diff --staged --quiet; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "No new PDFs downloaded"
+            echo "No new case links or PDFs found"
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
 
             # Count new PDFs
             NEW_FILES=$(git diff --staged --name-only | grep -c "\.pdf$" || echo "0")
             echo "new_pdfs=$NEW_FILES" >> $GITHUB_OUTPUT
-            echo "Found $NEW_FILES new PDF(s)"
+
+            # Count new/modified link files
+            NEW_LINKS=$(git diff --staged --name-only | grep -c "doha_full_scrape/.*\.json$" || echo "0")
+            echo "new_links=$NEW_LINKS" >> $GITHUB_OUTPUT
+
+            echo "Found $NEW_FILES new PDF(s) and $NEW_LINKS updated link file(s)"
           fi
 
       - name: Commit and push changes
@@ -78,27 +94,52 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          # Get count of new PDFs
+          # Get counts
           NEW_PDFS="${{ steps.check_changes.outputs.new_pdfs }}"
+          NEW_LINKS="${{ steps.check_changes.outputs.new_links }}"
 
-          # Create commit message
-          git commit -m "Add downloaded DOHA case PDFs
+          # Build commit message
+          COMMIT_MSG="Update DOHA case data"
+          COMMIT_BODY=""
 
-Automated download found $NEW_PDFS new case(s).
-Downloaded on $(date -u +%Y-%m-%d) at $(date -u +%H:%M:%S) UTC"
+          if [ "$NEW_LINKS" -gt 0 ]; then
+            COMMIT_BODY="${COMMIT_BODY}Updated $NEW_LINKS case link file(s) from DOHA website"$'\n'
+          fi
+
+          if [ "$NEW_PDFS" -gt 0 ]; then
+            COMMIT_BODY="${COMMIT_BODY}Downloaded $NEW_PDFS new case PDF(s)"$'\n'
+          fi
+
+          COMMIT_BODY="${COMMIT_BODY}"$'\n'"Automated update on $(date -u +%Y-%m-%d) at $(date -u +%H:%M:%S) UTC"
+
+          # Create commit
+          git commit -m "$COMMIT_MSG" -m "$COMMIT_BODY"
 
           git push
 
       - name: Create summary
         if: always()
         run: |
-          echo "## DOHA PDF Download Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## DOHA Case Update Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ steps.check_changes.outputs.has_changes }}" == "true" ]; then
-            echo "✅ **Downloaded ${{ steps.check_changes.outputs.new_pdfs }} new PDF(s)**" >> $GITHUB_STEP_SUMMARY
+            NEW_LINKS="${{ steps.check_changes.outputs.new_links }}"
+            NEW_PDFS="${{ steps.check_changes.outputs.new_pdfs }}"
+
+            if [ "$NEW_LINKS" -gt 0 ]; then
+              echo "🔗 **Updated $NEW_LINKS case link file(s)**" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            if [ "$NEW_PDFS" -gt 0 ]; then
+              echo "📄 **Downloaded $NEW_PDFS new PDF(s)**" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            if [ "$NEW_LINKS" -eq 0 ] && [ "$NEW_PDFS" -eq 0 ]; then
+              echo "ℹ️ **Files updated but no new cases found**" >> $GITHUB_STEP_SUMMARY
+            fi
           else
-            echo "ℹ️ **No new PDFs found**" >> $GITHUB_STEP_SUMMARY
+            echo "ℹ️ **No new case links or PDFs found**" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
