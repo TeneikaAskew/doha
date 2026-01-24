@@ -237,7 +237,8 @@ class SEAD4Analyzer:
             if g_data.get('relevant') and g_data.get('severity'):
                 try:
                     severity = SeverityLevel(g_data['severity'])
-                except:
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"Invalid severity level '{g_data['severity']}' for guideline {code}: {e}, defaulting to B")
                     severity = SeverityLevel.B  # Default to moderate
                     
             guidelines.append(GuidelineAssessment(
@@ -297,9 +298,10 @@ class SEAD4Analyzer:
         # Try parsing again
         try:
             return json.loads(text)
-        except:
+        except json.JSONDecodeError as e:
+            logger.warning(f"Could not repair JSON after removing code fence: {e}")
             pass
-            
+
         # Return empty structure
         logger.warning("Could not repair JSON, returning empty structure")
         return {}

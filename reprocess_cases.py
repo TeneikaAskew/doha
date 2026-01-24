@@ -31,7 +31,9 @@ def is_empty_or_unknown(value):
     if hasattr(value, '__len__'):
         try:
             return len(value) == 0
-        except:
+        except (TypeError, AttributeError):
+            # TypeError: object has __len__ but it's not implemented properly
+            # AttributeError: __len__ exists but raises AttributeError
             return False
     return False
 

@@ -369,13 +369,19 @@ def convert_scraped_to_indexed(cases):
 
     indexed_cases = []
     for case in cases:
-        # Parse year from case number
+        # Extract year from case number
+        case_number = case.case_number
         try:
-            year_str = case.case_number[:2]
-            year = int(year_str)
-            year = year + 2000 if year < 50 else year + 1900
-        except:
-            year = 2020
+            if case_number.startswith('appeal-'):
+                # Appeal format: "appeal-2019-108902"
+                year = int(case_number.split('-')[1])
+            else:
+                # Hearing format: "19-12345"
+                year_str = case_number[:2]
+                year = int(year_str) + (2000 if int(year_str) < 50 else 1900)
+        except (ValueError, IndexError) as e:
+            logger.warning(f"Failed to parse year from case number '{case_number}': {e}, using fallback year 2020")
+            year = 2020  # Default fallback
 
         indexed_cases.append(IndexedCase(
             case_number=case.case_number,
