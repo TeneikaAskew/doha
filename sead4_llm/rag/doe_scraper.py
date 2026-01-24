@@ -497,26 +497,27 @@ class DOEBrowserScraper:
 
     def _extract_date(self, text: str) -> str:
         """Extract decision date from case text"""
+        # Month names for matching
+        months = r'(?:January|February|March|April|May|June|July|August|September|October|November|December)'
+
         # Look for date patterns - DOE cases often have date at top or end
         patterns = [
             # "Issued: January 15, 2026" or "Date: January 15, 2026"
-            r'(?:Issued|Date|Dated)[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})',
-            # "January 15, 2026" at start of document
-            r'^[^\n]*([A-Za-z]+\s+\d{1,2},?\s+\d{4})',
+            rf'(?:Issued|Date|Dated)[:\s]+({months}\s+\d{{1,2}},?\s+\d{{4}})',
+            # Full month name date pattern (most common in DOE cases)
+            rf'({months}\s+\d{{1,2}},?\s+\d{{4}})',
             # MM/DD/YYYY format
             r'(\d{1,2}/\d{1,2}/\d{4})',
-            # General date pattern
-            r'([A-Za-z]+\s+\d{1,2},?\s+\d{4})',
         ]
 
         # Check beginning of document
         for pattern in patterns:
-            match = re.search(pattern, text[:3000], re.IGNORECASE | re.MULTILINE)
+            match = re.search(pattern, text[:3000], re.IGNORECASE)
             if match:
                 return match.group(1)
 
         # Check end of document (signature area)
-        for pattern in patterns[1:]:  # Skip "Issued:" pattern for end
+        for pattern in patterns:
             match = re.search(pattern, text[-2000:], re.IGNORECASE)
             if match:
                 return match.group(1)
@@ -528,41 +529,18 @@ class DOEBrowserScraper:
         # DOE PSH cases typically end with OPINION OF THE HEARING OFFICER or CONCLUSION
         # Look at the last portion of the document
 
-        # Get the conclusion/opinion section
-        conclusion_patterns = [
-            r'(?:OPINION\s+OF\s+THE\s+HEARING\s+OFFICER|CONCLUSION|ORDER|DECISION)\s*(.*?)(?:Hearing\s+Officer|\Z)',
-            r'(?:IT\s+IS\s+(?:THEREFORE\s+)?(?:MY\s+)?(?:OPINION|DECISION|CONCLUSION))\s*(.*?)(?:\n\n|\Z)',
-        ]
+        # Get the conclusion/opinion section - look for these sections in the last part
+        last_section = text[-8000:]
 
-        conclusion_text = ""
-        for pattern in conclusion_patterns:
-            match = re.search(pattern, text[-8000:], re.IGNORECASE | re.DOTALL)
-            if match:
-                conclusion_text = match.group(1)
-                break
-
-        if not conclusion_text:
-            conclusion_text = text[-5000:]
-
-        conclusion_lower = conclusion_text.lower()
-
-        # DOE-specific outcome patterns
+        # DOE-specific outcome patterns - order matters (check DENIED before GRANTED
+        # because "should not be granted" contains "granted")
         doe_outcome_patterns = {
-            'GRANTED': [
-                r'access\s+authorization\s+(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?granted',
-                r'security\s+clearance\s+(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?granted',
-                r'eligibility\s+.*?(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?granted',
-                r'should\s+be\s+(?:restored|granted)',
-                r'access\s+authorization\s+should\s+be\s+restored',
-                r'favorable\s+(?:determination|decision)',
-                r'grant(?:ing)?\s+(?:the\s+)?(?:individual[\'s]?\s+)?(?:access|clearance|eligibility)',
-            ],
             'DENIED': [
+                r'should\s+not\s+be\s+(?:granted|restored)',
+                r'access\s+authorization\s+should\s+not\s+be\s+(?:granted|restored)',
                 r'access\s+authorization\s+(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?denied',
                 r'security\s+clearance\s+(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?denied',
                 r'eligibility\s+.*?(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?denied',
-                r'should\s+not\s+be\s+(?:granted|restored)',
-                r'access\s+authorization\s+should\s+not\s+be\s+(?:granted|restored)',
                 r'unfavorable\s+(?:determination|decision)',
                 r'deny(?:ing)?\s+(?:the\s+)?(?:individual[\'s]?\s+)?(?:access|clearance|eligibility)',
             ],
@@ -572,11 +550,23 @@ class DOEBrowserScraper:
                 r'eligibility\s+.*?(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?revoked',
                 r'revok(?:e|ing)\s+(?:the\s+)?(?:individual[\'s]?\s+)?(?:access|clearance|eligibility)',
             ],
+            'GRANTED': [
+                r'access\s+authorization\s+should\s+be\s+restored',
+                r'should\s+be\s+(?:restored|granted)',
+                r'access\s+authorization\s+(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?granted',
+                r'security\s+clearance\s+(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?granted',
+                r'eligibility\s+.*?(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?granted',
+                r'favorable\s+(?:determination|decision)',
+                r'grant(?:ing)?\s+(?:the\s+)?(?:individual[\'s]?\s+)?(?:access|clearance|eligibility)',
+            ],
         }
 
+        last_section_lower = last_section.lower()
+
+        # Check patterns in priority order
         for outcome, patterns in doe_outcome_patterns.items():
             for pattern in patterns:
-                if re.search(pattern, conclusion_lower, re.IGNORECASE):
+                if re.search(pattern, last_section_lower):
                     return outcome
 
         return "UNKNOWN"
