@@ -274,27 +274,50 @@ def create_index_from_extracted_cases(
     
     indexed_cases = []
     for c in cases_data:
-        # Determine outcome
-        outcome = c.get('overall_decision', 'UNKNOWN')
-        if outcome not in ['GRANTED', 'DENIED', 'REVOKED']:
+        # Determine outcome (check both 'outcome' and 'overall_decision' keys)
+        outcome = c.get('outcome', c.get('overall_decision', 'UNKNOWN'))
+        if outcome not in ['GRANTED', 'DENIED', 'REVOKED', 'REMANDED']:
             outcome = 'UNKNOWN'
-            
+
         # Get relevant guidelines
         guidelines = []
         if 'guideline_labels' in c:
             codes = list("ABCDEFGHIJKLM")
             guidelines = [codes[i] for i, v in enumerate(c['guideline_labels']) if v]
         elif 'guidelines' in c:
-            guidelines = [g for g, data in c['guidelines'].items() if data.get('relevant')]
-            
+            # Handle both list format (e.g., ['A', 'I', 'M']) and dict format (e.g., {'A': {'relevant': True}})
+            if isinstance(c['guidelines'], list):
+                guidelines = c['guidelines']
+            else:
+                guidelines = [g for g, data in c['guidelines'].items() if data.get('relevant')]
+
+        # Get key facts - use sor_allegations for hearings, discussion summary for appeals
+        case_type = c.get('case_type', 'hearing')
+        if case_type == 'appeal':
+            # For appeals, use first part of discussion as key facts
+            discussion = c.get('discussion', '')
+            key_facts = [discussion[:500]] if discussion else []
+        else:
+            key_facts = c.get('sor_allegations', [])[:5]
+
+        # Get summary - use 'summary' field or fall back to 'text' or 'full_text'
+        summary = c.get('summary', '')
+        if not summary:
+            summary = c.get('text', c.get('full_text', ''))[:500]
+
+        # Get judge - handle both direct 'judge' field and nested 'metadata.judge'
+        judge = c.get('judge', '')
+        if not judge:
+            judge = c.get('metadata', {}).get('judge', '')
+
         indexed_cases.append(IndexedCase(
             case_number=c.get('case_number', 'Unknown'),
             year=int(c.get('case_number', '00-00000')[:2]) + 2000,
             outcome=outcome,
             guidelines=guidelines,
-            summary=c.get('text', '')[:500],  # First 500 chars as summary
-            key_facts=c.get('sor_allegations', [])[:5],
-            judge=c.get('metadata', {}).get('judge', '')
+            summary=summary[:500] if summary else '',
+            key_facts=key_facts,
+            judge=judge
         ))
         
     indexer.add_cases_batch(indexed_cases)

@@ -79,6 +79,7 @@ def download_and_parse_pdfs(
     # Load existing parsed cases (for resume support)
     processed_cases = set()
     existing_cases = []
+    scraper = DOHAScraper(output_dir=output_dir)
 
     if (output_dir / "all_cases.json").exists() and not force:
         try:
@@ -86,6 +87,11 @@ def download_and_parse_pdfs(
                 existing_cases = json.load(f)
                 processed_cases = {c["case_number"] for c in existing_cases}
             logger.info(f"Found {len(processed_cases)} already processed cases")
+
+            # Check for cases with UNKNOWN outcome - warn user to run reprocess script
+            unknown_count = sum(1 for c in existing_cases if c.get('outcome') in ('UNKNOWN', 'Unknown', None, ''))
+            if unknown_count > 0:
+                logger.warning(f"Found {unknown_count} cases with UNKNOWN outcome. Run 'python reprocess_cases.py' to fix.")
         except Exception as e:
             logger.warning(f"Could not load existing cases: {e}")
 
@@ -96,13 +102,13 @@ def download_and_parse_pdfs(
         if len(link) == 3:
             # Old format - assume hearing type
             year, case_number, url = link
-            case_type = "hearing"
-            link = (case_type, year, case_number, url)  # Convert to new format
+            link_case_type = "hearing"
+            link = (link_case_type, year, case_number, url)  # Convert to new format
         else:
-            case_type, year, case_number, url = link
+            link_case_type, year, case_number, url = link
 
         # Choose PDF directory based on case type
-        pdf_dir = hearing_pdf_dir if case_type == "hearing" else appeal_pdf_dir
+        pdf_dir = hearing_pdf_dir if link_case_type == "hearing" else appeal_pdf_dir
         pdf_path = pdf_dir / f"{case_number}.pdf"
 
         if force or (case_number not in processed_cases or not pdf_path.exists()):
@@ -117,7 +123,6 @@ def download_and_parse_pdfs(
     # Download with browser
     cases = []
     failed = []
-    scraper = DOHAScraper(output_dir=output_dir)
 
     with DOHABrowserScraper(
         output_dir=output_dir,
@@ -175,6 +180,7 @@ def download_and_parse_pdfs(
                 # Save checkpoint every 50 cases
                 if i % 50 == 0:
                     checkpoint_file = output_dir / f"checkpoint_{i}.json"
+                    all_cases_file = output_dir / "all_cases.json"
                     all_parsed = existing_cases + [
                         c.to_dict() if hasattr(c, 'to_dict') else c
                         for c in cases
@@ -182,7 +188,9 @@ def download_and_parse_pdfs(
                     try:
                         with open(checkpoint_file, 'w') as f:
                             json.dump(all_parsed, f, indent=2)
-                        logger.info(f"  Checkpoint saved: {checkpoint_file}")
+                        with open(all_cases_file, 'w') as f:
+                            json.dump(all_parsed, f, indent=2)
+                        logger.info(f"  Checkpoint saved: {checkpoint_file} + all_cases.json ({len(all_parsed)} cases)")
                     except Exception as e:
                         logger.error(f"  Failed to save checkpoint: {e}")
 

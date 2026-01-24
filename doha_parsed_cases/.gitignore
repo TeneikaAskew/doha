@@ -1,0 +1,52 @@
+# Data files
+data/*.csv
+*.csv
+
+# Large JSON files (checkpoint files with full case text)
+checkpoint_*.json
+all_cases.json
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Model files
+*.pkl
+*.joblib
+*.h5
+*.hdf5
+*.model
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/

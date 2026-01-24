@@ -45,7 +45,7 @@ class ScrapedCase:
     """A scraped DOHA case"""
     case_number: str
     date: str
-    outcome: str  # GRANTED, DENIED, REVOKED
+    outcome: str  # GRANTED, DENIED, REVOKED, REMANDED
     guidelines: List[str]
     summary: str
     full_text: str
@@ -53,6 +53,18 @@ class ScrapedCase:
     mitigating_factors: List[str]
     judge: str
     source_url: str
+    formal_findings: Dict[str, dict]  # Per-guideline formal findings with subparagraph details
+    # Appeal-specific fields (empty for hearing decisions)
+    case_type: str = "hearing"  # "hearing" or "appeal"
+    appeal_board_members: List[str] = None  # List of Appeal Board judges for appeals
+    judges_findings_of_fact: str = ""  # Summary of AJ's findings (for appeals)
+    judges_analysis: str = ""  # Summary of AJ's analysis (for appeals)
+    discussion: str = ""  # Appeal Board's discussion/analysis
+    order: str = ""  # Appeal Board's order (e.g., "AFFIRMED", "REVERSED", "REMANDED")
+
+    def __post_init__(self):
+        if self.appeal_board_members is None:
+            self.appeal_board_members = []
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -116,11 +128,80 @@ class DOHAScraper:
         'M': r'Guideline\s*M|Use\s*of\s*Information\s*Technology|AG\s*¶\s*39|AG\s*¶\s*40',
     }
 
-    # Outcome patterns
+    # Outcome patterns - list of patterns per outcome for comprehensive matching
+    # These are searched in the last portion of the document
+    # Patterns are checked in order; more specific patterns should come first
     OUTCOME_PATTERNS = {
-        'GRANTED': r'clearance\s+is\s+granted|eligibility\s+.*\s+is\s+granted|favorable\s+determination',
-        'DENIED': r'clearance\s+is\s+denied|eligibility\s+.*\s+is\s+denied|unfavorable\s+determination',
-        'REVOKED': r'clearance\s+is\s+revoked|eligibility\s+.*\s+is\s+revoked',
+        'GRANTED': [
+            r'clearance\s+is\s+granted',
+            r'eligibility\s+for\s+access\s+to\s+classified\s+information\s+is\s+granted',
+            r'eligibility\s+[^.]{0,50}\s+is\s+granted',
+            r'access\s+to\s+classified\s+information\s+is\s+granted',
+            r'favorable\s+determination',
+            r'security\s+clearance\s+is\s+granted',
+            r'eligibility\s+is\s+granted',  # Direct "eligibility is granted"
+            r'eligibility\s+granted',  # Without "is"
+            r'clearance\s+granted',
+            r'clearance\s+eligibility\s+is\s+granted',
+            r'cac\s+eligibility\s+is\s+granted',  # Common Access Card cases
+            # "Clearly consistent" language (means granted)
+            r'it\s+is\s+clearly\s+consistent\s+with\s+the\s+national\s+interest\s+to\s+grant',
+            r'clearly\s+consistent\s+with\s+the\s+interests\s+of\s+national\s+security',
+            r'clearly\s+consistent\s+with\s+the\s+security\s+interests',
+            r'national\s+security\s+eligibility\s+is\s+granted',
+            # Appeal Board: favorable decision affirmed = grant upheld
+            r'favorable\s+decision\s+(?:is\s+)?affirmed',
+            # Appeal Board: adverse decision reversed = denial overturned = granted
+            r'adverse\s+decision\s+(?:is\s+)?reversed',
+            # Appeal Board: adverse findings not sustainable + reversed = denial overturned
+            r'adverse\s+findings\s+are\s+not\s+sustainable',
+        ],
+        'DENIED': [
+            r'clearance\s+is\s+denied',
+            r'eligibility\s+for\s+access\s+to\s+classified\s+information\s+is\s+denied',
+            r'eligibility\s+[^.]{0,50}\s+is\s+denied',
+            r'access\s+to\s+classified\s+information\s+is\s+denied',
+            r'unfavorable\s+determination',
+            r'security\s+clearance\s+is\s+denied',
+            r'eligibility\s+is\s+denied',  # Direct "eligibility is denied"
+            r'eligibility\s+denied',  # Without "is"
+            r'clearance\s+denied',
+            r'clearance\s+eligibility\s+is\s+denied',
+            r'cac\s+eligibility\s+is\s+denied',  # Common Access Card cases
+            # "Not clearly consistent" language (means denied)
+            r'it\s+is\s+not\s+clearly\s+consistent\s+with\s+the\s+national\s+interest\s+to\s+grant',
+            r'not\s+clearly\s+consistent\s+with\s+the\s+national\s+interest',
+            r'not\s+clearly\s+consistent\s+with\s+the\s+interests\s+of\s+national\s+security',
+            r'not\s+clearly\s+consistent\s+with\s+the\s+security\s+interests',
+            r'national\s+security\s+eligibility\s+is\s+denied',
+            # Appeal Board: adverse decision affirmed = denial upheld
+            r'adverse\s+decision\s+(?:is\s+)?affirmed',
+            # Appeal Board: favorable decision reversed = grant overturned = denied
+            r'favorable\s+decision\s+(?:is\s+)?reversed',
+            # Appeal Board: favorable determination cannot be sustained + reversed = grant overturned
+            r'favorable\s+(?:security\s+)?(?:clearance\s+)?determination\s+cannot\s+be\s+sustained',
+            # Appeal Board: decision not sustainable + reversed (usually means grant overturned)
+            r'decision\s+(?:is\s+)?not\s+sustainable[^.]*reversed',
+            # Appeal Board: record not sufficient to mitigate + reversed (denial should stand)
+            r'record\s+(?:evidence\s+)?(?:is\s+)?not\s+sufficient\s+to\s+mitigate',
+            # Appeal Board: runs contrary to record evidence (usually overturning a favorable decision)
+            r'runs\s+contrary\s+to\s+the\s+(?:weight\s+of\s+the\s+)?record\s+evidence[^.]*not\s+sustainable',
+        ],
+        'REVOKED': [
+            r'clearance\s+is\s+revoked',
+            r'eligibility\s+[^.]{0,50}\s+is\s+revoked',
+            r'access\s+to\s+classified\s+information\s+is\s+revoked',
+            r'security\s+clearance\s+is\s+revoked',
+            r'eligibility\s+revoked',
+            r'clearance\s+revoked',
+        ],
+        'REMANDED': [
+            # Appeal Board: case sent back to administrative judge
+            r'case\s+(?:is\s+)?remanded',
+            r'decision\s+(?:is\s+)?remanded',
+            r'remanded\s+to\s+the\s+administrative\s+judge',
+            r'remanded\s+for\s+(?:further|additional)\s+proceedings',
+        ],
     }
 
     def __init__(
@@ -403,39 +484,65 @@ class DOHAScraper:
         Returns:
             ScrapedCase with extracted information
         """
+        # Detect if this is an appeal or hearing decision
+        is_appeal = self._is_appeal_document(text)
+
         # Extract date
         date = self._extract_date(text)
 
         # Extract outcome
         outcome = self._extract_outcome(text)
 
-        # Extract guidelines
+        # Extract guidelines (relevant for both types)
         guidelines = self._extract_guidelines(text)
 
-        # Extract SOR allegations
-        sor_allegations = self._extract_sor_allegations(text)
-
-        # Extract mitigating factors
-        mitigating_factors = self._extract_mitigating_factors(text)
-
-        # Extract judge name
+        # Extract judge name (single judge for hearings, Appeal Board chair for appeals)
         judge = self._extract_judge(text)
 
-        # Create summary (first 1000 chars of findings section or beginning)
+        # Create summary
         summary = self._create_summary(text)
 
-        return ScrapedCase(
-            case_number=case_number,
-            date=date,
-            outcome=outcome,
-            guidelines=guidelines,
-            summary=summary,
-            full_text=text,
-            sor_allegations=sor_allegations,
-            mitigating_factors=mitigating_factors,
-            judge=judge,
-            source_url=source_url
-        )
+        if is_appeal:
+            # Appeal Board decision - use appeal-specific extraction
+            return ScrapedCase(
+                case_number=case_number,
+                date=date,
+                outcome=outcome,
+                guidelines=guidelines,
+                summary=summary,
+                full_text=text,
+                sor_allegations=[],  # Not applicable for appeals
+                mitigating_factors=[],  # Not applicable for appeals
+                judge=judge,
+                source_url=source_url,
+                formal_findings={},  # Not applicable for appeals
+                case_type="appeal",
+                appeal_board_members=self._extract_appeal_board_members(text),
+                judges_findings_of_fact=self._extract_judges_findings_of_fact(text),
+                judges_analysis=self._extract_judges_analysis(text),
+                discussion=self._extract_discussion(text),
+                order=self._extract_order(text),
+            )
+        else:
+            # Hearing decision - use hearing-specific extraction
+            sor_allegations = self._extract_sor_allegations(text)
+            mitigating_factors = self._extract_mitigating_factors(text)
+            formal_findings = self._extract_formal_findings(text)
+
+            return ScrapedCase(
+                case_number=case_number,
+                date=date,
+                outcome=outcome,
+                guidelines=guidelines,
+                summary=summary,
+                full_text=text,
+                sor_allegations=sor_allegations,
+                mitigating_factors=mitigating_factors,
+                judge=judge,
+                source_url=source_url,
+                formal_findings=formal_findings,
+                case_type="hearing",
+            )
 
     def _extract_date(self, text: str) -> str:
         """Extract decision date from case text"""
@@ -454,20 +561,193 @@ class DOHAScraper:
         return "Unknown"
 
     def _extract_outcome(self, text: str) -> str:
-        """Extract case outcome from text"""
+        """Extract case outcome from text.
+
+        For hearing decisions: searches the last portion of the document.
+        For appeal board decisions: checks the Order section and contextual patterns.
+        Returns the outcome with the LAST (rightmost) match position.
+        """
         text_lower = text.lower()
 
-        # Check conclusion section first
-        conclusion_match = re.search(
-            r'(?:conclusion|decision|order)[:\s]*(.*?)(?:\n\n|\Z)',
-            text_lower[-3000:],
-            re.DOTALL
-        )
-        conclusion_text = conclusion_match.group(1) if conclusion_match else text_lower[-3000:]
+        # Check if this is an Appeal Board decision
+        is_appeal = self._is_appeal_document(text)
 
-        for outcome, pattern in self.OUTCOME_PATTERNS.items():
-            if re.search(pattern, conclusion_text, re.IGNORECASE):
-                return outcome
+        if is_appeal:
+            # Appeal Board-specific outcome extraction
+            return self._extract_appeal_outcome(text)
+
+        # For hearing decisions: search in the last 3000 characters
+        search_text = text_lower[-3000:]
+
+        # Track the last (rightmost) match position for each outcome
+        last_match_positions = {}
+
+        for outcome, patterns in self.OUTCOME_PATTERNS.items():
+            for pattern in patterns:
+                # Find ALL matches and track the last one
+                for match in re.finditer(pattern, search_text, re.IGNORECASE):
+                    pos = match.end()
+                    if outcome not in last_match_positions or pos > last_match_positions[outcome]:
+                        last_match_positions[outcome] = pos
+
+        if not last_match_positions:
+            return "UNKNOWN"
+
+        # Return the outcome with the latest (rightmost) match
+        # This handles cases where earlier text might mention outcomes in context
+        # but the actual decision is at the end
+        return max(last_match_positions, key=last_match_positions.get)
+
+    def _is_appeal_document(self, text: str) -> bool:
+        """Detect if this is an Appeal Board decision vs a Hearing decision."""
+        # Check for Appeal Board-specific markers in first 1500 chars
+        header_text = text[:1500].lower()
+        appeal_markers = [
+            'appeal board',
+            'appeal board decision',
+            'applicant appealed',
+            'government appealed',
+            'cross-appeal',
+        ]
+        return any(marker in header_text for marker in appeal_markers)
+
+    def _extract_appeal_outcome(self, text: str) -> str:
+        """Extract outcome specifically for Appeal Board decisions.
+
+        Appeal Board outcomes are determined by:
+        1. The underlying decision (granted/denied by Administrative Judge)
+        2. The Appeal Board's action (affirmed/reversed/remanded)
+
+        Common patterns:
+        - "The adverse decision is AFFIRMED" → DENIED (denial upheld)
+        - "The favorable decision is AFFIRMED" → GRANTED (grant upheld)
+        - "The decision is AFFIRMED" → check context for underlying outcome
+        - "adverse decision is sustainable" → DENIED
+        - Case remanded → REMANDED
+        """
+        text_lower = text.lower()
+
+        # Check the Order section (last 1500 chars) for explicit outcome
+        order_text = text_lower[-1500:]
+
+        # Pattern 1: Explicit "adverse decision" or "favorable decision" in Order
+        if re.search(r'the\s+adverse\s+decision\s+is\s+affirmed', order_text):
+            return "DENIED"
+        if re.search(r'the\s+favorable\s+decision\s+is\s+affirmed', order_text):
+            return "GRANTED"
+        if re.search(r'the\s+adverse\s+decision\s+is\s+reversed', order_text):
+            return "GRANTED"
+        if re.search(r'the\s+favorable\s+decision\s+is\s+reversed', order_text):
+            return "DENIED"
+
+        # Pattern 2: Check for remand
+        if re.search(r'(?:case|decision)\s+is\s+remanded', order_text):
+            return "REMANDED"
+        if re.search(r'remanded\s+(?:to|for)', order_text):
+            return "REMANDED"
+
+        # Pattern 3: "The decision is AFFIRMED" - need to determine underlying decision
+        if re.search(r'the\s+decision\s+is\s+affirmed', order_text):
+            # Look for context about what was the underlying decision
+            # Check the body text for "denied" or "granted" near "eligibility"
+            body_text = text_lower[:len(text_lower) - 1500]
+
+            # Look for phrases indicating the AJ denied eligibility
+            denial_indicators = [
+                r'denied\s+applicant[\'s]*\s+(?:security\s+)?clearance\s+eligibility',
+                r'denied\s+applicant[\'s]*\s+eligibility',
+                r'denied\s+(?:the\s+)?eligibility',
+                r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+denying',
+                r'judge[\'s]*\s+(?:adverse\s+)?decision\s+(?:denying|was\s+to\s+deny)',
+                r'unfavorable\s+(?:security\s+)?(?:clearance\s+)?decision',
+                r'adverse\s+(?:security\s+)?(?:clearance\s+)?decision',
+                # Applicant appealed (usually against denial)
+                r'applicant\s+(?:has\s+)?appealed',
+                # Common language when applicant's appeal is rejected
+                r'applicant\s+failed\s+to\s+(?:establish|demonstrate)',
+                r'applicant[\'s]*\s+arguments\s+(?:are|do)\s+not',
+                # Decision is sustainable (usually used when affirming denial)
+                r'decision\s+is\s+sustainable',
+            ]
+
+            # Look for phrases indicating the AJ granted eligibility
+            grant_indicators = [
+                r'granted\s+applicant[\'s]*\s+(?:security\s+)?clearance\s+eligibility',
+                r'granted\s+applicant[\'s]*\s+eligibility',
+                r'granted\s+(?:the\s+)?eligibility',
+                r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+granting',
+                r'judge[\'s]*\s+(?:favorable\s+)?decision\s+(?:granting|was\s+to\s+grant)',
+                r'favorable\s+(?:security\s+)?(?:clearance\s+)?decision',
+                # Government appealed (usually against grant)
+                r'(?:department\s+counsel|government)\s+(?:has\s+)?appealed',
+            ]
+
+            for pattern in denial_indicators:
+                if re.search(pattern, body_text):
+                    return "DENIED"  # Denial affirmed = still denied
+
+            for pattern in grant_indicators:
+                if re.search(pattern, body_text):
+                    return "GRANTED"  # Grant affirmed = still granted
+
+        # Pattern 4: "The decision is REVERSED" - opposite of underlying
+        if re.search(r'the\s+decision\s+is\s+reversed', order_text):
+            body_text = text_lower[:len(text_lower) - 1500]
+
+            # If underlying was denial, reversed means granted
+            denial_indicators = [
+                r'denied\s+applicant[\'s]*\s+(?:security\s+)?clearance\s+eligibility',
+                r'denied\s+applicant[\'s]*\s+eligibility',
+                r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+denying',
+                r'judge[\'s]*\s+adverse\s+(?:findings|decision)',
+                r'adverse\s+findings\s+are\s+not\s+sustainable',
+            ]
+
+            for pattern in denial_indicators:
+                if re.search(pattern, body_text):
+                    return "GRANTED"  # Denial reversed = now granted
+
+            # If underlying was grant, reversed means denied
+            grant_indicators = [
+                r'granted\s+applicant[\'s]*\s+(?:security\s+)?clearance\s+eligibility',
+                r'granted\s+applicant[\'s]*\s+eligibility',
+                r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+granting',
+                r'judge[\'s]*\s+favorable\s+(?:findings|decision)',
+                # Appeal Board language indicating they disagree with a favorable decision
+                r'record\s+(?:evidence\s+)?(?:is\s+)?not\s+sufficient\s+to\s+mitigate',
+                r'not\s+sufficient\s+to\s+mitigate\s+the\s+government',
+                r'decision\s+runs\s+contrary\s+to\s+the\s+(?:weight\s+of\s+the\s+)?record',
+                r'favorable\s+(?:security\s+)?(?:clearance\s+)?determination\s+cannot\s+be\s+sustained',
+                r'cannot\s+be\s+sustained',
+            ]
+
+            for pattern in grant_indicators:
+                if re.search(pattern, body_text):
+                    return "DENIED"  # Grant reversed = now denied
+
+        # Pattern 5: Check for "is sustainable" language (means affirmed)
+        if re.search(r'(?:adverse\s+)?decision[^.]*is\s+sustainable', order_text):
+            # Check if it's an adverse decision
+            if re.search(r'adverse\s+decision[^.]*is\s+sustainable', order_text):
+                return "DENIED"
+            if re.search(r'(?:denying|denial)[^.]*is\s+sustainable', text_lower):
+                return "DENIED"
+            if re.search(r'(?:granting|grant)[^.]*is\s+sustainable', text_lower):
+                return "GRANTED"
+
+        # Pattern 6: Check earlier in document (DIGEST section) for appeal patterns
+        digest_text = text_lower[:2000]
+
+        if re.search(r'adverse\s+decision\s+(?:is\s+)?affirmed', digest_text):
+            return "DENIED"
+        if re.search(r'favorable\s+decision\s+(?:is\s+)?affirmed', digest_text):
+            return "GRANTED"
+        if re.search(r'adverse\s+decision\s+(?:is\s+)?reversed', digest_text):
+            return "GRANTED"
+        if re.search(r'favorable\s+decision\s+(?:is\s+)?reversed', digest_text):
+            return "DENIED"
+        if re.search(r'case\s+(?:is\s+)?remanded', digest_text):
+            return "REMANDED"
 
         return "UNKNOWN"
 
@@ -525,19 +805,428 @@ class DOHAScraper:
 
         return mitigating[:5]  # Limit to 5
 
+    def _extract_formal_findings(self, text: str) -> Dict[str, dict]:
+        """Extract formal findings section with per-guideline and per-subparagraph outcomes.
+
+        Returns a dict mapping guideline codes to their findings:
+        {
+            "F": {
+                "guideline_name": "Financial Considerations",
+                "overall": "AGAINST",  # or "FOR"
+                "subparagraphs": [
+                    {"para": "1.a-b", "finding": "Against"},
+                    {"para": "1.c-f", "finding": "For"},
+                ]
+            },
+            ...
+        }
+        """
+        findings = {}
+
+        # Find the Formal Findings section (handles both "Formal Finding" singular and "Formal Findings" plural)
+        # Use negative lookbehind to avoid matching "conclusions" in middle of sentence
+        # Match "Conclusion" only when it appears as a section header (preceded by newline)
+        formal_match = re.search(
+            r'Formal\s+Findings?.*?(?=\n\s*Conclusions?\s*\n|$)',
+            text,
+            re.IGNORECASE | re.DOTALL
+        )
+
+        if not formal_match:
+            return findings
+
+        formal_text = formal_match.group(0)
+
+        # Guideline name mapping
+        guideline_names = {
+            'A': 'Allegiance to the United States',
+            'B': 'Foreign Influence',
+            'C': 'Foreign Preference',
+            'D': 'Sexual Behavior',
+            'E': 'Personal Conduct',
+            'F': 'Financial Considerations',
+            'G': 'Alcohol Consumption',
+            'H': 'Drug Involvement',
+            'I': 'Psychological Conditions',
+            'J': 'Criminal Conduct',
+            'K': 'Handling Protected Information',
+            'L': 'Outside Activities',
+            'M': 'Use of Information Technology',
+        }
+
+        # Reverse mapping: guideline name keywords to code
+        name_to_code = {
+            'allegiance': 'A',
+            'foreign influence': 'B',
+            'foreign preference': 'C',
+            'sexual': 'D',
+            'personal conduct': 'E',
+            'financial': 'F',
+            'alcohol': 'G',
+            'drug': 'H',
+            'psychological': 'I',
+            'criminal': 'J',
+            'handling protected': 'K',
+            'outside activities': 'L',
+            'information technology': 'M',
+        }
+
+        # Pattern 1: "Paragraph 1, Guideline F:" or "Paragraph 1. Guideline F:" or "Paragraph 1 (Guideline B):"
+        para_pattern = r'Paragraph\s+(\d+)[.,]?\s*(?:\()?Guideline\s+([A-M])(?:\s*\([^)]+\))?\)?[:\s]*(FOR|AGAINST)\s*APPLICANT'
+
+        # Pattern 2: "GUIDELINE F (FINANCIAL CONSIDERATIONS): AGAINST APPLICANT"
+        alt_pattern = r'GUIDELINE\s+([A-M])\s*\([^)]+\)\s*:\s*(FOR|AGAINST)\s*APPLICANT'
+
+        # Try Pattern 1 first (more common)
+        for match in re.finditer(para_pattern, formal_text, re.IGNORECASE):
+            para_num = match.group(1)
+            guideline = match.group(2).upper()
+            overall = match.group(3).upper()
+
+            # Get section text until next Paragraph/Guideline or end
+            start_pos = match.end()
+            next_section = re.search(r'(?:Paragraph\s+\d+|GUIDELINE\s+[A-M])', formal_text[start_pos:], re.IGNORECASE)
+            if next_section:
+                section_text = formal_text[start_pos:start_pos + next_section.start()]
+            else:
+                section_text = formal_text[start_pos:]
+
+            subparagraphs = self._extract_subparagraphs(section_text, para_num)
+
+            findings[guideline] = {
+                "guideline_name": guideline_names.get(guideline, "Unknown"),
+                "overall": overall,
+                "subparagraphs": subparagraphs
+            }
+
+        # Try Pattern 2 for any guidelines not yet found
+        for match in re.finditer(alt_pattern, formal_text, re.IGNORECASE):
+            guideline = match.group(1).upper()
+            if guideline in findings:
+                continue  # Already found with Pattern 1
+
+            overall = match.group(2).upper()
+
+            # Get section text until next GUIDELINE or end
+            start_pos = match.end()
+            next_section = re.search(r'(?:GUIDELINE\s+[A-M]|Paragraph\s+\d+)', formal_text[start_pos:], re.IGNORECASE)
+            if next_section:
+                section_text = formal_text[start_pos:start_pos + next_section.start()]
+            else:
+                section_text = formal_text[start_pos:]
+
+            # For alt pattern, paragraph number is usually 1, 2, 3 based on guideline order
+            para_num = str(len(findings) + 1)
+            subparagraphs = self._extract_subparagraphs(section_text, para_num)
+
+            findings[guideline] = {
+                "guideline_name": guideline_names.get(guideline, "Unknown"),
+                "overall": overall,
+                "subparagraphs": subparagraphs
+            }
+
+        # Pattern 3: "Paragraph 1, Personal Conduct:" or "Paragraph 1, Financial Considerations:"
+        # Uses guideline name instead of "Guideline X"
+        name_pattern = r'Paragraph\s+(\d+)[.,]?\s*([A-Za-z][A-Za-z\s]+?)\s*[:\s]*(FOR|AGAINST)\s*APPLICANT'
+
+        for match in re.finditer(name_pattern, formal_text, re.IGNORECASE):
+            para_num = match.group(1)
+            name_text = match.group(2).strip().lower()
+            overall = match.group(3).upper()
+
+            # Map the name to a guideline code
+            guideline = None
+            for keyword, code in name_to_code.items():
+                if keyword in name_text:
+                    guideline = code
+                    break
+
+            if not guideline or guideline in findings:
+                continue  # Couldn't identify or already found
+
+            # Get section text until next Paragraph or end
+            start_pos = match.end()
+            next_section = re.search(r'Paragraph\s+\d+', formal_text[start_pos:], re.IGNORECASE)
+            if next_section:
+                section_text = formal_text[start_pos:start_pos + next_section.start()]
+            else:
+                section_text = formal_text[start_pos:]
+
+            subparagraphs = self._extract_subparagraphs(section_text, para_num)
+
+            findings[guideline] = {
+                "guideline_name": guideline_names.get(guideline, "Unknown"),
+                "overall": overall,
+                "subparagraphs": subparagraphs
+            }
+
+        # Pattern 4: "[Guideline Name] Security Concern:" format
+        # e.g., "Financial Considerations Security Concern: AGAINST APPLICANT"
+        # e.g., "Foreign Influence Security Concern: FOR APPLICANT"
+        concern_pattern = r'([A-Za-z][A-Za-z\s]+?)\s*(?:Security\s+)?Concern\s*[:\s]*(FOR|AGAINST)\s*APPLICANT'
+
+        for match in re.finditer(concern_pattern, formal_text, re.IGNORECASE):
+            name_text = match.group(1).strip().lower()
+            overall = match.group(2).upper()
+
+            # Map the name to a guideline code
+            guideline = None
+            for keyword, code in name_to_code.items():
+                if keyword in name_text:
+                    guideline = code
+                    break
+
+            if not guideline or guideline in findings:
+                continue  # Couldn't identify or already found
+
+            # Get section text until next Concern section or Conclusion
+            start_pos = match.end()
+            next_section = re.search(r'(?:[A-Za-z\s]+Security\s+)?Concern\s*:|Conclusion', formal_text[start_pos:], re.IGNORECASE)
+            if next_section:
+                section_text = formal_text[start_pos:start_pos + next_section.start()]
+            else:
+                section_text = formal_text[start_pos:]
+
+            # Determine paragraph number based on order found
+            para_num = str(len(findings) + 1)
+            subparagraphs = self._extract_subparagraphs(section_text, para_num)
+
+            findings[guideline] = {
+                "guideline_name": guideline_names.get(guideline, "Unknown"),
+                "overall": overall,
+                "subparagraphs": subparagraphs
+            }
+
+        return findings
+
+    def _extract_subparagraphs(self, section_text: str, para_num: str) -> List[dict]:
+        """Extract subparagraph findings from a section of text.
+
+        Handles various formats:
+        - "Subparagraph 1.a: For Applicant"
+        - "Subparagraphs 1.a-1.b: Against Applicant"
+        - "Subparagraphs 1.a - 1.f: For Applicant"
+        - "Subparagraphs a-b, d: Against Applicant" (letters only)
+        """
+        subparagraphs = []
+
+        # Multiple patterns to catch different formats
+        sub_patterns = [
+            # "Subparagraphs 1.a-1.b:" or "Subparagraph 1.a:"
+            r'Subparagraphs?\s+([\d]+\.[\w]+(?:\s*[-–—]\s*[\d]*\.?[\w]+)?)\s*[:\s]+\s*(For|Against)\s*Applicant',
+            # "Subparagraphs 1.a - 1.b:" with spaces around dash
+            r'Subparagraphs?\s+([\d]+\.[\w]+\s*[-–—]\s*[\d]+\.[\w]+)\s*[:\s]+\s*(For|Against)\s*Applicant',
+            # Simpler: just look for the pattern with finding on next line
+            r'Subparagraphs?\s+([\d]+\.[\w]+(?:[-–—\s]+[\d]*\.?[\w]+)?)[:\s]*\n\s*(For|Against)\s*Applicant',
+            # Letters only: "Subparagraphs a-b, d:" or "Subparagraph a:"
+            r'Subparagraphs?\s+([a-z](?:\s*[-–—,]\s*[a-z])*)\s*[:\s]+\s*(For|Against)\s*Applicant',
+            # Letters only with newline
+            r'Subparagraphs?\s+([a-z](?:[-–—,\s]+[a-z])*)[:\s]*\n\s*(For|Against)\s*Applicant',
+        ]
+
+        seen = set()
+        for pattern in sub_patterns:
+            for sub_match in re.finditer(pattern, section_text, re.IGNORECASE):
+                para_ref = sub_match.group(1).strip()
+                finding = sub_match.group(2).capitalize()
+
+                # Normalize the para reference
+                para_ref = re.sub(r'\s+', '', para_ref)  # Remove internal spaces
+
+                # If it's just letters (no number), prefix with para_num
+                if re.match(r'^[a-z]', para_ref, re.IGNORECASE) and '.' not in para_ref:
+                    para_ref = f"{para_num}.{para_ref}"
+
+                # Create unique key to avoid duplicates
+                key = (para_ref, finding)
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                subparagraphs.append({
+                    "para": para_ref,
+                    "finding": finding
+                })
+
+        return subparagraphs
+
     def _extract_judge(self, text: str) -> str:
-        """Extract administrative judge name"""
+        """Extract administrative judge name from the end of the document"""
+        # Search in the last 1500 characters where the judge signature typically appears
+        search_text = text[-1500:]
+
+        # Name character class: letters, apostrophes, accented chars, hyphens
+        name_char = r"[A-Za-z'\u2019\u00C0-\u00FF-]"
+        # A name part: capital letter followed by name chars
+        name_part = rf"[A-Z]{name_char}*"
+        # Optional middle: initial (A.) or full name (Le'i)
+        middle_opt = rf"(?:\s+{name_part}\.?)?"
+        # Optional suffix: II, III, IV, Jr., Sr. (with optional comma before)
+        suffix_opt = r"(?:[,\s]+(?:II|III|IV|Jr\.?|Sr\.?))?"
+
         patterns = [
-            r'(?:Administrative\s+Judge|AJ)[:\s]+([A-Z][a-z]+\s+[A-Z]\.?\s*[A-Z][a-z]+)',
-            r'([A-Z][a-z]+\s+[A-Z]\.?\s*[A-Z][a-z]+)[\s,]+Administrative\s+Judge',
+            # Full name on line before "Administrative Judge" (allowing page numbers/whitespace in between)
+            # Matches: "Roger C. Wesley", "Candace Le'i Garcia", "Claude R. Heiny II"
+            rf'({name_part}{middle_opt}\s+{name_part}{suffix_opt})\s*\n[\s\d]*\.?Administrative\s+Judge',
+            # All caps name: "ROGER C. WESLEY" or "JOHN GRATTAN METZ, JR"
+            r'([A-Z]+(?:\s+[A-Z]\.?)?\s+[A-Z]+(?:[,\s]+(?:II|III|IV|JR\.?|SR\.?)?)?)\s*\n[\s\d]*\.?Administrative\s+Judge',
+            # Name with "Administrative Judge" on same line
+            rf'({name_part}{middle_opt}\s+{name_part})[\s,]+Administrative\s+Judge',
+            # After underscore line (signature line)
+            rf'_{5,}\s*\n\s*({name_part}{middle_opt}\s+{name_part}{suffix_opt})\s*\n',
+            # Reversed format: "Administrative Judge" followed by name on next line
+            rf'Administrative\s+Judge\s*\n\s*({name_part}{middle_opt}\s+{name_part}{suffix_opt})',
         ]
 
         for pattern in patterns:
-            match = re.search(pattern, text[:3000])
+            match = re.search(pattern, search_text, re.IGNORECASE)
             if match:
-                return match.group(1)
+                name = match.group(1).strip()
+                # Title case the name if it's all caps
+                if name.isupper():
+                    parts = name.split()
+                    titled_parts = []
+                    for part in parts:
+                        if part in ('II', 'III', 'IV', 'JR', 'JR.', 'SR', 'SR.'):
+                            titled_parts.append(part if part in ('II', 'III', 'IV') else part.title())
+                        elif len(part) == 2 and part[1] == '.':
+                            titled_parts.append(part)  # Keep middle initial as-is
+                        else:
+                            titled_parts.append(part.title())
+                    name = ' '.join(titled_parts)
+                return name
 
         return "Unknown"
+
+    def _extract_appeal_board_members(self, text: str) -> List[str]:
+        """Extract Appeal Board member names from an appeal decision.
+
+        Appeal Board decisions are signed by 3 judges (Chair and 2 Members).
+        """
+        members = []
+
+        # Search in the last 1500 characters where signatures appear
+        search_text = text[-1500:]
+
+        # Pattern for signed Appeal Board members
+        # Formats:
+        # "Signed: Moira Modzelewski\nMoira Modzelewski\nAdministrative Judge\nChair, Appeal Board"
+        # "Signed: Gregg A. Cervi\nGregg A. Cervi\nAdministrative Judge\nMember, Appeal Board"
+
+        # Name character class
+        name_char = r"[A-Za-z'\u2019\u00C0-\u00FF-]"
+        name_part = rf"[A-Z]{name_char}*"
+        middle_opt = rf"(?:\s+{name_part}\.?)?"
+        suffix_opt = r"(?:[,\s]+(?:II|III|IV|Jr\.?|Sr\.?))?"
+
+        # Pattern to find names followed by "Administrative Judge" and "Appeal Board"
+        pattern = rf'Signed:\s*({name_part}{middle_opt}\s+{name_part}{suffix_opt})\s*\n'
+
+        matches = re.findall(pattern, search_text, re.IGNORECASE)
+        for match in matches:
+            name = match.strip()
+            if name and name not in members:
+                members.append(name)
+
+        # Alternative: look for names above "Administrative Judge" + "Appeal Board"
+        if not members:
+            pattern2 = rf'({name_part}{middle_opt}\s+{name_part}{suffix_opt})\s*\n\s*Administrative\s+Judge\s*\n\s*(?:Chair|Member),?\s*Appeal\s+Board'
+            matches = re.findall(pattern2, search_text, re.IGNORECASE)
+            for match in matches:
+                name = match.strip()
+                if name and name not in members:
+                    members.append(name)
+
+        return members
+
+    def _extract_judges_findings_of_fact(self, text: str) -> str:
+        """Extract the 'Judge's Findings of Fact' section from an appeal decision.
+
+        This section summarizes what the Administrative Judge found in the original hearing.
+        """
+        # Look for the section header
+        patterns = [
+            r"Judge['\u2019]?s\s+Findings?\s+of\s+Fact\s*(.*?)(?=Judge['\u2019]?s\s+Analysis|Discussion|Conclusion|Order|\Z)",
+            r"Findings?\s+of\s+Fact\s*(.*?)(?=Analysis|Discussion|Conclusion|Order|\Z)",
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+            if match:
+                content = match.group(1).strip()
+                # Clean up and limit length
+                content = re.sub(r'\s+', ' ', content)
+                return content[:3000] if len(content) > 3000 else content
+
+        return ""
+
+    def _extract_judges_analysis(self, text: str) -> str:
+        """Extract the 'Judge's Analysis' section from an appeal decision.
+
+        This section summarizes how the Administrative Judge analyzed the case.
+        """
+        patterns = [
+            r"Judge['\u2019]?s\s+Analysis\s*(.*?)(?=Discussion|Conclusion|Order|\Z)",
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+            if match:
+                content = match.group(1).strip()
+                content = re.sub(r'\s+', ' ', content)
+                return content[:2000] if len(content) > 2000 else content
+
+        return ""
+
+    def _extract_discussion(self, text: str) -> str:
+        """Extract the 'Discussion' section from an appeal decision.
+
+        This is the Appeal Board's analysis of the appeal arguments.
+        """
+        patterns = [
+            r"\bDiscussion\b\s*(.*?)(?=Conclusion|Order|\Z)",
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+            if match:
+                content = match.group(1).strip()
+                content = re.sub(r'\s+', ' ', content)
+                return content[:5000] if len(content) > 5000 else content
+
+        return ""
+
+    def _extract_order(self, text: str) -> str:
+        """Extract the 'Order' section from an appeal decision.
+
+        This contains the Appeal Board's final decision (AFFIRMED, REVERSED, REMANDED).
+        """
+        # Look for Order section at the end
+        patterns = [
+            r"\bOrder\b\s*(.*?)(?=Signed:|Administrative\s+Judge|\Z)",
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, text[-2000:], re.IGNORECASE | re.DOTALL)
+            if match:
+                content = match.group(1).strip()
+                # Extract just the key decision text
+                content = re.sub(r'\s+', ' ', content)
+                # Typically short like "The decision is AFFIRMED."
+                return content[:500] if len(content) > 500 else content
+
+        # Fallback: look for specific order language in last portion
+        order_patterns = [
+            r'The\s+(?:adverse\s+)?(?:favorable\s+)?decision\s+is\s+(AFFIRMED|REVERSED|REMANDED)',
+            r'(?:Case|Decision)\s+is\s+(REMANDED)',
+        ]
+
+        for pattern in order_patterns:
+            match = re.search(pattern, text[-1500:], re.IGNORECASE)
+            if match:
+                return match.group(0)
+
+        return ""
 
     def _create_summary(self, text: str) -> str:
         """Create a summary of the case"""
