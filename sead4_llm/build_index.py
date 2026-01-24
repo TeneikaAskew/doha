@@ -11,8 +11,8 @@ Usage:
     # Build index from local case files
     python build_index.py --local-dir ./my_cases --output ./doha_index
 
-    # Build index from pre-extracted JSON
-    python build_index.py --from-json ./cases.json --output ./doha_index
+    # Build index from pre-extracted cases (Parquet or JSON)
+    python build_index.py --from-cases ./cases.parquet --output ./doha_index
 """
 import argparse
 import json
@@ -93,15 +93,15 @@ def build_from_local(local_dir: Path, output_path: Path):
     return build_index(indexed_cases, output_path)
 
 
-def build_from_json(json_path: Path, output_path: Path):
+def build_from_cases(cases_path: Path, output_path: Path):
     """Build index from pre-extracted Parquet or JSON file (prefers Parquet)"""
     from rag.indexer import create_index_from_extracted_cases
 
-    json_path = Path(json_path)
+    cases_path = Path(cases_path)
     output_path = Path(output_path)
 
     # PREFER parquet files (more consistent, always under size limit)
-    parquet_files = list(json_path.parent.glob(f"{json_path.stem}*.parquet"))
+    parquet_files = list(cases_path.parent.glob(f"{cases_path.stem}*.parquet"))
 
     if parquet_files:
         logger.info(f"Found {len(parquet_files)} parquet file(s) - using parquet (most consistent format)")
@@ -136,13 +136,13 @@ def build_from_json(json_path: Path, output_path: Path):
             # Fall through to JSON check below
 
     # Fallback to JSON if parquet not available or pandas missing
-    if json_path.exists():
-        logger.info(f"Building index from JSON: {json_path}...")
-        indexer = create_index_from_extracted_cases(json_path, output_path)
+    if cases_path.exists():
+        logger.info(f"Building index from JSON: {cases_path}...")
+        indexer = create_index_from_extracted_cases(cases_path, output_path)
         logger.info(f"Index created with {len(indexer.cases)} cases from JSON")
         return output_path
     else:
-        logger.error(f"Neither parquet nor JSON files found at {json_path}")
+        logger.error(f"Neither parquet nor JSON files found at {cases_path}")
         return None
 
 
@@ -282,8 +282,8 @@ Examples:
   Build from local PDF/HTML files:
     %(prog)s --local-dir ./downloaded_cases --output ./doha_index
 
-  Build from pre-extracted JSON:
-    %(prog)s --from-json ./extracted_cases.json --output ./doha_index
+  Build from pre-extracted cases (Parquet or JSON):
+    %(prog)s --from-cases ./extracted_cases.parquet --output ./doha_index
 
   Test an existing index:
     %(prog)s --test --index ./doha_index
@@ -296,7 +296,7 @@ Examples:
                               help='Scrape cases from DOHA website')
     source_group.add_argument('--local-dir',
                               help='Build from local case files (PDF/HTML/TXT)')
-    source_group.add_argument('--from-json',
+    source_group.add_argument('--from-cases',
                               help='Build from pre-extracted cases (prefers Parquet, falls back to JSON)')
     source_group.add_argument('--test', action='store_true',
                               help='Test an existing index')
@@ -335,9 +335,9 @@ Examples:
         test_index(Path(args.index or args.output))
         return 0
 
-    if not (args.scrape or args.local_dir or args.from_json):
+    if not (args.scrape or args.local_dir or args.from_cases):
         parser.print_help()
-        print("\nError: Specify one of --scrape, --local-dir, or --from-json")
+        print("\nError: Specify one of --scrape, --local-dir, or --from-cases")
         return 1
 
     # Run appropriate mode
@@ -357,9 +357,9 @@ Examples:
                 local_dir=Path(args.local_dir),
                 output_path=output_path
             )
-        elif args.from_json:
-            result = build_from_json(
-                json_path=Path(args.from_json),
+        elif args.from_cases:
+            result = build_from_cases(
+                cases_path=Path(args.from_cases),
                 output_path=output_path
             )
 

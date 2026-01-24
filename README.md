@@ -32,7 +32,7 @@ Run from **project root** directory:
 
 ### Phase 2: Index Building (Optional - for precedent matching)
 Run from **sead4_llm/** directory:
-3. Build RAG index: `python build_index.py --from-json ../doha_parsed_cases/all_cases.parquet --output ../doha_index`
+3. Build RAG index: `python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index`
 
 ### Phase 3: Analysis
 Run from **sead4_llm/** directory:
@@ -152,7 +152,7 @@ python download_pdfs.py --case-type appeals      # Download only appeals
 # Step 3: Build RAG index from parsed cases
 cd sead4_llm
 # Automatically detects and prefers parquet format (most consistent)
-python build_index.py --from-json ../doha_parsed_cases/all_cases.parquet --output ../doha_index
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index
 
 # Step 4: Test the index
 python build_index.py --test --index ../doha_index
@@ -201,7 +201,7 @@ cd sead4_llm
 python build_index.py --local-dir ../downloaded_cases --output ../doha_index
 
 # Or from parsed case data (accepts both Parquet and JSON, prefers Parquet)
-python build_index.py --from-json ../doha_parsed_cases/all_cases.parquet --output ../doha_index
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index
 ```
 
 ### Using the Index
@@ -295,8 +295,8 @@ python analyze.py --input <file> [--output <path>] [--provider <gemini|claude>] 
 # Batch processing
 python analyze.py --input-dir <directory> --output-dir <directory> [--provider <gemini|claude>] [--batch]
 
-# Build DOHA index from JSON
-python build_index.py --from-json <path> --output <path>
+# Build DOHA index from cases (Parquet or JSON)
+python build_index.py --from-cases <path> --output <path>
 
 # Test existing index
 python build_index.py --test --index <path>
