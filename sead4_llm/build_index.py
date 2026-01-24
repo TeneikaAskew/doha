@@ -94,57 +94,56 @@ def build_from_local(local_dir: Path, output_path: Path):
 
 
 def build_from_json(json_path: Path, output_path: Path):
-    """Build index from pre-extracted JSON or Parquet file"""
+    """Build index from pre-extracted Parquet or JSON file (prefers Parquet)"""
     from rag.indexer import create_index_from_extracted_cases
 
     json_path = Path(json_path)
     output_path = Path(output_path)
 
-    # Check if parquet files exist instead
-    if not json_path.exists():
-        # Look for parquet files
-        parquet_base = json_path.parent / json_path.stem
-        parquet_files = list(json_path.parent.glob(f"{json_path.stem}*.parquet"))
+    # PREFER parquet files (more consistent, always under size limit)
+    parquet_files = list(json_path.parent.glob(f"{json_path.stem}*.parquet"))
 
-        if parquet_files:
-            logger.info(f"JSON not found, but found {len(parquet_files)} parquet file(s)")
-            logger.info(f"Loading from parquet: {', '.join(f.name for f in parquet_files)}")
+    if parquet_files:
+        logger.info(f"Found {len(parquet_files)} parquet file(s) - using parquet (most consistent format)")
+        logger.info(f"Loading from: {', '.join(f.name for f in parquet_files)}")
+
+        try:
+            import pandas as pd
+
+            # Load all parquet files and combine
+            dfs = [pd.read_parquet(f) for f in sorted(parquet_files)]
+            df = pd.concat(dfs, ignore_index=True)
+            cases_data = df.to_dict('records')
+
+            # Create temporary JSON in memory for the indexer
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+                import json
+                json.dump(cases_data, tmp, indent=2)
+                tmp_path = Path(tmp.name)
 
             try:
-                import pandas as pd
+                indexer = create_index_from_extracted_cases(tmp_path, output_path)
+                logger.info(f"Index created with {len(indexer.cases)} cases from parquet")
+                return output_path
+            finally:
+                tmp_path.unlink()
 
-                # Load all parquet files and combine
-                dfs = [pd.read_parquet(f) for f in sorted(parquet_files)]
-                df = pd.concat(dfs, ignore_index=True)
-                cases_data = df.to_dict('records')
+        except ImportError:
+            logger.error("pandas not installed - cannot read parquet files")
+            logger.error("Install with: pip install pandas pyarrow")
+            logger.info("Falling back to JSON if available...")
+            # Fall through to JSON check below
 
-                # Create temporary JSON in memory for the indexer
-                import tempfile
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
-                    import json
-                    json.dump(cases_data, tmp, indent=2)
-                    tmp_path = Path(tmp.name)
-
-                try:
-                    indexer = create_index_from_extracted_cases(tmp_path, output_path)
-                    logger.info(f"Index created with {len(indexer.cases)} cases from parquet")
-                    return output_path
-                finally:
-                    tmp_path.unlink()
-
-            except ImportError:
-                logger.error("pandas not installed - cannot read parquet files")
-                logger.error("Install with: pip install pandas pyarrow")
-                return None
-        else:
-            logger.error(f"Neither JSON nor parquet files found at {json_path}")
-            return None
-
-    logger.info(f"Building index from {json_path}...")
-    indexer = create_index_from_extracted_cases(json_path, output_path)
-
-    logger.info(f"Index created with {len(indexer.cases)} cases")
-    return output_path
+    # Fallback to JSON if parquet not available or pandas missing
+    if json_path.exists():
+        logger.info(f"Building index from JSON: {json_path}...")
+        indexer = create_index_from_extracted_cases(json_path, output_path)
+        logger.info(f"Index created with {len(indexer.cases)} cases from JSON")
+        return output_path
+    else:
+        logger.error(f"Neither parquet nor JSON files found at {json_path}")
+        return None
 
 
 def convert_scraped_to_indexed(cases):
@@ -298,7 +297,7 @@ Examples:
     source_group.add_argument('--local-dir',
                               help='Build from local case files (PDF/HTML/TXT)')
     source_group.add_argument('--from-json',
-                              help='Build from pre-extracted JSON or Parquet file (auto-detects format)')
+                              help='Build from pre-extracted cases (prefers Parquet, falls back to JSON)')
     source_group.add_argument('--test', action='store_true',
                               help='Test an existing index')
 

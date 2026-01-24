@@ -427,11 +427,11 @@ The download script creates **both JSON and Parquet** formats automatically:
 
 **Why both formats?**
 - **JSON**: Easy to read/edit locally, works with standard tools
-- **Parquet**: 70-80% smaller, stays under GitHub's 100MB file limit
+- **Parquet**: 70-80% smaller, stays under GitHub's 100MB file limit, more consistent across environments
 
 **The build_index.py script automatically**:
-- Uses JSON if available locally
-- Falls back to Parquet if JSON is missing or too large
+- **Prefers Parquet** (most consistent format, always available from Git)
+- Falls back to JSON if parquet not found or pandas not installed
 - You don't need to specify which format to use
 
 ## 📂 Output Files

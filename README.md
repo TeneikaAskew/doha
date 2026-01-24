@@ -151,7 +151,7 @@ python download_pdfs.py --case-type appeals      # Download only appeals
 
 # Step 3: Build RAG index from parsed cases
 cd sead4_llm
-# Automatically uses parquet if JSON is too large or missing
+# Automatically prefers parquet (most consistent), falls back to JSON if needed
 python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ../doha_index
 
 # Step 4: Test the index

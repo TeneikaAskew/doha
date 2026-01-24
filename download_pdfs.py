@@ -417,4 +417,4 @@ Output:
 
     logger.info(f"\nNext step: Build index from parsed cases")
     logger.info(f"Run: python sead4_llm/build_index.py --from-json {args.output}/all_cases.json --output ./doha_index")
-    logger.info(f"\nNote: Index builder auto-detects JSON or Parquet format")
+    logger.info(f"\nNote: Index builder prefers Parquet (most consistent), falls back to JSON if needed")
