@@ -138,9 +138,20 @@ def merge_checkpoints(input_dir: str = "doha_parsed_cases", output_parquet: bool
         else:
             return ('', int(parts[1]))
 
-    checkpoint_files = sorted(input_path.glob("checkpoint_*.json"), key=checkpoint_sort_key)
+    # Find checkpoint files in main directory and all archive subdirectories
+    checkpoint_files = list(input_path.glob("checkpoint_*.json"))
 
-    logger.info(f"Found {len(checkpoint_files)} checkpoint files")
+    # Also search in archive directories
+    archive_dir = input_path / "checkpoints_archive"
+    if archive_dir.exists():
+        archive_checkpoints = list(archive_dir.glob("**/checkpoint_*.json"))
+        checkpoint_files.extend(archive_checkpoints)
+        if archive_checkpoints:
+            logger.info(f"Found {len(archive_checkpoints)} checkpoint files in archive directories")
+
+    checkpoint_files = sorted(checkpoint_files, key=checkpoint_sort_key)
+
+    logger.info(f"Found {len(checkpoint_files)} total checkpoint files")
 
     # Merge all cases, tracking by case_number to dedupe
     cases_by_number = {}
