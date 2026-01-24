@@ -6,6 +6,11 @@ data/*.csv
 checkpoint_*.json
 all_cases.json
 
+# PDF files
+*.pdf
+appeal_pdfs/
+hearing_pdfs/
+
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 */.ipynb_checkpoints/*
