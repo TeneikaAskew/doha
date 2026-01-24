@@ -4,13 +4,17 @@
 
 > **Does this solution retrieve every document from https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/ and for all years including archived?**
 
-**Answer**: ✅ **YES!** The solution successfully retrieves **all DOHA cases** (both hearings and appeals) using Playwright browser automation. Successfully scraped **30,850+ hearings** and **1,010+ appeals** from 2016-2026.
+**Answer**: ✅ **YES!** The solution successfully retrieves **all available DOHA cases** (both hearings and appeals) using Playwright browser automation:
+- **30,850+ Hearing decisions** - Initial adjudications by DOHA judges from 2016-2026 (includes 17-page pre-2017 archive)
+- **1,010+ Appeal decisions** - DOHA Appeal Board reviews from 2016-2026 (includes 3+ page pre-2017 archive)
 
 > **Where is it storing it if so? I don't see them - has it ran?**
 
 **Answer**:
 - **Case links**: Stored in `./doha_full_scrape/all_case_links.json`
-- **Parsed cases**: Stored in `./doha_parsed_cases/all_cases.json`
+- **Parsed cases**: Stored in both formats:
+  - `./doha_parsed_cases/all_cases.json` (local use, gitignored if >100MB)
+  - `./doha_parsed_cases/all_cases.parquet` (Git-friendly, <90MB compressed)
 - **PDFs**: Organized by type:
   - Hearings: `./doha_parsed_cases/hearing_pdfs/`
   - Appeals: `./doha_parsed_cases/appeal_pdfs/`
@@ -48,15 +52,17 @@ I mapped the **entire DOHA case archive**:
 - ✅ Correct URL patterns for all years (2017-2026)
 - ✅ Special handling for 2024's different URL structure
 - ✅ Support for archived years (2017-2018)
-- ✅ Support for "2016 and Prior" multi-page structure (17 pages)
+- ✅ Support for "2016 and Prior" multi-page structure (17 pages for hearings)
+- ✅ **Support for both HEARINGS and APPEALS** with separate URL patterns
 - ✅ `scrape_all_available()` method to get all cases
 - ✅ Better error handling and retry logic
 - ✅ Realistic browser headers
 
 **Created [sead4_llm/rag/browser_scraper.py](sead4_llm/rag/browser_scraper.py)** (NEW):
 - ✅ Playwright-based browser automation
-- ✅ Attempts to bypass bot protection with real browser
-- ✅ All the same functionality as standard scraper
+- ✅ Bypasses bot protection with real browser
+- ✅ **Handles both hearing and appeal case types**
+- ✅ Separate methods for hearings (`get_case_links`) and appeals (`get_appeal_case_links`)
 
 ### 4. Bot Protection Solution ✅ SOLVED
 

@@ -103,7 +103,8 @@ doha/                       # Project root
 ├── doha_full_scrape/      # Created by run_full_scrape.py
 │   └── all_case_links.json    # All collected case links
 └── doha_parsed_cases/     # Created by download_pdfs.py
-    ├── all_cases.json         # Parsed case data for indexing
+    ├── all_cases.json         # Parsed case data (local use, gitignored if >100MB)
+    ├── all_cases.parquet      # Compressed format for Git (<90MB, auto-created)
     ├── hearing_pdfs/          # Downloaded hearing PDFs
     └── appeal_pdfs/           # Downloaded appeal PDFs
 ```
@@ -112,7 +113,10 @@ doha/                       # Project root
 
 ### Browser-Based Scraping (Recommended)
 
-✅ **SCRAPING WORKS!** The project includes a **Playwright-based browser scraper** that successfully bypasses bot protection and has scraped **30,850+ DOHA cases** (hearings and appeals from 2016-2026).
+✅ **SCRAPING WORKS!** The project includes a **Playwright-based browser scraper** that successfully bypasses bot protection:
+- **30,850+ Hearing decisions** (2016-2026) - Initial adjudications by DOHA administrative judges (GRANTED/DENIED)
+- **1,010+ Appeal decisions** (2017-2026) - DOHA Appeal Board reviews of hearing decisions (AFFIRM/REVERSE/REMAND)
+- **2016 and Prior Appeals** - Additional appeal cases in archived pages (exact count TBD after scraping)
 
 See [**DOHA_SCRAPING_GUIDE.md**](DOHA_SCRAPING_GUIDE.md) for complete details on:
 - How browser automation bypasses Akamai bot protection
@@ -125,7 +129,9 @@ See [**DOHA_SCRAPING_GUIDE.md**](DOHA_SCRAPING_GUIDE.md) for complete details on
 
 ```bash
 # Step 1: Collect all case links using browser automation
-# Scrapes both hearings (~30,850 cases) and appeals (~1,010 cases) from 2016-2026
+# Hearings: Initial adjudication decisions (2016-2026, ~30,850 cases)
+# Appeals: Appeal Board reviews (2016-2026, ~1,010+ cases)
+# Both hearings and appeals include "2016 and Prior" archived pages
 python run_full_scrape.py                         # Both hearings and appeals (default)
 python run_full_scrape.py --case-type hearings   # Only hearings
 python run_full_scrape.py --case-type appeals    # Only appeals
@@ -139,21 +145,49 @@ python download_pdfs.py                           # Download all cases (both typ
 python download_pdfs.py --case-type hearings     # Download only hearings
 python download_pdfs.py --case-type appeals      # Download only appeals
 
-# Output: ./doha_parsed_cases/all_cases.json
+# Output: ./doha_parsed_cases/all_cases.json (for local use)
+#         ./doha_parsed_cases/all_cases.parquet (for Git - stays under 100MB limit)
 # PDFs organized in: ./doha_parsed_cases/hearing_pdfs/ and ./doha_parsed_cases/appeal_pdfs/
 
 # Step 3: Build RAG index from parsed cases
 cd sead4_llm
+# Automatically uses parquet if JSON is too large or missing
 python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ../doha_index
 
 # Step 4: Test the index
 python build_index.py --test --index ../doha_index
 ```
 
+**Troubleshooting:**
+
+If you encounter issues with the download process (interrupted downloads, UNKNOWN outcomes, or missing cases), use these helper scripts:
+
+```bash
+# If download was interrupted and all_cases.json is missing/incomplete:
+# This merges all checkpoint files back into all_cases.json
+python merge_checkpoints.py
+
+# If you have cases with UNKNOWN outcomes:
+# This re-extracts metadata from the full_text of existing cases
+python reprocess_cases.py
+
+# Then continue with download_pdfs.py - it will resume from where it left off
+python download_pdfs.py
+```
+
+**Performance:**
+- **GitHub Codespaces**: ~5-6 cases per second
+- **Local desktop**: ~1-2 cases per second
+- Estimated time for full dataset (31,860 cases):
+  - Codespaces: ~1.5-1.8 hours
+  - Local: ~4.5-9 hours
+
 **Important Notes:**
 - Individual PDF URLs are protected by bot detection and require browser automation to download
 - Downloads can be resumed - the script automatically skips already processed cases
 - Checkpoints are saved every 50 cases to prevent data loss
+- **Parquet format is automatically created** - stays under GitHub's 100MB limit (JSON will exceed this)
+- Both JSON and Parquet are created: use JSON locally, commit Parquet to Git
 - Default rate limit is 2 seconds between requests to be respectful to the DOHA servers
 
 ### Alternative: Build from Local Files
