@@ -310,9 +310,22 @@ def create_index_from_extracted_cases(
         if not judge:
             judge = c.get('metadata', {}).get('judge', '')
 
+        # Extract year from case number
+        case_number = c.get('case_number', 'Unknown')
+        try:
+            if case_number.startswith('appeal-'):
+                # Appeal format: "appeal-2019-108902"
+                year = int(case_number.split('-')[1])
+            else:
+                # Hearing format: "19-12345"
+                year_str = case_number[:2]
+                year = int(year_str) + (2000 if int(year_str) < 50 else 1900)
+        except (ValueError, IndexError):
+            year = 2020  # Default fallback
+
         indexed_cases.append(IndexedCase(
-            case_number=c.get('case_number', 'Unknown'),
-            year=int(c.get('case_number', '00-00000')[:2]) + 2000,
+            case_number=case_number,
+            year=year,
             outcome=outcome,
             guidelines=guidelines,
             summary=summary[:500] if summary else '',

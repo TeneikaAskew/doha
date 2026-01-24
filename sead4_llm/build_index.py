@@ -93,8 +93,14 @@ def build_from_local(local_dir: Path, output_path: Path):
     return build_index(indexed_cases, output_path)
 
 
-def build_from_cases(cases_path: Path, output_path: Path):
-    """Build index from pre-extracted Parquet or JSON file (prefers Parquet)"""
+def build_from_cases(cases_path: Path, output_path: Path, update: bool = False):
+    """Build index from pre-extracted Parquet or JSON file (prefers Parquet)
+
+    Args:
+        cases_path: Path to parquet/json file with case data
+        output_path: Where to save the index
+        update: If True, load existing index and only add new cases
+    """
     from rag.indexer import create_index_from_extracted_cases
 
     cases_path = Path(cases_path)
@@ -115,6 +121,51 @@ def build_from_cases(cases_path: Path, output_path: Path):
             df = pd.concat(dfs, ignore_index=True)
             cases_data = df.to_dict('records')
 
+            # Convert numpy arrays to lists for JSON serialization (recursive)
+            import numpy as np
+
+            def convert_to_serializable(obj):
+                """Recursively convert numpy arrays and pandas NA to JSON-serializable types"""
+                if isinstance(obj, np.ndarray):
+                    return [convert_to_serializable(item) for item in obj.tolist()]
+                elif isinstance(obj, dict):
+                    return {k: convert_to_serializable(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_to_serializable(item) for item in obj]
+                elif pd.isna(obj):
+                    return None
+                else:
+                    return obj
+
+            for case in cases_data:
+                for key in list(case.keys()):
+                    case[key] = convert_to_serializable(case[key])
+
+            # Filter for new cases if updating
+            if update and output_path.exists():
+                from rag.indexer import DOHAIndexer
+
+                logger.info(f"Update mode: loading existing index from {output_path}")
+                existing_indexer = DOHAIndexer(index_path=output_path)
+                existing_indexer.load()
+
+                existing_case_numbers = {case.case_number for case in existing_indexer.cases}
+                logger.info(f"Existing index has {len(existing_case_numbers)} cases")
+
+                # Filter out cases already in index
+                new_cases_data = [
+                    case for case in cases_data
+                    if case.get('case_number', 'Unknown') not in existing_case_numbers
+                ]
+
+                logger.info(f"Found {len(new_cases_data)} new cases to add (skipping {len(cases_data) - len(new_cases_data)} existing)")
+
+                if not new_cases_data:
+                    logger.success("No new cases to add - index is up to date")
+                    return output_path
+
+                cases_data = new_cases_data
+
             # Create temporary JSON in memory for the indexer
             import tempfile
             with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
@@ -123,8 +174,78 @@ def build_from_cases(cases_path: Path, output_path: Path):
                 tmp_path = Path(tmp.name)
 
             try:
-                indexer = create_index_from_extracted_cases(tmp_path, output_path)
-                logger.info(f"Index created with {len(indexer.cases)} cases from parquet")
+                if update and output_path.exists():
+                    # Load existing index and add new cases
+                    from rag.indexer import DOHAIndexer
+                    indexer = DOHAIndexer(index_path=output_path)
+                    indexer.load()
+
+                    logger.info(f"Adding {len(cases_data)} new cases to existing index")
+
+                    # Parse new cases and add them
+                    with open(tmp_path) as f:
+                        new_cases_json = json.load(f)
+
+                    from rag.indexer import IndexedCase
+                    indexed_cases = []
+                    for c in new_cases_json:
+                        # Same parsing logic as create_index_from_extracted_cases
+                        outcome = c.get('outcome', c.get('overall_decision', 'UNKNOWN'))
+                        if outcome not in ['GRANTED', 'DENIED', 'REVOKED', 'REMANDED']:
+                            outcome = 'UNKNOWN'
+
+                        guidelines = []
+                        if 'guideline_labels' in c:
+                            codes = list("ABCDEFGHIJKLM")
+                            guidelines = [codes[i] for i, v in enumerate(c['guideline_labels']) if v]
+                        elif 'guidelines' in c:
+                            if isinstance(c['guidelines'], list):
+                                guidelines = c['guidelines']
+                            else:
+                                guidelines = [g for g, data in c['guidelines'].items() if data.get('relevant')]
+
+                        case_type = c.get('case_type', 'hearing')
+                        if case_type == 'appeal':
+                            discussion = c.get('discussion', '')
+                            key_facts = [discussion[:500]] if discussion else []
+                        else:
+                            key_facts = c.get('sor_allegations', [])[:5]
+
+                        summary = c.get('summary', '')
+                        if not summary:
+                            summary = c.get('text', c.get('full_text', ''))[:500]
+
+                        judge = c.get('judge', '')
+                        if not judge:
+                            judge = c.get('metadata', {}).get('judge', '')
+
+                        case_number = c.get('case_number', 'Unknown')
+                        try:
+                            if case_number.startswith('appeal-'):
+                                year = int(case_number.split('-')[1])
+                            else:
+                                year_str = case_number[:2]
+                                year = int(year_str) + (2000 if int(year_str) < 50 else 1900)
+                        except (ValueError, IndexError):
+                            year = 2020
+
+                        indexed_cases.append(IndexedCase(
+                            case_number=case_number,
+                            year=year,
+                            outcome=outcome,
+                            guidelines=guidelines,
+                            summary=summary[:500] if summary else '',
+                            key_facts=key_facts,
+                            judge=judge
+                        ))
+
+                    indexer.add_cases_batch(indexed_cases)
+                    indexer.save()
+                    logger.info(f"Index updated - now contains {len(indexer.cases)} total cases")
+                else:
+                    # Create new index from scratch
+                    indexer = create_index_from_extracted_cases(tmp_path, output_path)
+                    logger.info(f"Index created with {len(indexer.cases)} cases from parquet")
                 return output_path
             finally:
                 tmp_path.unlink()
@@ -137,10 +258,106 @@ def build_from_cases(cases_path: Path, output_path: Path):
 
     # Fallback to JSON if parquet not available or pandas missing
     if cases_path.exists():
-        logger.info(f"Building index from JSON: {cases_path}...")
-        indexer = create_index_from_extracted_cases(cases_path, output_path)
-        logger.info(f"Index created with {len(indexer.cases)} cases from JSON")
-        return output_path
+        if update and output_path.exists():
+            # Update mode with JSON
+            from rag.indexer import DOHAIndexer
+            import json
+
+            logger.info(f"Update mode: loading existing index from {output_path}")
+            indexer = DOHAIndexer(index_path=output_path)
+            indexer.load()
+
+            existing_case_numbers = {case.case_number for case in indexer.cases}
+            logger.info(f"Existing index has {len(existing_case_numbers)} cases")
+
+            # Load all cases from JSON
+            with open(cases_path) as f:
+                all_cases = json.load(f)
+
+            # Filter for new cases
+            new_cases = [
+                case for case in all_cases
+                if case.get('case_number', 'Unknown') not in existing_case_numbers
+            ]
+
+            logger.info(f"Found {len(new_cases)} new cases to add (skipping {len(all_cases) - len(new_cases)} existing)")
+
+            if not new_cases:
+                logger.success("No new cases to add - index is up to date")
+                return output_path
+
+            # Create temp file with only new cases
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+                json.dump(new_cases, tmp, indent=2)
+                tmp_path = Path(tmp.name)
+
+            try:
+                # Parse and add new cases (reuse logic from parquet section)
+                from rag.indexer import IndexedCase
+                indexed_cases = []
+                for c in new_cases:
+                    outcome = c.get('outcome', c.get('overall_decision', 'UNKNOWN'))
+                    if outcome not in ['GRANTED', 'DENIED', 'REVOKED', 'REMANDED']:
+                        outcome = 'UNKNOWN'
+
+                    guidelines = []
+                    if 'guideline_labels' in c:
+                        codes = list("ABCDEFGHIJKLM")
+                        guidelines = [codes[i] for i, v in enumerate(c['guideline_labels']) if v]
+                    elif 'guidelines' in c:
+                        if isinstance(c['guidelines'], list):
+                            guidelines = c['guidelines']
+                        else:
+                            guidelines = [g for g, data in c['guidelines'].items() if data.get('relevant')]
+
+                    case_type = c.get('case_type', 'hearing')
+                    if case_type == 'appeal':
+                        discussion = c.get('discussion', '')
+                        key_facts = [discussion[:500]] if discussion else []
+                    else:
+                        key_facts = c.get('sor_allegations', [])[:5]
+
+                    summary = c.get('summary', '')
+                    if not summary:
+                        summary = c.get('text', c.get('full_text', ''))[:500]
+
+                    judge = c.get('judge', '')
+                    if not judge:
+                        judge = c.get('metadata', {}).get('judge', '')
+
+                    case_number = c.get('case_number', 'Unknown')
+                    try:
+                        if case_number.startswith('appeal-'):
+                            year = int(case_number.split('-')[1])
+                        else:
+                            year_str = case_number[:2]
+                            year = int(year_str) + (2000 if int(year_str) < 50 else 1900)
+                    except (ValueError, IndexError):
+                        year = 2020
+
+                    indexed_cases.append(IndexedCase(
+                        case_number=case_number,
+                        year=year,
+                        outcome=outcome,
+                        guidelines=guidelines,
+                        summary=summary[:500] if summary else '',
+                        key_facts=key_facts,
+                        judge=judge
+                    ))
+
+                indexer.add_cases_batch(indexed_cases)
+                indexer.save()
+                logger.info(f"Index updated - now contains {len(indexer.cases)} total cases")
+                return output_path
+            finally:
+                tmp_path.unlink()
+        else:
+            # Build new index from JSON
+            logger.info(f"Building index from JSON: {cases_path}...")
+            indexer = create_index_from_extracted_cases(cases_path, output_path)
+            logger.info(f"Index created with {len(indexer.cases)} cases from JSON")
+            return output_path
     else:
         logger.error(f"Neither parquet nor JSON files found at {cases_path}")
         return None
@@ -285,6 +502,9 @@ Examples:
   Build from pre-extracted cases (Parquet or JSON):
     %(prog)s --from-cases ./extracted_cases.parquet --output ./doha_index
 
+  Update existing index with new cases only:
+    %(prog)s --from-cases ./extracted_cases.parquet --output ./doha_index --update
+
   Test an existing index:
     %(prog)s --test --index ./doha_index
         """
@@ -315,6 +535,10 @@ Examples:
     parser.add_argument('--output', '-o', default='./doha_index',
                         help='Output directory for index (default: ./doha_index)')
     parser.add_argument('--index', help='Path to existing index (for --test)')
+
+    # Update options
+    parser.add_argument('--update', action='store_true',
+                        help='Update existing index with new cases only (much faster for daily updates)')
 
     # Other options
     parser.add_argument('--verbose', '-v', action='store_true',
@@ -360,16 +584,23 @@ Examples:
         elif args.from_cases:
             result = build_from_cases(
                 cases_path=Path(args.from_cases),
-                output_path=output_path
+                output_path=output_path,
+                update=args.update
             )
 
         if result:
-            print(f"\nSuccess! Index created at: {result}")
+            if args.update:
+                print(f"\nSuccess! Index updated at: {result}")
+            else:
+                print(f"\nSuccess! Index created at: {result}")
             print(f"\nTo use with analyzer:")
             print(f"  python analyze.py --input report.pdf --use-rag --index {result}")
             return 0
         else:
-            print("\nFailed to create index")
+            if args.update:
+                print("\nFailed to update index")
+            else:
+                print("\nFailed to create index")
             return 1
 
     except ImportError as e:
