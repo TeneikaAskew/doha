@@ -231,12 +231,16 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
+# Get script directory for asset paths (works on Streamlit Cloud and locally)
+script_dir = Path(__file__).parent
+
 # Header with logos
 col_dcsa_logo, col_doha_logo, col_title = st.columns([1, 1, 4])
 
 with col_dcsa_logo:
     # Check if DCSA logo exists, otherwise show placeholder
-    dcsa_logo_path = Path("assets/dcsa_logo.png")
+    # Use path relative to script file (works on Streamlit Cloud and locally)
+    dcsa_logo_path = script_dir / "assets" / "dcsa_logo.png"
     if dcsa_logo_path.exists():
         st.image(str(dcsa_logo_path), width=100)
     else:
@@ -251,7 +255,8 @@ with col_dcsa_logo:
 
 with col_doha_logo:
     # Check if DOHA logo exists, otherwise show placeholder
-    doha_logo_path = Path("assets/doha_logo.png")
+    # Use path relative to script file (works on Streamlit Cloud and locally)
+    doha_logo_path = script_dir / "assets" / "doha_logo.png"
     if doha_logo_path.exists():
         st.image(str(doha_logo_path), width=100)
     else:
@@ -295,8 +300,6 @@ SEAD4_GUIDELINES = {
 # Sidebar - File selection
 st.sidebar.header("Select Test Case")
 
-# Use path relative to this script file (works on Streamlit Cloud and locally)
-script_dir = Path(__file__).parent
 test_reports_dir = script_dir / "test_reports"
 if test_reports_dir.exists():
     pdf_files = sorted(test_reports_dir.glob("*.pdf"))
