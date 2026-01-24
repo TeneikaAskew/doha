@@ -228,6 +228,39 @@ def run_full_scrape(case_types='both'):
                 except Exception as e:
                     logger.error(f"Error scraping 2016 and prior: {e}")
 
+        # Scrape 2016 and prior APPEALS (3+ pages)
+        if scrape_appeals:
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Scraping 2016 and Prior APPEALS (3+ pages)")
+            logger.info(f"{'='*60}")
+
+            # Check if already scraped
+            prior_appeal_links_file = output_dir / "appeal_links_2016.json"
+            if prior_appeal_links_file.exists():
+                logger.info(f"⏭️  2016 and Prior appeals already scraped, loading from {prior_appeal_links_file}")
+                try:
+                    with open(prior_appeal_links_file) as f:
+                        existing_links = json.load(f)
+                    all_links.extend(existing_links)
+                    logger.success(f"Loaded {len(existing_links)} pre-2017 appeal cases")
+                    save_all_links()
+                except Exception as e:
+                    logger.warning(f"Failed to load existing appeal links, will re-scrape: {e}")
+            else:
+                try:
+                    prior_appeal_links = scraper.get_2016_and_prior_appeal_links()
+                    logger.success(f"Found {len(prior_appeal_links)} pre-2017 appeal cases")
+                    prior_appeal_year_links = [("appeal", 2016, case_num, url) for case_num, url in prior_appeal_links]
+                    all_links.extend(prior_appeal_year_links)
+
+                    # Save results
+                    with open(prior_appeal_links_file, 'w') as f:
+                        json.dump(prior_appeal_year_links, f, indent=2)
+                    save_all_links()
+
+                except Exception as e:
+                    logger.error(f"Error scraping 2016 and prior appeals: {e}")
+
     # Save all links (final)
     save_all_links()
 

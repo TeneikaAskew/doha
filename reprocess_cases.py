@@ -13,6 +13,28 @@ sys.path.insert(0, str(Path(__file__).parent / "sead4_llm"))
 from rag.scraper import DOHAScraper
 from loguru import logger
 
+# Parquet support
+try:
+    import pandas as pd
+    HAS_PANDAS = True
+except ImportError:
+    HAS_PANDAS = False
+
+
+def is_empty_or_unknown(value):
+    """Safely check if a value is empty, None, or Unknown - handles both scalars and pandas arrays"""
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value in ('', 'Unknown', 'UNKNOWN')
+    # Handle pandas/numpy arrays and lists
+    if hasattr(value, '__len__'):
+        try:
+            return len(value) == 0
+        except:
+            return False
+    return False
+
 
 def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = False):
     """
@@ -30,12 +52,21 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
         logger.error(f"Input file not found: {input_path}")
         return
 
-    # Load existing cases
+    # Load existing cases (support both JSON and Parquet)
     logger.info(f"Loading cases from {input_path}")
-    with open(input_path) as f:
-        cases = json.load(f)
 
-    logger.info(f"Loaded {len(cases)} cases")
+    if input_path.suffix == '.parquet':
+        if not HAS_PANDAS:
+            logger.error("pandas not installed - cannot read parquet files")
+            logger.error("Install with: pip install pandas pyarrow")
+            return
+        df = pd.read_parquet(input_path)
+        cases = df.to_dict('records')
+        logger.info(f"Loaded {len(cases)} cases from parquet")
+    else:
+        with open(input_path) as f:
+            cases = json.load(f)
+        logger.info(f"Loaded {len(cases)} cases from JSON")
 
     # Create scraper instance for extraction methods
     scraper = DOHAScraper(output_dir=input_path.parent)
@@ -55,10 +86,10 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
 
         # Check if needs reprocessing
         needs_update = force_all or any([
-            case.get('outcome') in ('Unknown', 'UNKNOWN', None, ''),
-            case.get('judge') in ('Unknown', None, ''),
-            not case.get('guidelines'),
-            not case.get('formal_findings'),
+            is_empty_or_unknown(case.get('outcome')),
+            is_empty_or_unknown(case.get('judge')),
+            is_empty_or_unknown(case.get('guidelines')),
+            is_empty_or_unknown(case.get('formal_findings')),
         ])
 
         if not needs_update:
@@ -125,8 +156,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--input", "-i",
-        default="doha_parsed_cases/all_cases.json",
-        help="Input JSON file with cases (default: doha_parsed_cases/all_cases.json)"
+        default="doha_parsed_cases/all_cases.parquet",
+        help="Input file with cases - JSON or Parquet (default: doha_parsed_cases/all_cases.parquet)"
     )
     parser.add_argument(
         "--output", "-o",

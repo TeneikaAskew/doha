@@ -64,17 +64,18 @@ Successfully scraped **~31,860 total cases** (hearings + appeals) across all yea
 | 2025 | 637 | Current |
 | 2026 | 19 | Current |
 
-**Appeals (~1,010 cases)** from years **2017-2026 ONLY**:
+**Appeals (~1,010+ cases)** from years **2016-2026**:
 | Year | Cases | Type |
 |------|-------|------|
+| 2016 and Prior | TBD | Archived (3+ pages) |
 | 2017-2018 | ~200 | Archived |
 | 2019-2026 | ~810 | Current |
 
 **⚠️ Important Note About Appeals**:
 - Appeals are DOHA Appeal Board decisions that review hearing outcomes
 - Significantly fewer appeals than hearings (only ~3-4% of cases are appealed)
-- **Pre-2017 appeals (2016 and earlier) are NOT included** - the website does not provide a "2016 and Prior" archive for appeals like it does for hearings
-- Only appeals from 2017-2026 are systematically available and have been scraped
+- **2016 and Prior appeals ARE available** in the archived section (at least 3 pages)
+- Appeals from 2016-2026 are systematically available for scraping
 
 ## 🌐 Website Structure
 
@@ -118,14 +119,13 @@ Successfully scraped **~31,860 total cases** (hearings + appeals) across all yea
 - **2019-2023**: Same pattern as 2024
 
 **Archived Appeals**:
-- **2018**: `https://doha.ogc.osd.mil/.../Archived-ISCR-Appeal-Decisions/2018-ISCR-Appeal-Decisions/`
-- **2017**: `https://doha.ogc.osd.mil/.../Archived-ISCR-Appeal-Decisions/2017-ISCR-Appeal-Decisions/`
+- **2018**: `https://doha.ogc.osd.mil/.../Archived-DOHA-Appeal-Board/2018-DOHA-Appeal-Board/`
+- **2017**: `https://doha.ogc.osd.mil/.../Archived-DOHA-Appeal-Board/2017-DOHA-Appeal-Board/`
 
-**2016 and Prior Appeals**:
-- ⚠️ **NOT AVAILABLE** - The DOHA website does not provide a "2016 and Prior" archive for appeals
-- Appeals only available from 2017 forward (archived: 2017-2018, current: 2019-2026)
-- Appeals became more systematically organized and publicly archived starting in 2017
-- **This is a limitation of the source data**, not the scraper
+**2016 and Prior Appeals (3+ Pages)**:
+- **Page 1-3+**: `https://doha.ogc.osd.mil/.../Archived-DOHA-Appeal-Board/2016-and-Prior-DOHA-Appeal-Board-{1-3+}/`
+- Located in the same archived section as 2017-2018 appeals
+- Total number of cases TBD after full scraping
 
 ### Individual Cases
 Cases are accessed via `/FileId/{number}/` URLs which serve PDF files directly.
@@ -383,10 +383,10 @@ python download_pdfs.py
 | **Purpose** | Initial adjudication | Review of hearing decision |
 | **Decision Maker** | DOHA Administrative Judge | DOHA Appeal Board (3 members) |
 | **Outcomes** | GRANTED / DENIED | AFFIRM / REVERSE / REMAND |
-| **Volume** | ~30,850 cases (2016-2026) | ~1,010 cases (2017-2026 only) |
-| **URL Pattern** | `.../ISCR-Hearing-Decisions/` | `.../ISCR-Appeal-Decisions/` |
-| **Archive Years** | 2017-2018 + 17-page pre-2016 | 2017-2018 only ⚠️ |
-| **Pre-2017 Data** | ✅ Available (19,648 cases) | ❌ Not available on website |
+| **Volume** | ~30,850 cases (2016-2026) | ~1,010+ cases (2016-2026) |
+| **URL Pattern** | `.../ISCR-Hearing-Decisions/` | `.../DOHA-Appeal-Board/` |
+| **Archive Years** | 2017-2018 + 17-page pre-2016 | 2017-2018 + 3+ page pre-2016 |
+| **Pre-2017 Data** | ✅ Available (19,648 cases) | ✅ Available (count TBD) |
 
 ### Why Fewer Appeals?
 - Only cases where the applicant contests the hearing decision
@@ -416,6 +416,24 @@ python download_pdfs.py
 - Comprehensive legal research
 - Maximum dataset coverage
 
+## 💾 File Formats: JSON vs Parquet
+
+The download script creates **both JSON and Parquet** formats automatically:
+
+| Format | Size | Purpose | Git Status |
+|--------|------|---------|-----------|
+| **JSON** (`all_cases.json`) | ~250MB for full dataset | Local use, human-readable | ❌ Gitignored (exceeds 100MB limit) |
+| **Parquet** (`all_cases.parquet`) | ~60-90MB compressed | Git commits, efficient storage | ✅ Committed to repository |
+
+**Why both formats?**
+- **JSON**: Easy to read/edit locally, works with standard tools
+- **Parquet**: 70-80% smaller, stays under GitHub's 100MB file limit
+
+**The build_index.py script automatically**:
+- Uses JSON if available locally
+- Falls back to Parquet if JSON is missing or too large
+- You don't need to specify which format to use
+
 ## 📂 Output Files
 
 ### After Link Collection
@@ -432,9 +450,9 @@ doha_full_scrape/
 ### After PDF Download
 ```
 doha_parsed_cases/
-├── all_cases.json           # All parsed cases
-├── checkpoint_50.json       # Intermediate checkpoints
-├── checkpoint_100.json
+├── all_cases.json           # All parsed cases (local use, gitignored if >100MB)
+├── all_cases.parquet        # Compressed version for Git (<90MB, auto-created)
+├── checkpoint_*.json        # Intermediate checkpoints
 ├── failed_cases.json        # Failed downloads
 ├── hearing_pdfs/            # Downloaded hearing PDFs
 │   ├── 19-12345.pdf
@@ -445,6 +463,8 @@ doha_parsed_cases/
     ├── 20-09876.pdf
     └── ...
 ```
+
+**Note**: Both JSON and Parquet formats are created automatically. The JSON file is for local use and will exceed GitHub's 100MB limit. The Parquet file(s) stay under 90MB and should be committed to Git.
 
 ### After Index Building
 ```

@@ -110,6 +110,9 @@ class DOHAScraper:
     DOHA_APPEAL_2019_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/2019-DOHA-Appeal-Board/"
     # For archived appeal years
     DOHA_APPEAL_ARCHIVE_BASE = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/Archived-DOHA-Appeal-Board/"
+    # For 2016 and prior appeals (split across multiple pages)
+    DOHA_APPEAL_2016_PRIOR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/Archived-DOHA-Appeal-Board/2016-and-Prior-DOHA-Appeal-Board-{page}/"
+    DOHA_APPEAL_2016_PRIOR_PAGES = 3  # There are at least 3 pages for 2016 and prior appeal cases
 
     # Guideline patterns for extraction
     GUIDELINE_PATTERNS = {
