@@ -23,5 +23,5 @@ Thumbs.db
 # Logs
 *.log
 
-# Local settings
-.claude/
+# Local settings (allow .claude/settings.json and other config to be committed)
+.claude/settings.local.json
