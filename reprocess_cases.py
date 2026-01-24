@@ -6,6 +6,7 @@ This updates judge, outcome, guidelines, sections, etc. without re-downloading P
 import sys
 import json
 import argparse
+import gc
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "sead4_llm"))
@@ -241,14 +242,16 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
 
             updated_count += 1
 
-            # Save checkpoint every 100 cases
-            if updated_count % 100 == 0:
+            # Save checkpoint every 1000 cases
+            if updated_count % 1000 == 0:
                 if is_parquet:
                     df = pd.DataFrame(cases)
                     save_parquet_with_size_limit(df, output_path, max_size_mb=MAX_PARQUET_SIZE_MB)
+                    del df  # Explicitly delete DataFrame
                 else:
                     with open(output_path, 'w') as f:
                         json.dump(cases, f, indent=2)
+                gc.collect()  # Force garbage collection after checkpoint
                 logger.info(f"  Checkpoint saved: {updated_count} cases updated")
 
         except Exception as e:
@@ -260,6 +263,8 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
         logger.info(f"Saving to parquet: {output_path}")
         df = pd.DataFrame(cases)
         save_parquet_with_size_limit(df, output_path, max_size_mb=MAX_PARQUET_SIZE_MB)
+        del df  # Explicitly delete DataFrame
+        gc.collect()  # Force garbage collection
     else:
         with open(output_path, 'w') as f:
             json.dump(cases, f, indent=2)

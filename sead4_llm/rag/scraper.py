@@ -57,6 +57,7 @@ class ScrapedCase:
     # Appeal-specific fields (empty for hearing decisions)
     case_type: str = "hearing"  # "hearing" or "appeal"
     appeal_board_members: List[str] = None  # List of Appeal Board judges for appeals
+    who_appealed: str = ""  # "APPLICANT", "GOVERNMENT", "BOTH", or "UNKNOWN" for appeal cases
     judges_findings_of_fact: str = ""  # Summary of AJ's findings (for appeals)
     judges_analysis: str = ""  # Summary of AJ's analysis (for appeals)
     discussion: str = ""  # Appeal Board's discussion/analysis
@@ -521,6 +522,7 @@ class DOHAScraper:
                 formal_findings={},  # Not applicable for appeals
                 case_type="appeal",
                 appeal_board_members=self._extract_appeal_board_members(text),
+                who_appealed=self._extract_who_appealed(text),
                 judges_findings_of_fact=self._extract_judges_findings_of_fact(text),
                 judges_analysis=self._extract_judges_analysis(text),
                 discussion=self._extract_discussion(text),
@@ -641,13 +643,13 @@ class DOHAScraper:
 
         # Pattern 1: Explicit "adverse decision" or "favorable decision" in Order
         # Allow for case numbers like "in iscr case no. 24-01718" between words
-        if re.search(r'the\s+adverse\s+decision.{0,50}is\s+affirmed', order_text):
+        if re.search(r'the\s+(?:judge.{0,5}\s+)?adverse\s+decision.{0,50}is\s+affirmed', order_text):
             return "DENIED"
-        if re.search(r'the\s+favorable\s+decision.{0,50}is\s+affirmed', order_text):
+        if re.search(r'the\s+(?:judge.{0,5}\s+)?favorable\s+decision.{0,50}is\s+affirmed', order_text):
             return "GRANTED"
-        if re.search(r'the\s+adverse\s+decision.{0,50}is\s+reversed', order_text):
+        if re.search(r'the\s+(?:judge.{0,5}\s+)?adverse\s+decision.{0,50}is\s+reversed', order_text):
             return "GRANTED"
-        if re.search(r'the\s+favorable\s+decision.{0,50}is\s+reversed', order_text):
+        if re.search(r'the\s+(?:judge.{0,5}\s+)?favorable\s+decision.{0,50}is\s+reversed', order_text):
             return "DENIED"
 
         # Pattern 2: Check for remand
@@ -659,7 +661,7 @@ class DOHAScraper:
         # Pattern 3: "The decision is AFFIRMED" - need to determine underlying decision
         # Allow for case numbers like "in iscr case no. 24-01718" between words
         # Also handle "the judge's decision" variations
-        if re.search(r'the\s+(?:judge.{0,5}\s+)?decision.{0,50}is\s+affirmed', order_text):
+        if re.search(r'the\s+(?:judge.{0,30}\s+)?decision.{0,50}is\s+affirmed', order_text):
             # Look for context about what was the underlying decision
             # Check the body text for "denied" or "granted" near "eligibility"
             body_text = text_lower[:len(text_lower) - 1500]
@@ -699,18 +701,80 @@ class DOHAScraper:
                 r'(?:department\s+counsel|government)\s+(?:has\s+)?appealed',
             ]
 
-            for pattern in denial_indicators:
-                if re.search(pattern, body_text, re.DOTALL):
-                    return "DENIED"  # Denial affirmed = still denied
+            # Find judge's decision based ONLY on explicit grant/denial language
+            # Use specific patterns that identify the judge's actual decision
 
-            for pattern in grant_indicators:
-                if re.search(pattern, body_text, re.DOTALL):
-                    return "GRANTED"  # Grant affirmed = still granted
+            explicit_grant_patterns = [
+                # Security clearance cases - granted patterns
+                r'(?:administrative\s+)?judge.{0,100}granted\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:(?:national\s+)?security\s+)?clearance',
+                r'granted\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:(?:national\s+)?security\s+)?clearance',
+                r'granted\s+applicant.{0,50}(?:(?:national\s+)?security\s+)?eligibility',
+                r'granted\s+(?:the\s+)?(?:(?:national\s+)?security\s+)?eligibility',
+                # Trustworthiness (ADP) cases
+                r'(?:administrative\s+)?judge.{0,100}granted\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:trustworthiness\s+)?designation',
+                r'granted\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:trustworthiness\s+)?designation',
+                # Judge decision language
+                r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+granting',
+                r'judge.{0,50}(?:favorable\s+)?decision\s+(?:granting|was\s+to\s+grant)',
+                r'favorable\s+(?:(?:national\s+)?security\s+)?(?:clearance\s+)?decision',
+                r'favorable\s+(?:trustworthiness\s+)?(?:determination|designation)',
+            ]
+
+            explicit_denial_patterns = [
+                # Security clearance cases - denied patterns
+                r'(?:administrative\s+)?judge.{0,100}denied\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:(?:national\s+)?security\s+)?clearance',
+                r'denied\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:(?:national\s+)?security\s+)?clearance',
+                r'denied\s+applicant.{0,50}(?:(?:national\s+)?security\s+)?eligibility',
+                r'denied\s+(?:the\s+)?(?:(?:national\s+)?security\s+)?eligibility',
+                # Trustworthiness (ADP) cases
+                r'(?:administrative\s+)?judge.{0,100}denied\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:trustworthiness\s+)?designation',
+                r'denied\s+applicant.{0,50}(?:request\s+for\s+)?(?:a\s+)?(?:trustworthiness\s+)?designation',
+                # Judge decision language
+                r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+denying',
+                r'judge\s+(?:issued\s+)?(?:an?\s+)?adverse\s+decision',
+                r'judge\s+denied',
+                r'judge.{0,10}(?:\'s\s+)?(?:decision|determination)\s+(?:denying|denied)',
+                r'unfavorable\s+(?:(?:national\s+)?security\s+)?(?:clearance\s+)?decision',
+                r'unfavorable\s+(?:trustworthiness\s+)?(?:determination|designation)',
+                # Common denial language
+                r'applicant\s+failed\s+to\s+(?:establish|demonstrate)',
+                r'applicant.{0,50}arguments\s+(?:are|do)\s+not',
+                r'decision\s+is\s+sustainable',  # Usually used when affirming denial
+            ]
+
+            # Layered approach: Use most specific patterns first, then broader ones
+
+            # Layer 1: Very specific patterns (judge + granted/denied + applicant/clearance)
+            # Exclude index 3 from grants - it's too weak ("granted eligibility" matches discussion text)
+            specific_grant = [explicit_grant_patterns[i] for i in [0,1,2,4,5]]  # Skip index 3
+            specific_denial = [explicit_denial_patterns[i] for i in [0,1,2,3,4,5]]  # First 6 patterns
+
+            judge_granted_specific = any(re.search(p, body_text, re.DOTALL) for p in specific_grant)
+            judge_denied_specific = any(re.search(p, body_text, re.DOTALL) for p in specific_denial)
+
+            # If specific patterns give us a clear answer, use it
+            if judge_granted_specific and not judge_denied_specific:
+                return "GRANTED"
+            if judge_denied_specific and not judge_granted_specific:
+                return "DENIED"
+
+            # Layer 2: If specific patterns conflict or don't match, try all patterns
+            judge_granted_all = any(re.search(p, body_text, re.DOTALL) for p in explicit_grant_patterns)
+            judge_denied_all = any(re.search(p, body_text, re.DOTALL) for p in explicit_denial_patterns)
+
+            # Only use broader patterns if they don't conflict
+            if judge_granted_all and not judge_denied_all:
+                return "GRANTED"
+            if judge_denied_all and not judge_granted_all:
+                return "DENIED"
+
+            # If patterns conflict or none match, return UNKNOWN
+            # This is more conservative but avoids false matches from discussion text
 
         # Pattern 4: "The decision is REVERSED" - opposite of underlying
         # Allow for case numbers like "in iscr case no. 24-01718" between words
         # Also handle "the judge's decision" variations
-        if re.search(r'the\s+(?:judge.{0,5}\s+)?decision.{0,50}is\s+reversed', order_text):
+        if re.search(r'the\s+(?:judge.{0,30}\s+)?decision.{0,50}is\s+reversed', order_text):
             body_text = text_lower[:len(text_lower) - 1500]
 
             # If underlying was denial, reversed means granted
@@ -1163,6 +1227,30 @@ class DOHAScraper:
                     members.append(name)
 
         return members
+
+    def _extract_who_appealed(self, text: str) -> str:
+        """Extract who filed the appeal: APPLICANT, GOVERNMENT, BOTH, or UNKNOWN.
+
+        This is metadata about who initiated the appeal, not the outcome.
+        """
+        text_lower = text.lower()
+
+        # Check first 3000 characters where appeal information appears
+        search_text = text_lower[:3000]
+
+        # Look for explicit statements
+        applicant_appealed = bool(re.search(r'applicant\s+(?:has\s+)?appealed', search_text))
+        govt_appealed = bool(re.search(r'(?:department\s+counsel|government)\s+(?:has\s+)?appealed', search_text))
+        cross_appeal = bool(re.search(r'cross-appeal', search_text))
+
+        if cross_appeal or (applicant_appealed and govt_appealed):
+            return "BOTH"
+        elif applicant_appealed:
+            return "APPLICANT"
+        elif govt_appealed:
+            return "GOVERNMENT"
+        else:
+            return "UNKNOWN"
 
     def _extract_judges_findings_of_fact(self, text: str) -> str:
         """Extract the 'Judge's Findings of Fact' section from an appeal decision.
