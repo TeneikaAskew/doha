@@ -603,14 +603,20 @@ class DOHAScraper:
 
     def _is_appeal_document(self, text: str) -> bool:
         """Detect if this is an Appeal Board decision vs a Hearing decision."""
-        # Check for Appeal Board-specific markers in first 1500 chars
-        header_text = text[:1500].lower()
+        # Check for Appeal Board-specific markers in first 2500 chars (increased range)
+        header_text = text[:2500].lower()
         appeal_markers = [
             'appeal board',
             'appeal board decision',
             'applicant appealed',
             'government appealed',
+            'department counsel appealed',  # Common in appeals
             'cross-appeal',
+            'the board gives deference',  # Unique to appeal documents
+            'favorable decision reversed',  # In digest section
+            'adverse decision reversed',    # In digest section
+            'decision is affirmed',         # In digest section
+            'decision is reversed',         # In digest section
         ]
         return any(marker in header_text for marker in appeal_markers)
 
@@ -656,41 +662,46 @@ class DOHAScraper:
             body_text = text_lower[:len(text_lower) - 1500]
 
             # Look for phrases indicating the AJ denied eligibility
+            # Use .{0,10} to handle possessives, quotes, newlines between words
+            # Be specific to avoid false positives from discussion of the decision
             denial_indicators = [
-                r'denied\s+applicant[\'s]*\s+(?:security\s+)?clearance\s+eligibility',
-                r'denied\s+applicant[\'s]*\s+eligibility',
+                r'(?:administrative\s+)?judge.{0,100}denied\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
+                r'denied\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
+                r'denied\s+applicant.{0,10}eligibility',
                 r'denied\s+(?:the\s+)?eligibility',
                 r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+denying',
-                r'judge[\'s]*\s+(?:adverse\s+)?decision\s+(?:denying|was\s+to\s+deny)',
+                r'judge\s+(?:issued\s+)?(?:an?\s+)?adverse\s+decision',  # More specific
+                r'judge\s+denied',  # More specific
                 r'unfavorable\s+(?:security\s+)?(?:clearance\s+)?decision',
-                r'adverse\s+(?:security\s+)?(?:clearance\s+)?decision',
                 # Applicant appealed (usually against denial)
                 r'applicant\s+(?:has\s+)?appealed',
                 # Common language when applicant's appeal is rejected
                 r'applicant\s+failed\s+to\s+(?:establish|demonstrate)',
-                r'applicant[\'s]*\s+arguments\s+(?:are|do)\s+not',
+                r'applicant.{0,10}arguments\s+(?:are|do)\s+not',
                 # Decision is sustainable (usually used when affirming denial)
                 r'decision\s+is\s+sustainable',
             ]
 
             # Look for phrases indicating the AJ granted eligibility
+            # Use .{0,10} to handle possessives, quotes, newlines between words
             grant_indicators = [
-                r'granted\s+applicant[\'s]*\s+(?:security\s+)?clearance\s+eligibility',
-                r'granted\s+applicant[\'s]*\s+eligibility',
+                r'(?:administrative\s+)?judge.{0,100}granted\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
+                r'granted\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
+                r'granted\s+applicant.{0,10}eligibility',
                 r'granted\s+(?:the\s+)?eligibility',
                 r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+granting',
-                r'judge[\'s]*\s+(?:favorable\s+)?decision\s+(?:granting|was\s+to\s+grant)',
+                r'judge.{0,10}(?:favorable\s+)?decision\s+(?:granting|was\s+to\s+grant)',
                 r'favorable\s+(?:security\s+)?(?:clearance\s+)?decision',
                 # Government appealed (usually against grant)
                 r'(?:department\s+counsel|government)\s+(?:has\s+)?appealed',
             ]
 
             for pattern in denial_indicators:
-                if re.search(pattern, body_text):
+                if re.search(pattern, body_text, re.DOTALL):
                     return "DENIED"  # Denial affirmed = still denied
 
             for pattern in grant_indicators:
-                if re.search(pattern, body_text):
+                if re.search(pattern, body_text, re.DOTALL):
                     return "GRANTED"  # Grant affirmed = still granted
 
         # Pattern 4: "The decision is REVERSED" - opposite of underlying
@@ -698,24 +709,30 @@ class DOHAScraper:
             body_text = text_lower[:len(text_lower) - 1500]
 
             # If underlying was denial, reversed means granted
+            # Use .{0,10} to handle possessives, quotes, newlines between words
+            # Be specific to avoid false positives from discussion of the decision
             denial_indicators = [
-                r'denied\s+applicant[\'s]*\s+(?:security\s+)?clearance\s+eligibility',
-                r'denied\s+applicant[\'s]*\s+eligibility',
-                r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+denying',
-                r'judge[\'s]*\s+adverse\s+(?:findings|decision)',
+                r'(?:administrative\s+)?judge.{0,100}denied\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
+                r'denied\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
+                r'denied\s+applicant.{0,10}eligibility',
+                r'judge\s+(?:issued\s+)?(?:an?\s+)?adverse\s+decision',  # More specific: "judge issued an adverse decision"
+                r'judge\s+denied',  # More specific: "judge denied"
                 r'adverse\s+findings\s+are\s+not\s+sustainable',
             ]
 
             for pattern in denial_indicators:
-                if re.search(pattern, body_text):
+                if re.search(pattern, body_text, re.DOTALL):
                     return "GRANTED"  # Denial reversed = now granted
 
             # If underlying was grant, reversed means denied
+            # Use .{0,10} to handle possessives, quotes, newlines between words
             grant_indicators = [
-                r'granted\s+applicant[\'s]*\s+(?:security\s+)?clearance\s+eligibility',
-                r'granted\s+applicant[\'s]*\s+eligibility',
+                r'(?:administrative\s+)?judge.{0,100}granted\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
+                r'granted\s+applicant.{0,10}(?:request\s+for\s+)?(?:a\s+)?(?:security\s+)?clearance',
+                r'granted\s+applicant.{0,10}eligibility',
                 r'decision\s+(?:of\s+the\s+)?(?:administrative\s+)?judge\s+granting',
-                r'judge[\'s]*\s+favorable\s+(?:findings|decision)',
+                r'judge.{0,10}favorable\s+(?:findings|decision)',
+                r'favorable\s+(?:security\s+)?(?:clearance\s+)?decision',
                 # Appeal Board language indicating they disagree with a favorable decision
                 r'record\s+(?:evidence\s+)?(?:is\s+)?not\s+sufficient\s+to\s+mitigate',
                 r'not\s+sufficient\s+to\s+mitigate\s+the\s+government',
@@ -725,7 +742,7 @@ class DOHAScraper:
             ]
 
             for pattern in grant_indicators:
-                if re.search(pattern, body_text):
+                if re.search(pattern, body_text, re.DOTALL):
                     return "DENIED"  # Grant reversed = now denied
 
         # Pattern 5: Check for "is sustainable" language (means affirmed)
