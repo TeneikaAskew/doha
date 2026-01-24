@@ -2,9 +2,13 @@
 data/*.csv
 *.csv
 
-# Large JSON files (checkpoint files with full case text)
-checkpoint_*.json
+# Large JSON files (full case text)
 all_cases.json
+
+# Old-format checkpoints (cumulative, too large) - but allow new split checkpoints
+# checkpoint_50.json, checkpoint_100.json etc are ignored
+# checkpoint_hearing_50.json, checkpoint_appeal_50.json are allowed
+checkpoint_[0-9]*.json
 
 # PDF files
 *.pdf
