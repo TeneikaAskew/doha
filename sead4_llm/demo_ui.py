@@ -349,8 +349,16 @@ if not include_llm:
 # Run analysis button
 analyze_button = st.sidebar.button("Run Comparison Analysis", type="primary")
 
-# Main area
+# Initialize analysis state in session
+if 'analysis_run' not in st.session_state:
+    st.session_state.analysis_run = False
+
+# Trigger analysis
 if analyze_button:
+    st.session_state.analysis_run = True
+
+# Main area
+if st.session_state.analysis_run:
     # Load PDF
     with st.spinner(f"Loading {selected_file}..."):
         doc = fitz.open(selected_path)
