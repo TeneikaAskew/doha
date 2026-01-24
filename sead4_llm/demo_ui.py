@@ -15,10 +15,16 @@ from datetime import datetime
 import base64
 
 from analyzers.native_analyzer import NativeSEAD4Analyzer
-from analyzers.enhanced_native_analyzer import EnhancedNativeSEAD4Analyzer
 from analyzers.gemini_analyzer import GeminiSEAD4Analyzer
 from schemas.models import ComparisonAnalysisResult, SEAD4AnalysisResult
 import os
+
+# Lazy import for heavy ML dependencies (only load when needed)
+# This makes the app start instantly instead of 5-10 minute cold start
+def get_enhanced_analyzer():
+    """Lazy import of EnhancedNativeSEAD4Analyzer to avoid slow startup"""
+    from analyzers.enhanced_native_analyzer import EnhancedNativeSEAD4Analyzer
+    return EnhancedNativeSEAD4Analyzer
 
 
 def get_api_key() -> str | None:
@@ -527,6 +533,7 @@ if analyze_button:
         st.divider()
 
         with st.spinner("Running enhanced native analysis (loading ML models)..."):
+            EnhancedNativeSEAD4Analyzer = get_enhanced_analyzer()
             enhanced_analyzer = EnhancedNativeSEAD4Analyzer(use_embeddings=True)
             results['enhanced'] = enhanced_analyzer.analyze(document_text, case_id=f"{case_id}_enhanced")
 
