@@ -120,21 +120,34 @@ def download_and_parse_pdfs(
         logger.success("All cases already processed!")
         return existing_cases
 
-    # Download with browser
+    # Download with browser - restart browser every 100 cases to prevent memory buildup
     cases = []
     failed = []
+    browser_restart_interval = 100  # Restart browser every N cases to clear memory
 
-    with DOHABrowserScraper(
+    # Process in batches to restart browser periodically
+    total_processed = 0
+
+    iterator = enumerate(links_to_process, 1)
+    if HAS_TQDM:
+        iterator = tqdm(iterator, total=len(links_to_process), desc="Downloading PDFs", unit="case")
+
+    # Create browser context for first batch
+    browser_scraper = DOHABrowserScraper(
         output_dir=output_dir,
         rate_limit=rate_limit,
         headless=True
-    ) as browser_scraper:
+    )
+    browser_scraper.start_browser()
 
-        iterator = enumerate(links_to_process, 1)
-        if HAS_TQDM:
-            iterator = tqdm(iterator, total=len(links_to_process), desc="Downloading PDFs", unit="case")
-
+    try:
         for i, (case_type, year, case_number, url) in iterator:
+            # Restart browser every N cases to prevent memory buildup
+            if total_processed > 0 and total_processed % browser_restart_interval == 0:
+                logger.info(f"  Restarting browser after {browser_restart_interval} cases to clear memory...")
+                browser_scraper.stop_browser()
+                time.sleep(1)  # Brief pause before restart
+                browser_scraper.start_browser()
             # Choose PDF directory based on case type
             pdf_dir = hearing_pdf_dir if case_type == "hearing" else appeal_pdf_dir
             pdf_path = pdf_dir / f"{case_number}.pdf"
@@ -151,6 +164,7 @@ def download_and_parse_pdfs(
                         "case_number": case_number,
                         "url": url
                     })
+                    total_processed += 1
                     continue
 
                 # Save PDF
@@ -165,6 +179,10 @@ def download_and_parse_pdfs(
 
                 full_text = "\n".join(text_parts)
 
+                # Clear large objects to help with memory
+                del pdf_bytes
+                del text_parts
+
                 # Parse case text
                 case = scraper.parse_case_text(case_number, full_text, url)
                 # Add case_type to the case metadata
@@ -176,6 +194,8 @@ def download_and_parse_pdfs(
 
                 outcome = case.outcome if hasattr(case, 'outcome') else case.get('outcome', 'Unknown')
                 logger.success(f"[{i}/{len(links_to_process)}] ✓ [{case_type}] {case_number}: {outcome}")
+
+                total_processed += 1
 
                 # Save checkpoint every 50 cases - only save the last 50 cases, not cumulative
                 if i % 50 == 0:
@@ -208,6 +228,11 @@ def download_and_parse_pdfs(
                     "case_number": case_number,
                     "url": url
                 })
+                total_processed += 1  # Count failed attempts too
+
+    finally:
+        # Always stop the browser
+        browser_scraper.stop_browser()
 
     # Merge new cases with existing
     all_parsed_cases = existing_cases + [
