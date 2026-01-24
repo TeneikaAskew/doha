@@ -394,14 +394,13 @@ if st.session_state.analysis_run:
 
     # Document View Tab
     with tab_pdf:
-        st.subheader("Source Document & Analyst Assessment")
+        st.subheader("Case Document & Analyst Assessment")
         st.caption(f"Viewing: {selected_file}")
 
         # Create two columns: PDF on left, analyst input on right
         col_pdf, col_analyst = st.columns([2, 1])
 
         with col_pdf:
-            st.markdown("**PDF Viewer**")
             st.caption("Review the case document below")
             display_pdf(selected_path)
 
