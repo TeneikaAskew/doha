@@ -442,6 +442,15 @@ class DOEBrowserScraper:
         """
         Parse case text to extract structured information
 
+        DOE PSH (Personnel Security Hearing) cases typically contain:
+        - Case header with case number and date
+        - Notification Letter (equivalent to Statement of Reasons/SOR)
+        - Procedural Background / Statement of the Case
+        - Findings of Fact
+        - Analysis / Discussion
+        - Conclusion / Opinion
+        - Hearing Officer signature
+
         Args:
             case_number: DOE case number (e.g., PSH-25-0181)
             text: Full text of the decision
@@ -460,16 +469,16 @@ class DOEBrowserScraper:
         # Extract guidelines
         guidelines = self._extract_guidelines(text)
 
-        # Extract SOR allegations
+        # Extract notification letter / SOR allegations
         sor_allegations = self._extract_sor_allegations(text)
 
         # Extract mitigating factors
         mitigating_factors = self._extract_mitigating_factors(text)
 
-        # Extract judge/hearing officer name
+        # Extract hearing officer name
         judge = self._extract_judge(text)
 
-        # Create summary
+        # Create summary from Findings of Fact
         summary = self._create_summary(text)
 
         return DOECase(
@@ -488,14 +497,27 @@ class DOEBrowserScraper:
 
     def _extract_date(self, text: str) -> str:
         """Extract decision date from case text"""
+        # Look for date patterns - DOE cases often have date at top or end
         patterns = [
-            r'(?:Date|Dated)[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})',
+            # "Issued: January 15, 2026" or "Date: January 15, 2026"
+            r'(?:Issued|Date|Dated)[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})',
+            # "January 15, 2026" at start of document
+            r'^[^\n]*([A-Za-z]+\s+\d{1,2},?\s+\d{4})',
+            # MM/DD/YYYY format
             r'(\d{1,2}/\d{1,2}/\d{4})',
+            # General date pattern
             r'([A-Za-z]+\s+\d{1,2},?\s+\d{4})',
         ]
 
+        # Check beginning of document
         for pattern in patterns:
-            match = re.search(pattern, text[:2000], re.IGNORECASE)
+            match = re.search(pattern, text[:3000], re.IGNORECASE | re.MULTILINE)
+            if match:
+                return match.group(1)
+
+        # Check end of document (signature area)
+        for pattern in patterns[1:]:  # Skip "Issued:" pattern for end
+            match = re.search(pattern, text[-2000:], re.IGNORECASE)
             if match:
                 return match.group(1)
 
@@ -503,54 +525,126 @@ class DOEBrowserScraper:
 
     def _extract_outcome(self, text: str) -> str:
         """Extract case outcome from text"""
-        text_lower = text.lower()
+        # DOE PSH cases typically end with OPINION OF THE HEARING OFFICER or CONCLUSION
+        # Look at the last portion of the document
 
-        # Check conclusion section first
-        conclusion_match = re.search(
-            r'(?:conclusion|decision|order|opinion)[:\s]*(.*?)(?:\n\n|\Z)',
-            text_lower[-5000:],
-            re.DOTALL
-        )
-        conclusion_text = conclusion_match.group(1) if conclusion_match else text_lower[-5000:]
+        # Get the conclusion/opinion section
+        conclusion_patterns = [
+            r'(?:OPINION\s+OF\s+THE\s+HEARING\s+OFFICER|CONCLUSION|ORDER|DECISION)\s*(.*?)(?:Hearing\s+Officer|\Z)',
+            r'(?:IT\s+IS\s+(?:THEREFORE\s+)?(?:MY\s+)?(?:OPINION|DECISION|CONCLUSION))\s*(.*?)(?:\n\n|\Z)',
+        ]
 
-        for outcome, pattern in self.OUTCOME_PATTERNS.items():
-            if re.search(pattern, conclusion_text, re.IGNORECASE):
-                return outcome
+        conclusion_text = ""
+        for pattern in conclusion_patterns:
+            match = re.search(pattern, text[-8000:], re.IGNORECASE | re.DOTALL)
+            if match:
+                conclusion_text = match.group(1)
+                break
+
+        if not conclusion_text:
+            conclusion_text = text[-5000:]
+
+        conclusion_lower = conclusion_text.lower()
+
+        # DOE-specific outcome patterns
+        doe_outcome_patterns = {
+            'GRANTED': [
+                r'access\s+authorization\s+(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?granted',
+                r'security\s+clearance\s+(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?granted',
+                r'eligibility\s+.*?(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?granted',
+                r'should\s+be\s+(?:restored|granted)',
+                r'access\s+authorization\s+should\s+be\s+restored',
+                r'favorable\s+(?:determination|decision)',
+                r'grant(?:ing)?\s+(?:the\s+)?(?:individual[\'s]?\s+)?(?:access|clearance|eligibility)',
+            ],
+            'DENIED': [
+                r'access\s+authorization\s+(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?denied',
+                r'security\s+clearance\s+(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?denied',
+                r'eligibility\s+.*?(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?denied',
+                r'should\s+not\s+be\s+(?:granted|restored)',
+                r'access\s+authorization\s+should\s+not\s+be\s+(?:granted|restored)',
+                r'unfavorable\s+(?:determination|decision)',
+                r'deny(?:ing)?\s+(?:the\s+)?(?:individual[\'s]?\s+)?(?:access|clearance|eligibility)',
+            ],
+            'REVOKED': [
+                r'access\s+authorization\s+(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?revoked',
+                r'security\s+clearance\s+(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?revoked',
+                r'eligibility\s+.*?(?:should\s+be\s+)?(?:is\s+)?(?:hereby\s+)?revoked',
+                r'revok(?:e|ing)\s+(?:the\s+)?(?:individual[\'s]?\s+)?(?:access|clearance|eligibility)',
+            ],
+        }
+
+        for outcome, patterns in doe_outcome_patterns.items():
+            for pattern in patterns:
+                if re.search(pattern, conclusion_lower, re.IGNORECASE):
+                    return outcome
 
         return "UNKNOWN"
 
     def _extract_guidelines(self, text: str) -> List[str]:
-        """Extract relevant guidelines from case text"""
+        """Extract relevant guidelines (criteria) from case text"""
         guidelines = []
 
+        # DOE uses "Criterion" terminology (A-M) similar to DOHA
+        # Check for explicit criterion mentions
+        criterion_matches = re.findall(r'Criterion\s+([A-M])', text, re.IGNORECASE)
+        for match in criterion_matches:
+            if match.upper() not in guidelines:
+                guidelines.append(match.upper())
+
+        # Also check guideline pattern mentions
         for code, pattern in self.GUIDELINE_PATTERNS.items():
             if re.search(pattern, text, re.IGNORECASE):
-                guidelines.append(code)
+                if code not in guidelines:
+                    guidelines.append(code)
 
-        return guidelines
+        return sorted(guidelines)
 
     def _extract_sor_allegations(self, text: str) -> List[str]:
-        """Extract SOR (Statement of Reasons) allegations"""
+        """
+        Extract allegations from the Notification Letter or Summary of Security Concerns
+
+        DOE cases use "Notification Letter" which contains the security concerns,
+        similar to DOHA's Statement of Reasons (SOR).
+        """
         allegations = []
 
-        # Look for notification letter or SOR section
-        sor_match = re.search(
-            r'(?:Statement\s+of\s+Reasons|Notification\s+Letter|Summary\s+of\s+Charges).*?(?:FINDINGS|ANALYSIS|DISCUSSION|\n\n\n)',
-            text,
-            re.IGNORECASE | re.DOTALL
-        )
+        # DOE-specific section headers
+        notification_patterns = [
+            # Notification Letter section
+            r'(?:NOTIFICATION\s+LETTER|SUMMARY\s+OF\s+(?:SECURITY\s+)?CONCERNS?|STATEMENT\s+OF\s+(?:THE\s+)?CHARGES?|LETTER\s+OF\s+NOTIFICATION)\s*(.*?)(?:FINDINGS|PROCEDURAL|BACKGROUND|HEARING|II\.|ANALYSIS)',
+            # Criterion-based format
+            r'(?:Criterion\s+[A-M].*?)(?=Criterion\s+[A-M]|FINDINGS|PROCEDURAL|II\.|\Z)',
+        ]
 
-        if sor_match:
-            sor_text = sor_match.group(0)
+        notification_text = ""
+        for pattern in notification_patterns:
+            match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+            if match:
+                notification_text = match.group(1) if match.lastindex else match.group(0)
+                break
 
-            # Extract numbered allegations
-            allegation_matches = re.findall(
-                r'(?:^\s*\d+\.\s*[a-z]?\.|Criterion\s+[A-Z])',
-                sor_text,
-                re.MULTILINE | re.IGNORECASE
-            )
+        if notification_text:
+            # Extract individual allegations/concerns
+            # Look for numbered items or criterion-based items
+            allegation_patterns = [
+                # Numbered allegations: "1.", "1.a.", "(1)", etc.
+                r'(?:^|\n)\s*(?:\d+\.(?:\s*[a-z]\.)?|\(\d+\))\s*(.+?)(?=\n\s*(?:\d+\.|\(\d+\)|Criterion|$))',
+                # Criterion mentions with description
+                r'Criterion\s+([A-M])\s*[:\-]?\s*(.+?)(?=\n\s*(?:Criterion|\d+\.|$))',
+            ]
 
-            allegations = [a.strip()[:500] for a in allegation_matches if len(a.strip()) > 10]
+            for pattern in allegation_patterns:
+                matches = re.findall(pattern, notification_text, re.MULTILINE | re.IGNORECASE | re.DOTALL)
+                for match in matches:
+                    if isinstance(match, tuple):
+                        allegation = ' '.join(match).strip()
+                    else:
+                        allegation = match.strip()
+                    # Clean up and limit length
+                    allegation = re.sub(r'\s+', ' ', allegation)[:500]
+                    if len(allegation) > 20 and allegation not in allegations:
+                        allegations.append(allegation)
 
         return allegations[:10]
 
@@ -558,59 +652,102 @@ class DOEBrowserScraper:
         """Extract mitigating factors mentioned in the decision"""
         mitigating = []
 
+        # DOE-specific mitigating factor patterns
         mit_patterns = [
-            r'(?:mitigating\s+(?:condition|factor)).*?(?:\n|$)',
-            r'(?:in\s+mitigation).*?(?:\n\n|$)',
+            # Explicit mitigating conditions
+            r'mitigating\s+(?:condition|factor)[s]?\s*(?:\d+)?[:\s]*(.+?)(?:\n\n|\n(?=[A-Z]))',
+            # "In mitigation" statements
+            r'(?:in\s+mitigation|mitigating\s+circumstances?)[,:\s]*(.+?)(?:\n\n|\n(?=[A-Z]))',
+            # DOE mitigating condition references like "MC 1" or "Mitigating Condition (1)"
+            r'(?:MC\s*\d+|Mitigating\s+Condition\s*\(?\d+\)?)[:\s]*(.+?)(?:\n|$)',
+            # "The individual has" (common mitigating factor phrasing)
+            r'(?:the\s+individual\s+has)\s+(.+?)(?:which\s+mitigates?|therefore)',
         ]
 
         for pattern in mit_patterns:
             matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL)
             for match in matches:
-                clean = match.strip()[:300]
+                clean = re.sub(r'\s+', ' ', match).strip()[:300]
                 if len(clean) > 20 and clean not in mitigating:
                     mitigating.append(clean)
 
-        return mitigating[:5]
+        return mitigating[:10]
 
     def _extract_judge(self, text: str) -> str:
-        """Extract hearing officer/administrative judge name"""
+        """Extract hearing officer name from DOE case"""
+        # DOE cases use "Hearing Officer" not "Administrative Judge"
         patterns = [
-            r'(?:Hearing\s+Officer|Administrative\s+Judge)[:\s]+([A-Z][a-z]+\s+[A-Z]\.?\s*[A-Z][a-z]+)',
-            r'([A-Z][a-z]+\s+[A-Z]\.?\s*[A-Z][a-z]+)[\s,]+(?:Hearing\s+Officer|Administrative\s+Judge)',
-            r'(?:Signed\s+by|/s/)\s*([A-Z][a-z]+\s+[A-Z]\.?\s*[A-Z][a-z]+)',
+            # "Hearing Officer: John Smith" or signature block
+            r'Hearing\s+Officer[:\s]+([A-Z][a-z]+(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]+)',
+            # Name followed by "Hearing Officer"
+            r'([A-Z][a-z]+(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]+)\s*\n\s*Hearing\s+Officer',
+            # Signature line "/s/ John Smith"
+            r'/s/\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]+)',
+            # "Signed by John Smith"
+            r'(?:Signed\s+by|Electronically\s+signed)[:\s]+([A-Z][a-z]+(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]+)',
+            # Name at end of document before "Hearing Officer"
+            r'([A-Z][a-z]+(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]+)\s*,?\s*Hearing\s+Officer',
+            # OHA Hearing Officer pattern
+            r'OHA\s+(?:Case\s+)?(?:No\.?\s+)?.*?([A-Z][a-z]+(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]+)\s*,?\s*Hearing\s+Officer',
         ]
 
+        # Check end of document first (signature area)
         for pattern in patterns:
-            match = re.search(pattern, text[:5000])
+            match = re.search(pattern, text[-4000:], re.IGNORECASE)
             if match:
-                return match.group(1)
+                name = match.group(1).strip()
+                # Filter out common false positives
+                if name.lower() not in ['hearing officer', 'the individual', 'the hearing']:
+                    return name
 
-        # Check end of document too
+        # Check beginning of document
         for pattern in patterns:
-            match = re.search(pattern, text[-3000:])
+            match = re.search(pattern, text[:5000], re.IGNORECASE)
             if match:
-                return match.group(1)
+                name = match.group(1).strip()
+                if name.lower() not in ['hearing officer', 'the individual', 'the hearing']:
+                    return name
 
         return "Unknown"
 
     def _create_summary(self, text: str) -> str:
-        """Create a summary of the case"""
-        sections = [
-            r'FINDINGS\s+OF\s+FACT.*?(?=ANALYSIS|DISCUSSION|CONCLUSION|\Z)',
-            r'ANALYSIS.*?(?=CONCLUSION|\Z)',
-            r'DISCUSSION.*?(?=CONCLUSION|\Z)',
-            r'STATEMENT\s+OF\s+THE\s+CASE.*?(?=FINDINGS|\Z)',
+        """
+        Create a summary from Findings of Fact section
+
+        DOE PSH cases typically have structured sections:
+        - Statement of the Case / Procedural Background
+        - Findings of Fact
+        - Analysis / Discussion
+        - Conclusion / Opinion
+        """
+        # Priority order for sections to use as summary
+        section_patterns = [
+            # Findings of Fact (most important for summary)
+            (r'(?:FINDINGS?\s+OF\s+FACT|II\.\s*FINDINGS?\s+OF\s+FACT)\s*(.*?)(?=(?:III\.|ANALYSIS|DISCUSSION|CONCLUSION|OPINION\s+OF))',
+             'Findings of Fact'),
+            # Analysis section
+            (r'(?:ANALYSIS|DISCUSSION)\s*(.*?)(?=(?:CONCLUSION|OPINION\s+OF|\Z))',
+             'Analysis'),
+            # Statement of the Case / Background
+            (r'(?:STATEMENT\s+OF\s+(?:THE\s+)?CASE|PROCEDURAL\s+(?:BACKGROUND|HISTORY)|I\.\s*(?:BACKGROUND|INTRODUCTION))\s*(.*?)(?=(?:II\.|FINDINGS|NOTIFICATION))',
+             'Background'),
         ]
 
-        for pattern in sections:
+        for pattern, section_name in section_patterns:
             match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
             if match:
-                section_text = match.group(0)
-                summary = re.sub(r'\s+', ' ', section_text).strip()
-                return summary[:1500]
+                section_text = match.group(1).strip()
+                if len(section_text) > 100:  # Ensure we got meaningful content
+                    # Clean up whitespace
+                    summary = re.sub(r'\s+', ' ', section_text).strip()
+                    # Prefix with section name for context
+                    return f"{section_name}: {summary[:1500]}"
 
-        # Fallback: use first 1500 chars
-        return re.sub(r'\s+', ' ', text[:1500]).strip()
+        # Fallback: try to get any substantial text after headers
+        # Skip the first ~500 chars (usually just headers)
+        fallback_text = text[500:2500] if len(text) > 2500 else text[500:]
+        summary = re.sub(r'\s+', ' ', fallback_text).strip()
+        return summary[:1500] if summary else "No summary available"
 
 
 class DOESimpleScraper:
