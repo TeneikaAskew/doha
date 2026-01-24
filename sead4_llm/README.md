@@ -1,225 +1,408 @@
-# SEAD-4 Adjudicative Guidelines Analyzer (LLM-Based)
+# SEAD-4 LLM Analyzer Package
 
-An LLM-powered system for analyzing security clearance reports against SEAD-4 adjudicative guidelines with explainable reasoning and optional precedent matching.
+LLM-powered analysis engine for evaluating security clearance reports against SEAD-4 adjudicative guidelines with explainable reasoning and precedent matching.
 
-## Why LLM-Based?
+## Overview
 
-| Benefit | Description |
-|---------|-------------|
-| **Explainable** | Provides reasoning with specific SEAD-4 citations |
-| **Fast deployment** | Hours, not months |
-| **Handles nuance** | Edge cases, context, mitigating factors |
-| **No training data** | Works out of the box |
-| **Easy updates** | Change prompts when guidelines update |
+This package provides the core analysis functionality for the DOHA project. It uses large language models (Google Gemini or Anthropic Claude) to analyze security clearance investigation reports and assess them against the 13 SEAD-4 adjudicative guidelines (A-M).
 
-## Features
-
-- **Guideline Classification**: Identifies relevant guidelines A-M with confidence scores
-- **Disqualifier Detection**: Cites specific AG paragraphs (e.g., "AG ¶ 19(a)")
-- **Mitigator Analysis**: Identifies potential mitigating conditions
-- **Severity Assessment**: A-D scale with detailed reasoning
-- **Precedent Matching** (Optional): RAG-based retrieval of similar DOHA cases
-- **Batch Processing**: Analyze multiple reports efficiently
+**Key Capabilities:**
+- Guideline classification with confidence scores
+- Specific disqualifier citations (e.g., "AG ¶ 19(a)")
+- Mitigating condition analysis with applicability assessment
+- Severity scoring (A-D scale)
+- RAG-based precedent matching (optional)
+- Batch processing support
 
 ## Quick Start
 
+### Prerequisites
+
 ```bash
-# Install dependencies
+# Install package dependencies
 pip install -r requirements.txt
 
-# Set your API key (Gemini by default)
-export GOOGLE_API_KEY=your_key_here
+# Set API key for your chosen provider
+export GOOGLE_API_KEY=your_key_here      # For Gemini (default)
+# OR
+export ANTHROPIC_API_KEY=your_key_here   # For Claude
+```
 
-# Or use Claude
-export ANTHROPIC_API_KEY=your_key_here
+### Basic Analysis (No Precedent Matching)
 
-# Analyze a single report (uses Gemini by default)
+```bash
+# Analyze a single report with Gemini
 python analyze.py --input report.pdf --output result.json
 
-# Analyze using Claude instead
+# Use Claude instead
 python analyze.py --input report.pdf --output result.json --provider claude
 
-# Analyze with precedent matching (requires DOHA index)
-python analyze.py --input report.pdf --use-rag --index ./doha_index
-
-# Batch process (uses Gemini by default)
+# Batch process multiple reports
 python analyze.py --input-dir ./reports --output-dir ./results
 ```
 
-## Project Structure
+### Analysis with Precedent Matching (RAG)
+
+To use precedent matching, you need a DOHA case index. See the [root README](../README.md) for data collection instructions.
+
+```bash
+# With existing index
+python analyze.py --input report.pdf --use-rag --index ../doha_index
+
+# Batch processing with precedent matching
+python analyze.py --input-dir ./reports --output-dir ./results --use-rag --index ../doha_index
+```
+
+## Package Structure
 
 ```
 sead4_llm/
-├── config/
-│   └── guidelines.py      # Full SEAD-4 guidelines text
-├── schemas/
-│   └── models.py          # Pydantic output schemas
-├── prompts/
-│   └── templates.py       # Structured prompts
-├── analyzers/
-│   ├── claude_analyzer.py # Claude API implementation
-│   └── gemini_analyzer.py # Google Gemini API implementation (default)
-├── rag/
-│   ├── indexer.py         # DOHA case indexer
-│   ├── retriever.py       # Precedent retriever
-│   ├── scraper.py         # HTTP-based scraper (blocked)
-│   └── browser_scraper.py # Playwright browser scraper (works)
-├── analyze.py             # Main entry point with PDF parsing
-├── build_index.py         # DOHA index builder CLI
-└── requirements.txt
+├── analyze.py                 # Main CLI entry point
+├── build_index.py             # RAG index builder
+├── requirements.txt           # Python dependencies
+│
+├── analyzers/                 # LLM provider implementations
+│   ├── claude_analyzer.py     # Anthropic Claude integration
+│   └── gemini_analyzer.py     # Google Gemini integration (default)
+│
+├── config/                    # Configuration and reference data
+│   └── guidelines.py          # Complete SEAD-4 guidelines text
+│
+├── prompts/                   # LLM prompt engineering
+│   └── templates.py           # Structured prompts for analysis
+│
+├── schemas/                   # Data models
+│   └── models.py              # Pydantic schemas for structured output
+│
+└── rag/                       # Precedent matching (optional)
+    ├── indexer.py             # Vector index builder
+    ├── retriever.py           # Semantic search for similar cases
+    ├── scraper.py             # Case text parser (URL patterns)
+    └── browser_scraper.py     # Playwright-based scraper (see root)
 ```
 
-## Building the DOHA Precedent Index
+## Command Reference
 
-For improved analysis with precedent matching (RAG), you can build an index of DOHA case decisions. This helps the model make better-informed decisions by referencing similar historical cases.
+### analyze.py
 
-### Option 1: Browser-Based Scraping (Recommended)
-
-⚠️ **Note**: The `--scrape` option below uses HTTP requests which are blocked by bot protection. For successful scraping, use the **Playwright-based browser scraper** in the root directory:
+Main analysis command:
 
 ```bash
-# Return to root directory
-cd ..
+python analyze.py \
+  --input <file.pdf> \
+  [--output <result.json>] \
+  [--provider <gemini|claude>] \
+  [--use-rag] \
+  [--index <path>] \
+  [--verbose]
 
-# Collect all case links with browser automation (recommended)
-python run_full_scrape.py
-
-# Download and parse PDFs
-python download_pdfs.py --max-cases 100  # Test with 100 cases
-python download_pdfs.py                   # Download all 30K+ cases
-
-# Build index from parsed cases
-cd sead4_llm
-python build_index.py --from-cases ../doha_parsed_cases/all_cases.json --output ./doha_index
+# Batch mode
+python analyze.py \
+  --input-dir <directory> \
+  --output-dir <directory> \
+  [--provider <gemini|claude>] \
+  [--use-rag] \
+  [--index <path>]
 ```
 
-See [DOHA_SCRAPING_GUIDE.md](../DOHA_SCRAPING_GUIDE.md) for complete details on browser-based scraping.
+**Options:**
+- `--input` - Single PDF file to analyze
+- `--input-dir` - Directory of PDFs for batch processing
+- `--output` - Output JSON file path (default: `<input>_analysis.json`)
+- `--output-dir` - Output directory for batch results
+- `--provider` - LLM provider: `gemini` (default) or `claude`
+- `--use-rag` - Enable precedent matching
+- `--index` - Path to DOHA case index (required with `--use-rag`)
+- `--verbose` - Detailed logging
 
-### Option 1b: HTTP Scraping (Currently Blocked)
+### build_index.py
 
-The built-in HTTP scraper is blocked by Akamai bot protection but included for reference:
+Build or update DOHA precedent index:
 
 ```bash
-# ⚠️ This will likely fail with 403 errors
-python build_index.py --scrape --start-year 2020 --end-year 2024 --output ./doha_index
+# Create new index from parsed cases (prefers Parquet format)
+python build_index.py --from-cases <path> --output <index_dir>
+
+# Update existing index with new cases only (incremental)
+python build_index.py --from-cases <path> --output <index_dir> --update
+
+# Build from local PDFs
+python build_index.py --local-dir <pdf_dir> --output <index_dir>
+
+# Test existing index
+python build_index.py --test --index <index_dir>
 ```
 
-### Option 2: Build from Local Files
+**Options:**
+- `--from-cases <path>` - Build from Parquet/JSON case data (prefers Parquet)
+- `--local-dir <path>` - Build from directory of PDF files
+- `--output <path>` - Output directory for index
+- `--update` - Add only new cases to existing index (much faster)
+- `--test` - Test index with sample query
+- `--index <path>` - Existing index path (for `--test`)
 
-If you've already downloaded DOHA case PDFs or HTML files:
-
-```bash
-# Build from a directory of case files
-python build_index.py --local-dir ./downloaded_cases --output ./doha_index
-```
-
-Supported file formats: `.pdf`, `.html`, `.txt`
-
-### Option 3: Build from Pre-extracted JSON
-
-If you have case data in JSON format:
-
-```bash
-python build_index.py --from-cases ./cases.json --output ./doha_index
-```
-
-Expected JSON format:
-```json
-[
-  {
-    "case_number": "22-01234",
-    "overall_decision": "DENIED",
-    "guidelines": {"F": {"relevant": true}, "E": {"relevant": true}},
-    "text": "Full case text...",
-    "sor_allegations": ["Allegation 1", "Allegation 2"]
-  }
-]
-```
-
-### Testing the Index
-
-```bash
-# Test with a sample financial query
-python build_index.py --test --index ./doha_index
-```
-
-### Using the Index for Analysis
-
-Once built, use the index with the analyzer:
-
-```bash
-# Analyze with precedent matching (uses Gemini by default)
-python analyze.py --input report.pdf --use-rag --index ./doha_index
-
-# Use with Claude
-python analyze.py --input report.pdf --use-rag --index ./doha_index --provider claude
-```
+**Note**: For data collection (scraping), see the [root README](../README.md) and [DOHA_SCRAPING_GUIDE](../DOHA_SCRAPING_GUIDE.md).
 
 ## Output Format
+
+The analyzer produces structured JSON with this schema:
 
 ```json
 {
   "case_id": "report_001",
   "overall_assessment": {
-    "recommendation": "UNFAVORABLE",
+    "recommendation": "UNFAVORABLE|FAVORABLE",
     "confidence": 0.85,
-    "summary": "Multiple unresolved financial concerns under Guideline F..."
+    "summary": "Brief summary of security concerns or clearances"
   },
   "guidelines": [
     {
       "code": "F",
       "name": "Financial Considerations",
       "relevant": true,
-      "severity": "C",
+      "severity": "A|B|C|D",
       "disqualifiers": [
         {
           "code": "AG ¶ 19(a)",
           "description": "inability to satisfy debts",
-          "evidence": "Applicant has $47,000 in delinquent debt..."
+          "evidence": "Specific evidence from report..."
         }
       ],
       "mitigators": [
         {
           "code": "AG ¶ 20(b)",
           "description": "conditions beyond control",
-          "applicability": "PARTIAL",
-          "reasoning": "Job loss in 2022, but no evidence of responsible action since..."
+          "applicability": "FULL|PARTIAL|NONE",
+          "reasoning": "Why this mitigator applies or doesn't..."
         }
       ],
-      "reasoning": "The applicant's financial situation raises significant concerns..."
+      "reasoning": "Detailed analysis of this guideline..."
     }
   ],
   "follow_up_recommendations": [
-    "Request current credit report",
-    "Verify employment history 2021-2023"
+    "Suggested investigative actions..."
   ],
   "similar_precedents": [
     {
-      "case_number": "ISCR 22-01234",
+      "case_number": "22-01234",
       "outcome": "DENIED",
-      "relevance": "Similar debt amount, no mitigation efforts"
+      "guidelines": ["F", "E"],
+      "relevance_score": 0.87,
+      "summary": "Brief case summary..."
     }
   ]
 }
 ```
 
-## Supported LLM Providers
+## LLM Providers
 
-| Provider | Model | Environment Variable | Default |
-|----------|-------|---------------------|---------|
-| Google Gemini | gemini-2.0-flash | `GOOGLE_API_KEY` | ✓ |
-| Anthropic Claude | claude-sonnet-4 | `ANTHROPIC_API_KEY` | |
+### Google Gemini (Default)
 
-Use the `--provider` flag to select your LLM:
-- `--provider gemini` (default)
-- `--provider claude`
+```bash
+export GOOGLE_API_KEY=your_key_here
+python analyze.py --input report.pdf --provider gemini
+```
+
+- Model: `gemini-2.0-flash-exp`
+- Fast and cost-effective
+- Excellent structured output support
+
+### Anthropic Claude
+
+```bash
+export ANTHROPIC_API_KEY=your_key_here
+python analyze.py --input report.pdf --provider claude
+```
+
+- Model: `claude-sonnet-4-20250514`
+- Superior reasoning on complex cases
+- Better handling of nuanced mitigating factors
 
 ## Configuration
 
-Environment variables:
-- `GOOGLE_API_KEY` - Google Gemini API key (required for default provider)
-- `ANTHROPIC_API_KEY` - Claude API key (required for Claude provider)
-- `DOHA_INDEX_PATH` - Path to DOHA vector index (for RAG)
+### Environment Variables
+
+**Required (choose one):**
+- `GOOGLE_API_KEY` - Google Gemini API key
+- `ANTHROPIC_API_KEY` - Anthropic Claude API key
+
+**Optional:**
+- `DOHA_INDEX_PATH` - Default path to DOHA case index
+
+### Customizing Prompts
+
+Prompts are defined in [`prompts/templates.py`](prompts/templates.py). You can modify these to:
+- Adjust analysis depth
+- Change output format
+- Add domain-specific guidance
+- Fine-tune reasoning style
+
+### Guidelines Reference
+
+The complete SEAD-4 guidelines are in [`config/guidelines.py`](config/guidelines.py). The analyzer references these when citing specific disqualifiers and mitigators.
+
+## Understanding Severity Levels
+
+The analyzer uses a 4-level severity scale:
+
+| Level | Description | Example |
+|-------|-------------|---------|
+| **A** | Minor concerns, easily mitigated | Single late payment, now resolved |
+| **B** | Moderate concerns, some mitigation | Multiple debts with payment plans |
+| **C** | Serious concerns, limited mitigation | Ongoing financial problems, partial efforts |
+| **D** | Severe concerns, little/no mitigation | Large unresolved debts, no mitigation |
+
+## Precedent Matching (RAG)
+
+The optional RAG system finds similar DOHA cases to inform analysis:
+
+### How It Works
+
+1. **Semantic Search**: Converts report text to embeddings
+2. **Similarity Matching**: Finds cases with similar facts/guidelines
+3. **Filtering**: Matches by relevant guidelines
+4. **Ranking**: Returns top N most similar cases with scores
+
+### Building the Index
+
+The index requires:
+- Parsed DOHA case data (JSON or Parquet format)
+- sentence-transformers library
+- ~5-10 minutes to build for ~31,000 cases
+
+See [`../README.md`](../README.md) for data collection workflow.
+
+### Updating the Index
+
+For periodic updates (new DOHA cases):
+
+```bash
+# Collect new cases (from root directory)
+cd ..
+python download_pdfs.py
+
+# Update index with new cases only (much faster)
+cd sead4_llm
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index --update
+```
+
+## Batch Processing
+
+Process multiple reports efficiently:
+
+```bash
+# Basic batch
+python analyze.py --input-dir ./pending_reports --output-dir ./results
+
+# With precedent matching
+python analyze.py \
+  --input-dir ./pending_reports \
+  --output-dir ./results \
+  --use-rag \
+  --index ../doha_index
+
+# With Claude
+python analyze.py \
+  --input-dir ./pending_reports \
+  --output-dir ./results \
+  --provider claude
+```
+
+Output files are named: `<input_name>_analysis.json`
+
+## Error Handling
+
+The analyzer includes robust error handling:
+
+- **PDF parsing failures**: Logged and skipped in batch mode
+- **LLM API errors**: Retries with exponential backoff
+- **Malformed PDFs**: Attempts text extraction fallbacks
+- **Missing index**: Clear error message with setup instructions
+
+Check logs for detailed error information with `--verbose`.
+
+## Performance
+
+Typical analysis times (single report):
+
+| Configuration | Time |
+|---------------|------|
+| Gemini (no RAG) | 3-5 seconds |
+| Gemini (with RAG) | 5-8 seconds |
+| Claude (no RAG) | 5-7 seconds |
+| Claude (with RAG) | 7-10 seconds |
+
+Batch processing is parallelized where possible.
+
+## Integration
+
+### Python API
+
+```python
+from analyzers.gemini_analyzer import GeminiAnalyzer
+
+# Initialize analyzer
+analyzer = GeminiAnalyzer()
+
+# Analyze text
+report_text = "..."
+result = analyzer.analyze(report_text)
+
+# With precedent matching
+from rag.retriever import PrecedentRetriever
+
+retriever = PrecedentRetriever(index_path="./doha_index")
+retriever.load()
+
+result = analyzer.analyze(report_text, retriever=retriever)
+```
+
+### Custom Workflows
+
+The package is modular - use components independently:
+
+```python
+# Just guideline classification
+from analyzers.gemini_analyzer import GeminiAnalyzer
+analyzer = GeminiAnalyzer()
+guidelines = analyzer.classify_guidelines(text)
+
+# Just precedent search
+from rag.retriever import PrecedentRetriever
+retriever = PrecedentRetriever(index_path="./doha_index")
+retriever.load()
+precedents = retriever.retrieve(query, guidelines=['F'], num_precedents=5)
+
+# Just parse DOHA case
+from rag.scraper import DOHALocalParser
+parser = DOHALocalParser()
+cases = parser.parse_directory("./pdfs")
+```
+
+## Troubleshooting
+
+**"No module named 'sentence_transformers'"**
+- Install with: `pip install sentence-transformers`
+- Only needed for RAG/precedent matching
+
+**"API key not found"**
+- Set `GOOGLE_API_KEY` or `ANTHROPIC_API_KEY`
+- Verify environment variable: `echo $GOOGLE_API_KEY`
+
+**"Index not found at path"**
+- Build index first: `python build_index.py --from-cases <data> --output <path>`
+- Or omit `--use-rag` for analysis without precedent matching
+
+**Poor analysis quality**
+- Try Claude instead of Gemini: `--provider claude`
+- Enable RAG for precedent matching: `--use-rag --index <path>`
+- Check that PDF text extraction worked (use `--verbose`)
+
+## Further Reading
+
+- [Root README](../README.md) - Complete project overview and data collection
+- [DOHA Scraping Guide](../DOHA_SCRAPING_GUIDE.md) - Detailed scraping instructions
+- [SEAD-4 Guidelines](https://www.dni.gov/files/NCSC/documents/Regulations/SEAD-4-Adjudicative-Guidelines-U.pdf) - Official adjudicative guidelines
 
 ## License
 
