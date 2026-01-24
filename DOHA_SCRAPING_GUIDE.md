@@ -2,9 +2,11 @@
 
 ## ✅ Summary - SCRAPING WORKS!
 
-**Status**: Successfully scraped **30,850 DOHA cases** using browser automation (Playwright).
+**Status**: Successfully scraped **~31,860 DOHA cases** using browser automation (Playwright):
+- **30,850+ Hearing decisions** (initial adjudications)
+- **1,010+ Appeal decisions** (DOHA Appeal Board reviews)
 
-While the DOHA website (doha.ogc.osd.mil) has Akamai bot protection that blocks standard HTTP requests, **browser-based scraping with Playwright successfully bypasses this protection**.
+While the DOHA website (doha.ogc.osd.mil) has Akamai bot protection that blocks standard HTTP requests, **browser-based scraping with Playwright successfully bypasses this protection** for both case types.
 
 ## 🎯 Quick Start
 
@@ -62,9 +64,33 @@ Successfully scraped **~31,860 total cases** (hearings + appeals) across all yea
 | 2025 | 637 | Current |
 | 2026 | 19 | Current |
 
-**Appeals (~1,010 cases)** from same years (2016-2026)
+**Appeals (~1,010 cases)** from years **2017-2026 ONLY**:
+| Year | Cases | Type |
+|------|-------|------|
+| 2017-2018 | ~200 | Archived |
+| 2019-2026 | ~810 | Current |
+
+**⚠️ Important Note About Appeals**:
+- Appeals are DOHA Appeal Board decisions that review hearing outcomes
+- Significantly fewer appeals than hearings (only ~3-4% of cases are appealed)
+- **Pre-2017 appeals (2016 and earlier) are NOT included** - the website does not provide a "2016 and Prior" archive for appeals like it does for hearings
+- Only appeals from 2017-2026 are systematically available and have been scraped
 
 ## 🌐 Website Structure
+
+### Understanding Case Types
+
+**Hearings** are initial adjudication decisions made by administrative judges:
+- First level of formal adjudication
+- Conducted by DOHA administrative judges
+- Review security clearance applications
+- Result in GRANTED or DENIED decisions
+
+**Appeals** are DOHA Appeal Board reviews of hearing decisions:
+- Second level review by DOHA Appeal Board
+- Review hearing decisions for errors
+- Can AFFIRM, REVERSE, or REMAND hearing decisions
+- Significantly fewer than hearings (only contested cases are appealed)
 
 ### Hearing Cases
 
@@ -95,7 +121,11 @@ Successfully scraped **~31,860 total cases** (hearings + appeals) across all yea
 - **2018**: `https://doha.ogc.osd.mil/.../Archived-ISCR-Appeal-Decisions/2018-ISCR-Appeal-Decisions/`
 - **2017**: `https://doha.ogc.osd.mil/.../Archived-ISCR-Appeal-Decisions/2017-ISCR-Appeal-Decisions/`
 
-**2016 and Prior Appeals**: Not available in separate archive (included in hearings archive)
+**2016 and Prior Appeals**:
+- ⚠️ **NOT AVAILABLE** - The DOHA website does not provide a "2016 and Prior" archive for appeals
+- Appeals only available from 2017 forward (archived: 2017-2018, current: 2019-2026)
+- Appeals became more systematically organized and publicly archived starting in 2017
+- **This is a limitation of the source data**, not the scraper
 
 ### Individual Cases
 Cases are accessed via `/FileId/{number}/` URLs which serve PDF files directly.
@@ -206,8 +236,9 @@ The `download_pdfs.py` script uses Playwright's browser request context API:
 - `page.context.request.get(url)` makes HTTP requests through the browser's session
 - Inherits browser cookies and authentication state
 - Bypasses Akamai protection without triggering download dialogs
-- Fast: ~8-10 cases/second (~0.1-0.2 seconds per PDF)
-- Sequential processing: ~8-9 hours for 30,850 cases (reasonable for overnight run)
+- Fast: ~5-8 cases/second (~0.15-0.2 seconds per PDF)
+- Sequential processing: ~8-10 hours for 30,850 cases (reasonable for overnight run)
+- **Automatic browser restart every 100 cases** to prevent memory buildup and maintain consistent speed
 
 ## 📝 Scripts Overview
 
@@ -270,7 +301,8 @@ python download_pdfs.py --force
 
 **The browser-based downloader**:
 - Uses Playwright's browser request context (bypasses bot protection)
-- Downloads PDFs at ~8-10 cases/second
+- Downloads PDFs at ~5-8 cases/second consistently
+- **Automatic browser restart every 100 cases** to prevent memory buildup
 - Organizes PDFs by type (hearing_pdfs/ and appeal_pdfs/)
 - Parses with PyMuPDF
 - Extracts metadata (outcome, guidelines, judge, case_type, etc.)
@@ -342,6 +374,48 @@ doha_full_scrape/all_case_links.json
 python download_pdfs.py
 ```
 
+## 📊 Case Types Breakdown
+
+### Hearings vs Appeals
+
+| Aspect | Hearings | Appeals |
+|--------|----------|---------|
+| **Purpose** | Initial adjudication | Review of hearing decision |
+| **Decision Maker** | DOHA Administrative Judge | DOHA Appeal Board (3 members) |
+| **Outcomes** | GRANTED / DENIED | AFFIRM / REVERSE / REMAND |
+| **Volume** | ~30,850 cases (2016-2026) | ~1,010 cases (2017-2026 only) |
+| **URL Pattern** | `.../ISCR-Hearing-Decisions/` | `.../ISCR-Appeal-Decisions/` |
+| **Archive Years** | 2017-2018 + 17-page pre-2016 | 2017-2018 only ⚠️ |
+| **Pre-2017 Data** | ✅ Available (19,648 cases) | ❌ Not available on website |
+
+### Why Fewer Appeals?
+- Only cases where the applicant contests the hearing decision
+- Many hearing decisions are accepted without appeal
+- Appeal rate is approximately 3-4% of hearing decisions
+- Appeals take additional time and resources
+
+### When to Use Each Case Type
+
+**Use Hearings for:**
+- Understanding initial adjudication patterns
+- Analyzing how judges weigh evidence
+- Studying guideline application in first decisions
+- Building comprehensive precedent database
+- Majority of case law and precedent
+
+**Use Appeals for:**
+- Understanding appellate review standards
+- Studying error correction patterns
+- Analyzing Board's interpretation of guidelines
+- Cases with contested outcomes
+- Higher-level legal analysis
+
+**Use Both for:**
+- Complete precedent matching
+- Tracking case outcomes through full lifecycle
+- Comprehensive legal research
+- Maximum dataset coverage
+
 ## 📂 Output Files
 
 ### After Link Collection
@@ -407,9 +481,22 @@ python download_pdfs.py    # Downloads only new PDFs
 ## 📊 Performance
 
 - **Link collection**: ~11 minutes for ~31,860 cases (hearings + appeals)
-- **PDF download**: ~8-10 cases/second with browser automation
-- **Total download time**: ~8-9 hours for all cases
+- **PDF download**: ~5-8 cases/second with browser automation
+- **Total download time**: ~8-10 hours for all cases
 - **Index building**: ~5-10 minutes for all cases
+
+### Browser Memory Management
+
+The download script automatically manages browser memory to maintain consistent performance:
+
+**Problem**: Browser memory accumulates over time from network cache, JavaScript heap, and response buffers, causing download speed to degrade from 5-6 cases/sec to 1 case/sec after ~1,500 cases.
+
+**Solution**: The script automatically restarts the browser every 100 cases to clear accumulated memory:
+- Maintains consistent 5-6 cases/sec throughout the entire download session
+- Prevents performance degradation during long scraping runs
+- You'll see `Restarting browser after 100 cases to clear memory...` in the logs
+
+This optimization is critical for processing 30,000+ cases efficiently and saves hours of download time.
 
 ## 🎉 Success Rate
 
