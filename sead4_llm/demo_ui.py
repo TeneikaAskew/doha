@@ -12,11 +12,35 @@ from pathlib import Path
 import fitz  # PyMuPDF
 import json
 from datetime import datetime
+import base64
 
 from analyzers.native_analyzer import NativeSEAD4Analyzer
 from analyzers.enhanced_native_analyzer import EnhancedNativeSEAD4Analyzer
 from analyzers.gemini_analyzer import GeminiSEAD4Analyzer
 from schemas.models import ComparisonAnalysisResult, SEAD4AnalysisResult
+import os
+
+
+def get_api_key() -> str | None:
+    """Get GEMINI_API_KEY from Streamlit secrets or environment"""
+    # Try Streamlit secrets first (for cloud deployment)
+    try:
+        if hasattr(st, 'secrets') and 'GEMINI_API_KEY' in st.secrets:
+            return st.secrets['GEMINI_API_KEY']
+    except Exception:
+        pass
+
+    # Fall back to environment variable
+    return os.getenv('GEMINI_API_KEY')
+
+
+def display_pdf(file_path: Path):
+    """Display PDF in an iframe using base64 encoding"""
+    with open(file_path, "rb") as f:
+        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+
+    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
+    st.markdown(pdf_display, unsafe_allow_html=True)
 
 
 def load_cached_llm_result(case_id: str, suffix: str) -> SEAD4AnalysisResult | None:
@@ -165,7 +189,33 @@ st.markdown("""
         border-radius: 6px;
         padding: 1rem;
     }
+
+    /* PDF viewer improvements */
+    iframe {
+        border: 1px solid #e1e4e8;
+        border-radius: 6px;
+    }
 </style>
+
+<script>
+    // Auto-collapse sidebar when on Document View tab
+    const observer = new MutationObserver(() => {
+        const tabs = document.querySelectorAll('[data-baseweb="tab"]');
+        if (tabs.length > 0) {
+            const firstTab = tabs[0];
+            if (firstTab.getAttribute('aria-selected') === 'true') {
+                // Document View tab is active - collapse sidebar
+                const sidebar = document.querySelector('[data-testid="stSidebar"]');
+                const collapseButton = document.querySelector('[data-testid="collapsedControl"]');
+                if (sidebar && sidebar.getAttribute('aria-expanded') === 'true' && collapseButton) {
+                    collapseButton.click();
+                }
+            }
+        }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+</script>
 """, unsafe_allow_html=True)
 
 # Header with logos
@@ -206,6 +256,28 @@ with col_title:
     st.markdown('<p class="text-muted">DOHA Case Analysis — Comparative approach evaluation</p>', unsafe_allow_html=True)
 
 st.divider()
+
+# Set up API key (try secrets first, then environment)
+api_key = get_api_key()
+if api_key:
+    os.environ['GEMINI_API_KEY'] = api_key
+
+# SEAD-4 Guidelines for analyst input
+SEAD4_GUIDELINES = {
+    'A': 'Allegiance to the United States',
+    'B': 'Foreign Influence',
+    'C': 'Foreign Preference',
+    'D': 'Sexual Behavior',
+    'E': 'Personal Conduct',
+    'F': 'Financial Considerations',
+    'G': 'Alcohol Consumption',
+    'H': 'Drug Involvement and Substance Misuse',
+    'I': 'Psychological Conditions',
+    'J': 'Criminal Conduct',
+    'K': 'Handling Protected Information',
+    'L': 'Outside Activities',
+    'M': 'Use of Information Technology'
+}
 
 # Sidebar - File selection
 st.sidebar.header("Select Test Case")
@@ -278,7 +350,8 @@ if analyze_button:
 
     # Create tabs for each approach
     if include_llm:
-        tab1, tab2, tab3, tab4, tab_compare = st.tabs([
+        tab_pdf, tab1, tab2, tab3, tab4, tab_compare = st.tabs([
+            "Document View",
             "Basic Native",
             "Enhanced Native",
             "LLM (No Guidance)",
@@ -286,7 +359,8 @@ if analyze_button:
             "Comparison"
         ])
     else:
-        tab1, tab2, tab_compare = st.tabs([
+        tab_pdf, tab1, tab2, tab_compare = st.tabs([
+            "Document View",
             "Basic Native",
             "Enhanced Native",
             "Comparison"
@@ -294,6 +368,103 @@ if analyze_button:
 
     # Run analyses
     results = {}
+
+    # Document View Tab
+    with tab_pdf:
+        st.subheader("Source Document & Analyst Assessment")
+        st.caption(f"Viewing: {selected_file}")
+
+        # Create two columns: PDF on left, analyst input on right
+        col_pdf, col_analyst = st.columns([2, 1])
+
+        with col_pdf:
+            st.markdown("**PDF Viewer**")
+            st.caption("Review the case document below")
+            display_pdf(selected_path)
+
+        with col_analyst:
+            st.markdown("**Analyst Assessment**")
+            st.caption("Record your independent analysis of this case")
+
+            # Initialize session state for analyst input if not exists
+            if 'analyst_guidelines' not in st.session_state:
+                st.session_state.analyst_guidelines = []
+            if 'analyst_assessments' not in st.session_state:
+                st.session_state.analyst_assessments = {}
+
+            # Guideline multi-select
+            selected_guidelines = st.multiselect(
+                "Select applicable SEAD-4 Guidelines:",
+                options=list(SEAD4_GUIDELINES.keys()),
+                format_func=lambda x: f"{x}: {SEAD4_GUIDELINES[x]}",
+                default=st.session_state.analyst_guidelines,
+                help="Select all guidelines that apply to this case"
+            )
+            st.session_state.analyst_guidelines = selected_guidelines
+
+            st.divider()
+
+            # For each selected guideline, get severity and justification
+            if selected_guidelines:
+                st.markdown("**Guideline Details**")
+
+                for guideline in selected_guidelines:
+                    with st.expander(f"**{guideline}: {SEAD4_GUIDELINES[guideline]}**", expanded=True):
+                        # Severity selection
+                        severity_key = f"severity_{guideline}"
+                        severity = st.selectbox(
+                            "Severity Level:",
+                            options=['A', 'B', 'C', 'D'],
+                            key=severity_key,
+                            help="A=Minimal, B=Low, C=Moderate, D=High"
+                        )
+
+                        # Justification text
+                        justification_key = f"justification_{guideline}"
+                        justification = st.text_area(
+                            "Justification:",
+                            key=justification_key,
+                            height=100,
+                            placeholder="Explain why this guideline applies and the severity level chosen..."
+                        )
+
+                        # Store in session state
+                        st.session_state.analyst_assessments[guideline] = {
+                            'severity': severity,
+                            'justification': justification
+                        }
+
+                st.divider()
+
+                # Overall recommendation
+                overall_recommendation = st.radio(
+                    "Overall Recommendation:",
+                    options=['FAVORABLE', 'UNFAVORABLE'],
+                    help="Your final recommendation for this case"
+                )
+                st.session_state.analyst_overall = overall_recommendation
+
+                # Save button
+                if st.button("Save Analyst Assessment", type="primary"):
+                    # Save to JSON file
+                    analyst_data = {
+                        'case_id': case_id,
+                        'guidelines': selected_guidelines,
+                        'assessments': st.session_state.analyst_assessments,
+                        'overall_recommendation': overall_recommendation,
+                        'timestamp': datetime.now().isoformat()
+                    }
+
+                    analyst_file = Path("analysis_results") / f"{case_id}_analyst.json"
+                    analyst_file.parent.mkdir(exist_ok=True)
+
+                    with open(analyst_file, 'w') as f:
+                        json.dump(analyst_data, f, indent=2)
+
+                    st.success(f"Analyst assessment saved to {analyst_file.name}")
+
+            else:
+                st.info("Select one or more guidelines above to begin your assessment")
 
     # 1. Basic Native
     with tab1:
@@ -408,14 +579,23 @@ if analyze_button:
                 results['llm'] = cached_result
                 st.success("Loaded from cache (no API call needed)")
             else:
-                with st.spinner("Running LLM analysis (this may take 20-30 seconds)..."):
-                    try:
-                        llm_analyzer = GeminiSEAD4Analyzer()
-                        results['llm'] = llm_analyzer.analyze(document_text, case_id=f"{case_id}_llm")
-                        st.success("Analysis complete")
-                    except Exception as e:
-                        st.error(f"LLM analysis failed: {e}")
-                        st.info("Make sure GEMINI_API_KEY is set: `export GEMINI_API_KEY=your_key`")
+                # Check if API key is available
+                if not api_key:
+                    st.error("GEMINI_API_KEY not configured")
+                    st.info("""
+                    **To use LLM analysis:**
+                    - **Streamlit Cloud:** Add `GEMINI_API_KEY = "your-key"` in App Settings → Secrets
+                    - **Local:** Run `export GEMINI_API_KEY=your_key` in terminal
+                    """)
+                else:
+                    with st.spinner("Running LLM analysis (this may take 20-30 seconds)..."):
+                        try:
+                            llm_analyzer = GeminiSEAD4Analyzer()
+                            results['llm'] = llm_analyzer.analyze(document_text, case_id=f"{case_id}_llm")
+                            st.success("Analysis complete")
+                        except Exception as e:
+                            st.error(f"LLM analysis failed: {e}")
+                            st.info("Check that your GEMINI_API_KEY is valid")
 
             # Display results (if available)
             if 'llm' in results:
@@ -474,18 +654,27 @@ if analyze_button:
                 results['rag'] = cached_result
                 st.success("Loaded from cache (no API call needed)")
             else:
-                with st.spinner("Running LLM with enhanced native guidance..."):
-                    try:
-                        llm_analyzer = GeminiSEAD4Analyzer()
-                        results['rag'] = llm_analyzer.analyze(
-                            document_text,
-                            case_id=f"{case_id}_rag",
-                            native_analysis=native_guidance
-                        )
-                        st.success("Analysis complete")
-                    except Exception as e:
-                        st.error(f"RAG analysis failed: {e}")
-                        st.info("Make sure GEMINI_API_KEY is set: `export GEMINI_API_KEY=your_key`")
+                # Check if API key is available
+                if not api_key:
+                    st.error("GEMINI_API_KEY not configured")
+                    st.info("""
+                    **To use RAG analysis:**
+                    - **Streamlit Cloud:** Add `GEMINI_API_KEY = "your-key"` in App Settings → Secrets
+                    - **Local:** Run `export GEMINI_API_KEY=your_key` in terminal
+                    """)
+                else:
+                    with st.spinner("Running LLM with enhanced native guidance..."):
+                        try:
+                            llm_analyzer = GeminiSEAD4Analyzer()
+                            results['rag'] = llm_analyzer.analyze(
+                                document_text,
+                                case_id=f"{case_id}_rag",
+                                native_analysis=native_guidance
+                            )
+                            st.success("Analysis complete")
+                        except Exception as e:
+                            st.error(f"RAG analysis failed: {e}")
+                            st.info("Check that your GEMINI_API_KEY is valid")
 
             # Display results (if available)
             if 'rag' in results:
