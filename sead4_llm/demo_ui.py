@@ -34,6 +34,28 @@ def get_enhanced_analyzer():
     return EnhancedNativeSEAD4Analyzer
 
 
+@st.cache_resource
+def get_gemini_parser():
+    """
+    Lazy import and cache of GeminiSEAD4Analyzer for parsing cached results.
+    First call imports google.generativeai (~15-20s), subsequent calls use cache.
+    """
+    # Create analyzer with dummy key just for parsing
+    import os
+    original_key = os.getenv("GEMINI_API_KEY")
+    os.environ["GEMINI_API_KEY"] = "dummy_key_for_cache_parsing"
+
+    try:
+        analyzer = GeminiSEAD4Analyzer()
+        return analyzer
+    finally:
+        # Restore original key
+        if original_key:
+            os.environ["GEMINI_API_KEY"] = original_key
+        else:
+            os.environ.pop("GEMINI_API_KEY", None)
+
+
 def get_api_key() -> str | None:
     """Get GEMINI_API_KEY from Streamlit secrets or environment"""
     # Try Streamlit secrets first (for cloud deployment)
@@ -76,20 +98,9 @@ def load_cached_llm_result(case_id: str, suffix: str) -> SEAD4AnalysisResult | N
         # Read cached response
         response_text = cache_file.read_text()
 
-        # Parse using Gemini analyzer's parser (pass dummy key for cache parsing)
-        import os
-        original_key = os.getenv("GEMINI_API_KEY")
-        os.environ["GEMINI_API_KEY"] = "dummy_key_for_cache_parsing"
-
-        try:
-            analyzer = GeminiSEAD4Analyzer()
-            result = analyzer._parse_response(response_text, f"{case_id}_{suffix}", "")
-        finally:
-            # Restore original key
-            if original_key:
-                os.environ["GEMINI_API_KEY"] = original_key
-            else:
-                os.environ.pop("GEMINI_API_KEY", None)
+        # Use cached parser instance (fast after first load)
+        parser = get_gemini_parser()
+        result = parser._parse_response(response_text, f"{case_id}_{suffix}", "")
 
         st.caption(f"Loaded from cache: {cache_file.name}")
         return result
