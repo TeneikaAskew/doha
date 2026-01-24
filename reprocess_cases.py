@@ -7,6 +7,8 @@ import sys
 import json
 import argparse
 import gc
+import os
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "sead4_llm"))
@@ -63,8 +65,58 @@ def validate_parquet_file(file_path: Path, expected_rows: int, operation: str = 
         raise
 
 
+def atomic_write_json(data, output_path: Path):
+    """Atomically write JSON data to a file (write to temp, then rename).
+
+    This prevents corruption if the process is killed during write.
+    """
+    output_path = Path(output_path)
+    temp_path = output_path.with_suffix('.tmp')
+
+    try:
+        with open(temp_path, 'w') as f:
+            json.dump(data, f, indent=2)
+
+        # Atomic rename (on same filesystem)
+        os.replace(temp_path, output_path)
+        logger.debug(f"Atomically saved JSON to {output_path}")
+
+    except Exception as e:
+        # Clean up temp file on error
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
+
+
+def atomic_write_parquet(df: "pd.DataFrame", output_path: Path):
+    """Atomically write DataFrame to parquet (write to temp, then rename).
+
+    This prevents corruption if the process is killed during write.
+    """
+    output_path = Path(output_path)
+    temp_path = output_path.with_suffix('.parquet.tmp')
+
+    try:
+        df.to_parquet(temp_path, index=False, engine='pyarrow', compression='gzip')
+
+        # Validate before replacing
+        validate_parquet_file(temp_path, len(df), "atomic write")
+
+        # Atomic rename (on same filesystem)
+        os.replace(temp_path, output_path)
+        logger.debug(f"Atomically saved parquet to {output_path}")
+
+    except Exception as e:
+        # Clean up temp file on error
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
+
+
 def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size_mb: float = MAX_PARQUET_SIZE_MB):
     """Save DataFrame to Parquet, splitting into multiple files if needed to stay under size limit.
+
+    Uses atomic writes to prevent corruption if process is killed.
 
     Args:
         df: DataFrame to save
@@ -74,9 +126,6 @@ def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size
     Returns:
         List of created file paths
     """
-    import tempfile
-    import os
-
     # First, try saving the whole thing to estimate size
     with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as tmp:
         tmp_path = tmp.name
@@ -87,10 +136,9 @@ def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size
     finally:
         os.unlink(tmp_path)
 
-    # If it fits in one file, save directly
+    # If it fits in one file, save atomically
     if total_size_mb <= max_size_mb:
-        df.to_parquet(output_path, index=False, engine='pyarrow', compression='gzip')
-        validate_parquet_file(output_path, len(df), "single file save")
+        atomic_write_parquet(df, output_path)
         size_mb = output_path.stat().st_size / (1024 * 1024)
         logger.success(f"Saved {len(df)} cases to {output_path} ({size_mb:.1f}MB)")
         return [output_path]
@@ -109,8 +157,7 @@ def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size
     for i, start_idx in enumerate(range(0, len(df), cases_per_file), 1):
         chunk = df.iloc[start_idx:start_idx + cases_per_file]
         chunk_path = parent / f"{base_name}_{i}{suffix}"
-        chunk.to_parquet(chunk_path, index=False, engine='pyarrow', compression='gzip')
-        validate_parquet_file(chunk_path, len(chunk), f"chunk {i} save")
+        atomic_write_parquet(chunk, chunk_path)
         size_mb = chunk_path.stat().st_size / (1024 * 1024)
 
         # Verify chunk doesn't exceed size limit
@@ -242,15 +289,14 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
 
             updated_count += 1
 
-            # Save checkpoint every 5000 cases
+            # Save checkpoint every 5000 cases (using atomic writes to prevent corruption)
             if updated_count % 5000 == 0:
                 if is_parquet:
                     df = pd.DataFrame(cases)
                     save_parquet_with_size_limit(df, output_path, max_size_mb=MAX_PARQUET_SIZE_MB)
                     del df  # Explicitly delete DataFrame
                 else:
-                    with open(output_path, 'w') as f:
-                        json.dump(cases, f, indent=2)
+                    atomic_write_json(cases, output_path)
                 gc.collect()  # Force garbage collection after checkpoint
                 logger.info(f"  Checkpoint saved: {updated_count} cases updated")
 
@@ -258,7 +304,7 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
             logger.error(f"[{i+1}/{len(cases)}] {case_number}: Error - {e}")
             error_count += 1
 
-    # Save final results
+    # Save final results (using atomic writes to prevent corruption)
     if is_parquet:
         logger.info(f"Saving to parquet: {output_path}")
         df = pd.DataFrame(cases)
@@ -266,8 +312,9 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
         del df  # Explicitly delete DataFrame
         gc.collect()  # Force garbage collection
     else:
-        with open(output_path, 'w') as f:
-            json.dump(cases, f, indent=2)
+        logger.info(f"Saving to JSON: {output_path}")
+        atomic_write_json(cases, output_path)
+        gc.collect()
 
     logger.info(f"\n{'='*60}")
     logger.success(f"REPROCESSING COMPLETE")
@@ -285,8 +332,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--input", "-i",
-        default="doha_parsed_cases/all_cases.parquet",
-        help="Input file with cases - JSON or Parquet (default: doha_parsed_cases/all_cases.parquet)"
+        default="doha_parsed_cases/all_cases.json",
+        help="Input file with cases - JSON or Parquet (default: doha_parsed_cases/all_cases.json)"
     )
     parser.add_argument(
         "--output", "-o",

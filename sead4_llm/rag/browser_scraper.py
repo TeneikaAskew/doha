@@ -1,5 +1,4 @@
 """
-"""
 DOHA Case Browser-Based Scraper
 
 Uses Playwright to scrape DOHA cases with a real browser,

@@ -485,8 +485,9 @@ Output:
         sys.exit(1)
 
     # Archive existing checkpoints before starting (unless --no-archive specified)
+    output_dir = Path(args.output)
+
     if not args.no_archive:
-        output_dir = Path(args.output)
         checkpoint_files = list(output_dir.glob("checkpoint_*.json"))
         if checkpoint_files:
             logger.info(f"Found {len(checkpoint_files)} existing checkpoint files")
