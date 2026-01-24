@@ -288,7 +288,7 @@ if test_reports_dir.exists():
     pdf_names = [f.name for f in pdf_files]
 
     selected_file = st.sidebar.selectbox(
-        "Choose a DOHA case report:",
+        "Choose a DOE HA case report:",
         pdf_names,
         help="Select from available test cases"
     )
