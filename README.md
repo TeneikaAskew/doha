@@ -32,7 +32,7 @@ Run from **project root** directory:
 
 ### Phase 2: Index Building (Optional - for precedent matching)
 Run from **sead4_llm/** directory:
-3. Build RAG index: `python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ../doha_index`
+3. Build RAG index: `python build_index.py --from-json ../doha_parsed_cases/all_cases.parquet --output ../doha_index`
 
 ### Phase 3: Analysis
 Run from **sead4_llm/** directory:
