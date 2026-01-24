@@ -7,6 +7,9 @@ Interactive Streamlit interface to compare all 4 analysis approaches:
 - LLM (Independent)
 - Enhanced LLM (RAG)
 """
+import warnings
+warnings.filterwarnings('ignore', message='.*google.generativeai.*', category=FutureWarning)
+
 import streamlit as st
 from pathlib import Path
 import fitz  # PyMuPDF
@@ -16,7 +19,7 @@ import base64
 
 from analyzers.native_analyzer import NativeSEAD4Analyzer
 from analyzers.gemini_analyzer import GeminiSEAD4Analyzer
-from schemas.models import ComparisonAnalysisResult, SEAD4AnalysisResult
+from schemas.models import SEAD4AnalysisResult
 import os
 
 # Lazy import for heavy ML dependencies with background loading
