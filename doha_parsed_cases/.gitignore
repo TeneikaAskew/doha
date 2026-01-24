@@ -2,8 +2,8 @@
 data/*.csv
 *.csv
 
-# Large JSON files (full case text)
-all_cases.json
+# Large JSON files are now split into smaller checkpoints
+# all_cases.json can be committed if needed
 
 # Old-format checkpoints (cumulative, too large) - but allow new split checkpoints
 # checkpoint_50.json, checkpoint_100.json etc are ignored
