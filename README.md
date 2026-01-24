@@ -21,6 +21,25 @@ An LLM-powered system for analyzing security clearance reports against SEAD-4 ad
 - **Precedent Matching** (Optional): RAG-based retrieval of similar DOHA cases
 - **Batch Processing**: Analyze multiple reports efficiently
 
+## Complete Workflow
+
+The typical workflow consists of three main phases:
+
+### Phase 1: Data Collection (Optional - for precedent matching)
+Run from **project root** directory:
+1. Scrape case links: `python run_full_scrape.py`
+2. Download PDFs: `python download_pdfs.py`
+
+### Phase 2: Index Building (Optional - for precedent matching)
+Run from **sead4_llm/** directory:
+3. Build RAG index: `python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ../doha_index`
+
+### Phase 3: Analysis
+Run from **sead4_llm/** directory:
+4. Analyze reports: `python analyze.py --input report.pdf [--use-rag --index ../doha_index]`
+
+**Note**: Phases 1-2 are only needed if you want precedent matching. You can perform basic SEAD-4 analysis without them.
+
 ## Requirements
 
 - Python 3.8+
@@ -32,10 +51,7 @@ An LLM-powered system for analyzing security clearance reports against SEAD-4 ad
 ## Quick Start
 
 ```bash
-# Navigate to the project directory
-cd sead4_llm
-
-# Install dependencies
+# Install dependencies (from project root)
 pip install -r requirements.txt
 
 # Set your API key (Gemini by default)
@@ -44,51 +60,59 @@ export GOOGLE_API_KEY=your_key_here
 # Or use Claude
 export ANTHROPIC_API_KEY=your_key_here
 
+# Navigate to the analysis directory
+cd sead4_llm
+
 # Analyze a single report (uses Gemini by default)
 python analyze.py --input report.pdf --output result.json
 
 # Analyze using Claude instead
 python analyze.py --input report.pdf --output result.json --provider claude
 
-# Analyze with precedent matching (requires DOHA index)
-python analyze.py --input report.pdf --use-rag --index ./doha_index
+# Analyze with precedent matching (requires DOHA index built first)
+python analyze.py --input report.pdf --use-rag --index ../doha_index
 
-# Batch process (uses Gemini by default)
+# Batch process multiple reports
 python analyze.py --input-dir ./reports --output-dir ./results
 ```
 
 ## Project Structure
 
 ```
-sead4_llm/
-├── analyze.py             # Main entry point with PDF/text parsing
-├── build_index.py         # DOHA index builder CLI
+doha/                       # Project root
+├── run_full_scrape.py     # Step 1: Collect case links (hearings + appeals)
+├── download_pdfs.py       # Step 2: Download and parse PDFs
 ├── requirements.txt       # Python dependencies
-├── analyzers/
-│   ├── claude_analyzer.py # Claude API implementation
-│   └── gemini_analyzer.py # Google Gemini API implementation (default)
-├── config/
-│   └── guidelines.py      # Full SEAD-4 guidelines text
-├── prompts/
-│   └── templates.py       # Structured prompts
-├── schemas/
-│   └── models.py          # Pydantic output schemas
-└── rag/
-    ├── indexer.py         # DOHA case indexer
-    ├── retriever.py       # Precedent retriever
-    ├── scraper.py         # HTTP-based scraper (blocked by bot protection)
-    └── browser_scraper.py # Playwright browser scraper (recommended)
-
-# Root-level scraping scripts
-├── run_full_scrape.py     # Automated link collection (30K+ cases)
-└── download_pdfs.py       # Browser-based PDF downloader
+├── sead4_llm/            # Analysis package
+│   ├── analyze.py             # Main entry point for SEAD-4 analysis
+│   ├── build_index.py         # Step 3: Build RAG index from parsed cases
+│   ├── analyzers/
+│   │   ├── claude_analyzer.py # Claude API implementation
+│   │   └── gemini_analyzer.py # Google Gemini API implementation (default)
+│   ├── config/
+│   │   └── guidelines.py      # Full SEAD-4 guidelines text
+│   ├── prompts/
+│   │   └── templates.py       # Structured prompts
+│   ├── schemas/
+│   │   └── models.py          # Pydantic output schemas
+│   └── rag/
+│       ├── indexer.py         # DOHA case indexer
+│       ├── retriever.py       # Precedent retriever
+│       ├── scraper.py         # Case text parser
+│       └── browser_scraper.py # Playwright browser automation
+├── doha_full_scrape/      # Created by run_full_scrape.py
+│   └── all_case_links.json    # All collected case links
+└── doha_parsed_cases/     # Created by download_pdfs.py
+    ├── all_cases.json         # Parsed case data for indexing
+    ├── hearing_pdfs/          # Downloaded hearing PDFs
+    └── appeal_pdfs/           # Downloaded appeal PDFs
 ```
 
 ## Building the DOHA Precedent Index
 
 ### Browser-Based Scraping (Recommended)
 
-✅ **SCRAPING WORKS!** The project includes a **Playwright-based browser scraper** that successfully bypasses bot protection and has scraped **30,850+ DOHA cases**.
+✅ **SCRAPING WORKS!** The project includes a **Playwright-based browser scraper** that successfully bypasses bot protection and has scraped **30,850+ DOHA cases** (hearings and appeals from 2016-2026).
 
 See [**DOHA_SCRAPING_GUIDE.md**](DOHA_SCRAPING_GUIDE.md) for complete details on:
 - How browser automation bypasses Akamai bot protection
@@ -97,25 +121,40 @@ See [**DOHA_SCRAPING_GUIDE.md**](DOHA_SCRAPING_GUIDE.md) for complete details on
 - Legal/ethical considerations for public records access
 - Troubleshooting and best practices
 
-**Quick start for scraping:**
+**Quick start for scraping (run from project root):**
 
 ```bash
-# 1. Collect all case links using browser automation (~11 minutes)
-python run_full_scrape.py
+# Step 1: Collect all case links using browser automation
+# Scrapes both hearings (~30,850 cases) and appeals (~1,010 cases) from 2016-2026
+python run_full_scrape.py                         # Both hearings and appeals (default)
+python run_full_scrape.py --case-type hearings   # Only hearings
+python run_full_scrape.py --case-type appeals    # Only appeals
 
-# 2. Download and parse PDFs using browser automation (~8-9 hours)
-python download_pdfs.py --max-cases 10  # Test with 10 cases first
-python download_pdfs.py                 # Download all 30K+ cases
+# Output: ./doha_full_scrape/all_case_links.json
 
-# 3. Build RAG index from parsed cases
+# Step 2: Download and parse PDFs using browser automation
+# Note: Use --max-cases for testing to avoid long download times
+python download_pdfs.py --max-cases 10           # Test with 10 cases first
+python download_pdfs.py                           # Download all cases (both types)
+python download_pdfs.py --case-type hearings     # Download only hearings
+python download_pdfs.py --case-type appeals      # Download only appeals
+
+# Output: ./doha_parsed_cases/all_cases.json
+# PDFs organized in: ./doha_parsed_cases/hearing_pdfs/ and ./doha_parsed_cases/appeal_pdfs/
+
+# Step 3: Build RAG index from parsed cases
 cd sead4_llm
-python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ./doha_index
+python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ../doha_index
 
-# Test the index
-python build_index.py --test --index ./doha_index
+# Step 4: Test the index
+python build_index.py --test --index ../doha_index
 ```
 
-**Note**: Individual PDF URLs are protected by Akamai bot protection and require browser-based downloads to bypass the 403 errors.
+**Important Notes:**
+- Individual PDF URLs are protected by bot detection and require browser automation to download
+- Downloads can be resumed - the script automatically skips already processed cases
+- Checkpoints are saved every 50 cases to prevent data loss
+- Default rate limit is 2 seconds between requests to be respectful to the DOHA servers
 
 ### Alternative: Build from Local Files
 
@@ -125,25 +164,27 @@ If you prefer manual downloads or have existing PDFs:
 cd sead4_llm
 
 # Build from local PDF files
-python build_index.py --local-dir ./downloaded_cases --output ./doha_index
+python build_index.py --local-dir ../downloaded_cases --output ../doha_index
 
 # Or from JSON data
-python build_index.py --from-json ./cases.json --output ./doha_index
+python build_index.py --from-json ../cases.json --output ../doha_index
 ```
 
 ### Using the Index
 
-Once built, enable precedent matching in your analysis:
+Once built, enable precedent matching in your analysis (from sead4_llm/ directory):
 
 ```bash
+cd sead4_llm
+
 # Analyze with precedent matching (uses Gemini by default)
-python analyze.py --input report.pdf --use-rag --index ./doha_index
+python analyze.py --input report.pdf --use-rag --index ../doha_index
 
 # Use with Claude
-python analyze.py --input report.pdf --use-rag --index ./doha_index --provider claude
+python analyze.py --input report.pdf --use-rag --index ../doha_index --provider claude
 ```
 
-**Note**: The built-in `--scrape` option in `build_index.py` uses HTTP requests which are blocked. Use `run_full_scrape.py` (Playwright) instead for successful scraping.
+**Note**: The built-in `--scrape` option in `build_index.py` uses HTTP requests which are blocked by bot protection. Use the root-level `run_full_scrape.py` script (with Playwright browser automation) instead for successful scraping.
 
 ## Output Format
 
@@ -212,6 +253,7 @@ The system supports two LLM providers:
 
 ### Command Line Options
 
+**Analysis commands (from `sead4_llm/` directory):**
 ```bash
 # Single document analysis
 python analyze.py --input <file> [--output <path>] [--provider <gemini|claude>] [--use-rag] [--index <path>] [--verbose]
@@ -219,8 +261,20 @@ python analyze.py --input <file> [--output <path>] [--provider <gemini|claude>] 
 # Batch processing
 python analyze.py --input-dir <directory> --output-dir <directory> [--provider <gemini|claude>] [--batch]
 
-# Build DOHA index
-python build_index.py --scrape --start-year <year> --end-year <year> --output <path>
+# Build DOHA index from JSON
+python build_index.py --from-json <path> --output <path>
+
+# Test existing index
+python build_index.py --test --index <path>
+```
+
+**Scraping commands (from project root):**
+```bash
+# Collect case links
+python run_full_scrape.py [--case-type <hearings|appeals|both>]
+
+# Download and parse PDFs
+python download_pdfs.py [--case-type <hearings|appeals|both>] [--max-cases <N>] [--force]
 ```
 
 ## References

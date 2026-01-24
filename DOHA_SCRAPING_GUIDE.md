@@ -28,21 +28,26 @@ sudo apt-get update && sudo apt-get install -y \
 
 ```bash
 # 1. Collect all case links (resumes automatically if interrupted)
-python run_full_scrape.py
+python run_full_scrape.py                         # Both hearings and appeals (default)
+python run_full_scrape.py --case-type hearings   # Only hearings
+python run_full_scrape.py --case-type appeals    # Only appeals
 
 # 2. Download and parse PDFs (browser-based, bypasses bot protection)
-python download_pdfs.py --max-cases 10  # Test with 10 cases
-python download_pdfs.py                 # Download all 30K+ cases (~8-9 hours)
+python download_pdfs.py --max-cases 10           # Test with 10 cases
+python download_pdfs.py                           # Download all cases (both types)
+python download_pdfs.py --case-type hearings     # Download only hearings
+python download_pdfs.py --case-type appeals      # Download only appeals
 
 # 3. Build RAG index
 cd sead4_llm
-python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ./doha_index
+python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ../doha_index
 ```
 
 ## 📊 What We Found
 
-Successfully scraped **30,850 cases** across all years:
+Successfully scraped **~31,860 total cases** (hearings + appeals) across all years:
 
+**Hearings (~30,850 cases)**:
 | Year | Cases | Type |
 |------|-------|------|
 | 2016 and Prior | 19,648 | Archived (17 pages) |
@@ -56,24 +61,41 @@ Successfully scraped **30,850 cases** across all years:
 | 2024 | 824 | Current |
 | 2025 | 637 | Current |
 | 2026 | 19 | Current |
-| **TOTAL** | **30,850** | **All cases** |
+
+**Appeals (~1,010 cases)** from same years (2016-2026)
 
 ## 🌐 Website Structure
 
-### Current Year Cases (2019-2027)
+### Hearing Cases
+
+**Current Year Hearings (2019-2027)**:
 - **2026**: `https://doha.ogc.osd.mil/.../2026-ISCR-Hearing-Decisions/`
 - **2025**: `https://doha.ogc.osd.mil/.../2025-ISCR-Hearing-Decisions/`
 - **2024**: `https://doha.ogc.osd.mil/.../2024-ISCR-Hearing/` ⚠️ Different pattern!
 - **2023**: `https://doha.ogc.osd.mil/.../2023-ISCR-Hearing-Decisions/`
 - **2019-2022**: Same pattern as 2023
 
-### Archived Cases
+**Archived Hearings**:
 - **2018**: `https://doha.ogc.osd.mil/.../Archived-ISCR-Hearing-Decisions/2018-ISCR-Hearing-Decisions/`
 - **2017**: `https://doha.ogc.osd.mil/.../Archived-ISCR-Hearing-Decisions/2017-ISCR-Hearing-Decisions/`
 
-### 2016 and Prior (17 Pages)
+**2016 and Prior Hearings (17 Pages)**:
 - **Page 1-17**: `https://doha.ogc.osd.mil/.../2016-and-Prior-ISCR-Hearing-Decisions-{1-17}/`
 - Total: 19,648 cases across all pages
+
+### Appeal Cases
+
+**Current Year Appeals (2019-2027)**:
+- **2026**: `https://doha.ogc.osd.mil/.../2026-ISCR-Appeal-Decisions/`
+- **2025**: `https://doha.ogc.osd.mil/.../2025-ISCR-Appeal-Decisions/`
+- **2024**: `https://doha.ogc.osd.mil/.../2024-ISCR-Appeal-Decisions/`
+- **2019-2023**: Same pattern as 2024
+
+**Archived Appeals**:
+- **2018**: `https://doha.ogc.osd.mil/.../Archived-ISCR-Appeal-Decisions/2018-ISCR-Appeal-Decisions/`
+- **2017**: `https://doha.ogc.osd.mil/.../Archived-ISCR-Appeal-Decisions/2017-ISCR-Appeal-Decisions/`
+
+**2016 and Prior Appeals**: Not available in separate archive (included in hearings archive)
 
 ### Individual Cases
 Cases are accessed via `/FileId/{number}/` URLs which serve PDF files directly.
@@ -153,16 +175,17 @@ The DOHA website uses **Akamai CDN with aggressive bot protection** that disting
 Both scripts are **smart about avoiding re-work**:
 
 **Link Collection** (`run_full_scrape.py`):
-- Saves results per year: `links_2019.json`, `links_2020.json`, etc.
+- Saves results per year and case type: `hearing_links_2019.json`, `appeal_links_2020.json`, etc.
 - On restart, loads existing files and skips those years
 - Only scrapes missing years
 - Shows ⏭️ emoji when skipping completed years
 
 **PDF Download** (`download_pdfs.py`):
-- Checks for existing PDFs on disk
+- Checks for existing PDFs on disk (in hearing_pdfs/ and appeal_pdfs/)
 - Loads `all_cases.json` to see which cases are parsed
 - Skips cases that have both PDF file AND parsed entry
 - Merges new downloads with existing parsed cases
+- Saves checkpoints every 50 cases
 - Use `--force` to re-download everything
 
 ### PDF Download Approach
@@ -190,16 +213,18 @@ The `download_pdfs.py` script uses Playwright's browser request context API:
 
 | Script | Purpose | Status | Notes |
 |--------|---------|--------|-------|
-| `run_full_scrape.py` | Collect case links | ✅ Works | Uses browser, ~11 minutes for 30K links |
-| `download_pdfs.py` | Download PDFs | ✅ Works | Browser-based, ~8-9 hours for 30K cases |
+| `run_full_scrape.py` | Collect case links | ✅ Works | Uses browser, ~11 minutes for all links (hearings + appeals) |
+| `download_pdfs.py` | Download PDFs | ✅ Works | Browser-based, ~8-9 hours for all cases, supports case type filtering |
 
 ## 📝 Usage
 
 ### 1. Collect All Case Links
 
 ```bash
-# First run - scrapes everything (~11 minutes for 30K cases)
-python run_full_scrape.py
+# First run - scrapes everything (~11 minutes for all cases)
+python run_full_scrape.py                         # Both hearings and appeals
+python run_full_scrape.py --case-type hearings   # Only hearings
+python run_full_scrape.py --case-type appeals    # Only appeals
 
 # If interrupted, run again - instantly loads completed years
 python run_full_scrape.py
@@ -208,17 +233,20 @@ python run_full_scrape.py
 rm -rf doha_full_scrape
 python run_full_scrape.py
 
-# Re-scrape specific year only
-rm doha_full_scrape/links_2024.json
+# Re-scrape specific year and type
+rm doha_full_scrape/hearing_links_2024.json
+rm doha_full_scrape/appeal_links_2024.json
 python run_full_scrape.py
 ```
 
 **Features**:
+- ✅ Supports both hearings and appeals
+- ✅ Case type filtering (hearings, appeals, or both)
 - ✅ Automatically detects current year
 - ✅ Includes next year for early postings
 - ✅ Scrapes all archives including 17 "2016 and Prior" pages
 - ✅ Resume support - no duplicate work
-- ✅ Saves intermediate results per year
+- ✅ Saves intermediate results per year and case type
 
 ### 2. Download and Parse PDFs
 
@@ -226,8 +254,10 @@ python run_full_scrape.py
 # Test with first 10 cases
 python download_pdfs.py --max-cases 10
 
-# Download all cases (~8-9 hours for 30K+)
-python download_pdfs.py
+# Download all cases (~8-9 hours)
+python download_pdfs.py                           # Both hearings and appeals
+python download_pdfs.py --case-type hearings     # Only hearings
+python download_pdfs.py --case-type appeals      # Only appeals
 
 # Custom paths and rate limiting
 python download_pdfs.py --links ./doha_full_scrape/all_case_links.json \
@@ -241,11 +271,13 @@ python download_pdfs.py --force
 **The browser-based downloader**:
 - Uses Playwright's browser request context (bypasses bot protection)
 - Downloads PDFs at ~8-10 cases/second
+- Organizes PDFs by type (hearing_pdfs/ and appeal_pdfs/)
 - Parses with PyMuPDF
-- Extracts metadata (outcome, guidelines, judge, etc.)
+- Extracts metadata (outcome, guidelines, judge, case_type, etc.)
 - Saves checkpoints every 50 cases
 - Smart resume: skips already downloaded cases
 - Logs failures separately
+- Supports case type filtering
 
 ### 3. Build RAG Index
 
@@ -315,21 +347,28 @@ python download_pdfs.py
 ### After Link Collection
 ```
 doha_full_scrape/
-├── all_case_links.json      # All 30,850 links
-├── links_2019.json          # Per-year files (for resume)
-├── links_2020.json
-└── ... (all years)
+├── all_case_links.json       # All ~31,860 links (hearings + appeals)
+├── hearing_links_2019.json   # Per-year, per-type files (for resume)
+├── hearing_links_2020.json
+├── appeal_links_2019.json
+├── appeal_links_2020.json
+└── ... (all years, both types)
 ```
 
 ### After PDF Download
 ```
 doha_parsed_cases/
 ├── all_cases.json           # All parsed cases
-├── cases_batch_50.json      # Intermediate checkpoints
-├── cases_batch_100.json
+├── checkpoint_50.json       # Intermediate checkpoints
+├── checkpoint_100.json
 ├── failed_cases.json        # Failed downloads
-└── pdfs/                    # Downloaded PDFs
-    ├── 2019-123456.pdf
+├── hearing_pdfs/            # Downloaded hearing PDFs
+│   ├── 19-12345.pdf
+│   ├── 20-67890.pdf
+│   └── ...
+└── appeal_pdfs/             # Downloaded appeal PDFs
+    ├── 19-54321.pdf
+    ├── 20-09876.pdf
     └── ...
 ```
 
@@ -367,15 +406,17 @@ python download_pdfs.py    # Downloads only new PDFs
 
 ## 📊 Performance
 
-- **Link collection**: ~11 minutes for 30K cases
-- **PDF download**: ~1 second per case = ~8.5 hours for 30K
-- **Index building**: ~5-10 minutes for 30K cases
+- **Link collection**: ~11 minutes for ~31,860 cases (hearings + appeals)
+- **PDF download**: ~8-10 cases/second with browser automation
+- **Total download time**: ~8-9 hours for all cases
+- **Index building**: ~5-10 minutes for all cases
 
 ## 🎉 Success Rate
 
 From our scrape:
-- **Link collection**: 100% success (30,850 / 30,850)
-- **PDF download**: Test to determine actual success rate
+- **Link collection**: 100% success (~31,860 links collected)
+- **PDF download**: High success rate with browser automation
+- **Both hearings and appeals**: Fully supported
 
 ## 📚 Related Files
 
