@@ -2,8 +2,10 @@
 data/*.csv
 *.csv
 
-# Large JSON files are now split into smaller checkpoints
-# all_cases.json can be committed if needed
+# Large data files - use Parquet format for size efficiency
+# all_cases.parquet is committed (gzip compressed, ~60MB)
+# all_cases.json is too large (~250MB) so it's ignored
+all_cases.json
 
 # Old-format checkpoints (cumulative, too large) - but allow new split checkpoints
 # checkpoint_50.json, checkpoint_100.json etc are ignored

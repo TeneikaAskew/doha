@@ -4,3 +4,5 @@ beautifulsoup4
 pymupdf
 playwright
 tqdm
+pandas
+pyarrow
