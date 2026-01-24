@@ -4,8 +4,8 @@ SEAD-4 Analyzer Demo UI
 Interactive Streamlit interface to compare all 4 analysis approaches:
 - Basic Native (keyword-only)
 - Enhanced Native (N-grams + TF-IDF + Embeddings)
-- LLM (no guidance)
-- Enhanced Native→LLM RAG
+- LLM (Independent)
+- Enhanced LLM (RAG)
 """
 import streamlit as st
 from pathlib import Path
@@ -354,8 +354,8 @@ if analyze_button:
             "Document View",
             "Basic Native",
             "Enhanced Native",
-            "LLM (No Guidance)",
-            "Enhanced→LLM RAG",
+            "LLM (Independent)",
+            "Enhanced LLM (RAG)",
             "Comparison"
         ])
     else:
@@ -559,8 +559,8 @@ if analyze_button:
     # 3. LLM (if enabled)
     if include_llm:
         with tab3:
-            st.subheader("LLM Analysis")
-            st.caption("Gemini 2.0 Flash with deep semantic understanding")
+            st.subheader("LLM Analysis (Independent)")
+            st.caption("Gemini 2.0 Flash analyzing independently - no pre-filtering from native analyzer")
 
             col_metric1, col_metric2, col_metric3 = st.columns(3)
             with col_metric1:
@@ -622,9 +622,9 @@ if analyze_button:
                                 for d in g.disqualifiers:
                                     st.write(f"- {d.code}: {d.text[:100]}...")
 
-        # 4. Enhanced→LLM RAG
+        # 4. Enhanced LLM (RAG)
         with tab4:
-            st.subheader("Enhanced Native → LLM RAG")
+            st.subheader("Enhanced LLM (RAG)")
             st.caption("Enhanced native guides LLM for focused analysis")
 
             col_metric1, col_metric2, col_metric3 = st.columns(3)
@@ -721,7 +721,7 @@ if analyze_button:
         if include_llm and 'llm' in results:
             recommendations['LLM'] = results['llm'].overall_assessment.recommendation.value
         if include_llm and 'rag' in results:
-            recommendations['Enhanced→LLM RAG'] = results['rag'].overall_assessment.recommendation.value
+            recommendations['Enhanced LLM (RAG)'] = results['rag'].overall_assessment.recommendation.value
 
         all_agree = len(set(recommendations.values())) == 1
 
@@ -777,7 +777,7 @@ if analyze_button:
         if include_llm and 'rag' in results:
             rag_relevant = [g.code for g in results['rag'].get_relevant_guidelines()]
             summary_data.append({
-                "Approach": "4. Enhanced→LLM RAG",
+                "Approach": "4. Enhanced LLM (RAG)",
                 "Method": "Enhanced guides Gemini",
                 "Guidelines": ", ".join(rag_relevant),
                 "Count": len(rag_relevant),
@@ -836,8 +836,8 @@ if analyze_button:
                     rag_set = set(rag_relevant)
                     precision = len(gt_guidelines & rag_set) / len(rag_set) if rag_set else 0
                     recall = len(gt_guidelines & rag_set) / len(gt_guidelines) if gt_guidelines else 0
-                    st.metric("Enhanced→LLM RAG Precision", f"{precision:.0%}")
-                    st.metric("Enhanced→LLM RAG Recall", f"{recall:.0%}")
+                    st.metric("Enhanced LLM (RAG) Precision", f"{precision:.0%}")
+                    st.metric("Enhanced LLM (RAG) Recall", f"{recall:.0%}")
                     if rag_set != gt_guidelines:
                         false_pos = rag_set - gt_guidelines
                         if false_pos:
@@ -894,12 +894,12 @@ else:
         - Contextual co-occurrence analysis
         - Moderate speed (~3s), 0 cost, ~83% precision
 
-        **3. LLM (No Guidance)**
+        **3. LLM (Independent)**
         - Deep semantic understanding (Gemini 2.0 Flash)
-        - Independent analysis without pre-processing
+        - Independent analysis without pre-filtering from native analyzer
         - Slower (~20s), ~$0.02 cost, ~90% precision
 
-        **4. Enhanced Native→LLM RAG**
+        **4. Enhanced LLM (RAG)**
         - Enhanced native identifies key guidelines
         - LLM performs targeted deep analysis
         - Best of both: precision + reasoning
