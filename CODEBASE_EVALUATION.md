@@ -703,12 +703,13 @@ find /workspaces/doha -name "*test*.py"
    - [x] `sead4_llm/rag/scraper.py:1448` - validate data is list
    - [x] Added helpful error messages with type information
 
-- [ ] **5. Add parquet validation after saves** (1 hour)
-   ```python
-   # Verify round-trip
-   df_verify = pd.read_parquet(output_path)
-   assert len(df_verify) == len(df)
-   ```
+- [x] **5. Add parquet validation after saves** (1 hour) ✅ **COMPLETED**
+   - [x] Created `validate_parquet_file()` helper function in all 3 parquet-handling files
+   - [x] Added validation after single-file saves (download_pdfs.py, reprocess_cases.py, merge_checkpoints.py)
+   - [x] Added validation after each chunk save when splitting large files
+   - [x] Validates file existence, row count, and PAR1 magic bytes
+   - [x] Added size limit verification for chunks (prevents exceeding GitHub 100MB limit)
+   - [x] Validation provides detailed error context (file path, expected vs actual rows)
 
 ---
 

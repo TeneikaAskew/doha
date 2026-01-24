@@ -24,6 +24,44 @@ except ImportError:
 MAX_PARQUET_SIZE_MB = 90  # Stay under GitHub's 100MB limit
 
 
+def validate_parquet_file(file_path: Path, expected_rows: int, operation: str = "save") -> None:
+    """
+    Validate a parquet file after write to ensure data integrity.
+
+    Args:
+        file_path: Path to parquet file
+        expected_rows: Number of rows expected
+        operation: Description of the operation for logging
+
+    Raises:
+        ValueError: If validation fails
+    """
+    try:
+        # Verify file exists
+        if not file_path.exists():
+            raise FileNotFoundError(f"Parquet file not found after {operation}: {file_path}")
+
+        # Verify round-trip
+        df_verify = pd.read_parquet(file_path)
+        actual_rows = len(df_verify)
+
+        if actual_rows != expected_rows:
+            raise ValueError(f"Parquet validation failed: expected {expected_rows} rows, got {actual_rows}")
+
+        # Verify PAR1 magic bytes in footer
+        with open(file_path, 'rb') as f:
+            f.seek(-4, 2)  # Seek to last 4 bytes
+            footer = f.read(4)
+            if footer != b'PAR1':
+                raise ValueError(f"Invalid parquet footer: expected b'PAR1', got {footer!r}")
+
+        logger.debug(f"✓ Validated parquet file: {actual_rows} rows, {file_path.stat().st_size / (1024*1024):.1f}MB")
+
+    except Exception as e:
+        logger.error(f"Parquet validation failed for {file_path}: {e}")
+        raise
+
+
 def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size_mb: float = MAX_PARQUET_SIZE_MB):
     """Save DataFrame to Parquet, splitting into multiple files if needed to stay under size limit.
 
@@ -51,6 +89,7 @@ def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size
     # If it fits in one file, save directly
     if total_size_mb <= max_size_mb:
         df.to_parquet(output_path, index=False, engine='pyarrow', compression='gzip')
+        validate_parquet_file(output_path, len(df), "single file save")
         size_mb = output_path.stat().st_size / (1024 * 1024)
         logger.success(f"Saved {len(df)} cases to {output_path} ({size_mb:.1f}MB)")
         return [output_path]
@@ -70,7 +109,14 @@ def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size
         chunk = df.iloc[start_idx:start_idx + cases_per_file]
         chunk_path = parent / f"{base_name}_{i}{suffix}"
         chunk.to_parquet(chunk_path, index=False, engine='pyarrow', compression='gzip')
+        validate_parquet_file(chunk_path, len(chunk), f"chunk {i} save")
         size_mb = chunk_path.stat().st_size / (1024 * 1024)
+
+        # Verify chunk doesn't exceed size limit
+        if size_mb > max_size_mb:
+            logger.error(f"❌ Chunk {i} exceeds {max_size_mb}MB: {size_mb:.1f}MB")
+            raise ValueError(f"Parquet splitting failed, chunk {i} too large: {size_mb:.1f}MB > {max_size_mb}MB")
+
         logger.success(f"Saved {len(chunk)} cases to {chunk_path} ({size_mb:.1f}MB)")
         created_files.append(chunk_path)
 
