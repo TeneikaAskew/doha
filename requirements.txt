@@ -1,8 +1,25 @@
-loguru
-requests
-beautifulsoup4
-pymupdf
-playwright
-tqdm
-pandas
-pyarrow
+# Core dependencies with version pinning
+# Using ~= for compatible release (allows patch updates, not minor/major)
+
+# Logging
+loguru~=0.7.3
+
+# HTTP and web scraping
+requests~=2.32.5
+beautifulsoup4~=4.14.0
+playwright~=1.57.0
+
+# PDF processing
+PyMuPDF~=1.26.0
+
+# Progress bars
+tqdm~=4.67.0
+
+# Data processing
+pandas~=3.0.0
+pyarrow~=23.0.0
+
+# Machine learning for RAG (was missing)
+sentence-transformers~=5.2.0
+
+# Note: After installing, run: playwright install chromium
