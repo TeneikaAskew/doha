@@ -1,4 +1,5 @@
 """
+"""
 DOHA Case Browser-Based Scraper
 
 Uses Playwright to scrape DOHA cases with a real browser,
@@ -552,3 +553,4 @@ if __name__ == "__main__":
         print("\nTo scrape all cases:")
         print("  from rag.browser_scraper import scrape_with_browser")
         print("  scrape_with_browser('./doha_cases', include_2016_and_prior=True)")
+

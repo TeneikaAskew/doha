@@ -125,7 +125,11 @@ Provide a comprehensive analysis following this structure:
 
 # OUTPUT FORMAT
 
-Respond with a JSON object matching this schema:
+**IMPORTANT**: You MUST analyze ALL 13 guidelines (A through M), even if they are not relevant.
+For non-relevant guidelines, set "relevant": false and provide brief reasoning.
+
+**CRITICAL**: Respond with ONLY a valid JSON object (no markdown, no explanation) matching this exact schema.
+Do NOT use different key names like "adjudicative_guideline_analyses" - use "guidelines" exactly as shown:
 
 {{
   "case_id": "string - document identifier",
@@ -239,13 +243,129 @@ The following DOHA cases have similar fact patterns. Use them to inform your ana
 def build_analysis_prompt(
     document_text: str,
     quick_mode: bool = False,
-    precedents: Optional[List[dict]] = None
+    precedents: Optional[List[dict]] = None,
+    native_analysis: Optional[dict] = None
 ) -> str:
     """Build the appropriate analysis prompt"""
-    
+
     if quick_mode:
         return QUICK_ANALYSIS_PROMPT.format(document_text=document_text[:10000])
-    
+
+    # If native analysis is provided, include it as guidance
+    if native_analysis:
+        native_guidance_text = f"""
+# INITIAL RULE-BASED ANALYSIS (For Your Reference)
+
+A keyword-based analyzer has performed initial triage and identified the following:
+
+**Potentially Relevant Guidelines**: {', '.join(native_analysis.get('relevant_guidelines', []))}
+**Severe Concerns**: {', '.join(native_analysis.get('severe_concerns', []))}
+**Initial Recommendation**: {native_analysis.get('recommendation', 'N/A')}
+**Confidence**: {native_analysis.get('confidence', 0.0):.0%}
+
+**Key Concerns Identified**:
+{chr(10).join(f'  - {concern}' for concern in native_analysis.get('key_concerns', [])[:3])}
+
+**IMPORTANT**: This is preliminary guidance from pattern matching. You should:
+1. Conduct your own independent deep analysis of ALL 13 guidelines
+2. Pay special attention to the guidelines flagged above
+3. Either confirm these findings with detailed legal reasoning, OR
+4. Explain what the rule-based analyzer missed or got wrong
+5. Provide much more nuanced analysis than simple keyword matching can achieve
+
+**CRITICAL - OUTPUT FORMAT**: You MUST respond with the EXACT JSON schema specified below.
+Do NOT change the schema structure. Do NOT use different key names like "adjudicative_guideline_analyses".
+The JSON must use "guidelines" as the array key, exactly as shown in the schema below.
+"""
+
+        precedent_section = ""
+        if precedents:
+            precedent_text = "\n\n".join([
+                f"**Case {p['case_number']}** (Outcome: {p['outcome']})\n"
+                f"Guidelines: {', '.join(p['guidelines'])}\n"
+                f"Summary: {p['summary']}\n"
+                f"Key Finding: {p.get('key_finding', 'N/A')}"
+                for p in precedents[:5]
+            ])
+            precedent_section = f"\n\n# SIMILAR PRECEDENT CASES\n\n{precedent_text}\n"
+
+        full_instructions = f"""{native_guidance_text}{precedent_section}
+
+# DOCUMENT TO ANALYZE
+
+```
+{document_text[:15000]}
+```
+
+# ANALYSIS INSTRUCTIONS
+
+Conduct a comprehensive analysis of this document against all SEAD-4 guidelines, using the native analysis as a starting point but applying your superior semantic understanding and legal reasoning.
+
+**CRITICAL**: You MUST respond with ONLY valid JSON matching the EXACT schema structure below.
+Do NOT modify the schema. Do NOT use different key names. Use "guidelines" not "adjudicative_guideline_analyses".
+
+**REQUIRED JSON SCHEMA** (respond with this structure ONLY):
+
+{{
+  "case_id": "string - document identifier",
+  "overall_assessment": {{
+    "recommendation": "FAVORABLE|UNFAVORABLE|CONDITIONAL|INSUFFICIENT_INFO",
+    "confidence": 0.0-1.0,
+    "summary": "2-3 sentence executive summary",
+    "key_concerns": ["list of primary concerns"],
+    "key_mitigations": ["list of key mitigating factors"],
+    "bond_amendment_applies": true/false,
+    "bond_amendment_details": "string if applicable"
+  }},
+  "guidelines": [
+    {{
+      "code": "A-M",
+      "name": "guideline name",
+      "relevant": true/false,
+      "severity": "A|B|C|D" or null,
+      "disqualifiers": [
+        {{
+          "code": "AG ¶ XX(x)",
+          "text": "disqualifier text",
+          "evidence": "quoted evidence from document",
+          "confidence": 0.0-1.0
+        }}
+      ],
+      "mitigators": [
+        {{
+          "code": "AG ¶ XX(x)",
+          "text": "mitigator text",
+          "applicability": "FULL|PARTIAL|MINIMAL|NONE",
+          "reasoning": "explanation",
+          "evidence": "quoted evidence if any"
+        }}
+      ],
+      "reasoning": "overall reasoning for this guideline",
+      "confidence": 0.0-1.0
+    }}
+    // ... for all 13 guidelines A-M
+  ],
+  "whole_person_analysis": [
+    {{
+      "factor": "factor name",
+      "assessment": "how it applies",
+      "impact": "FAVORABLE|UNFAVORABLE|NEUTRAL"
+    }}
+  ],
+  "follow_up_recommendations": [
+    {{
+      "action": "recommended action",
+      "priority": "HIGH|MEDIUM|LOW",
+      "guideline": "related guideline code or null",
+      "rationale": "why recommended"
+    }}
+  ]
+}}
+
+Begin your analysis with ONLY the JSON response above. Do not include markdown code blocks or any other formatting.
+"""
+        return full_instructions
+
     if precedents:
         precedent_text = "\n\n".join([
             f"**Case {p['case_number']}** (Outcome: {p['outcome']})\n"
@@ -254,13 +374,25 @@ def build_analysis_prompt(
             f"Key Finding: {p.get('key_finding', 'N/A')}"
             for p in precedents[:5]  # Limit to 5 precedents
         ])
-        
+
         return RAG_AUGMENTED_PROMPT_TEMPLATE.format(
             document_text=document_text[:15000],
             precedents=precedent_text,
-            standard_instructions="Respond with the full JSON schema as specified in the system prompt."
+            standard_instructions="""
+**CRITICAL**: You MUST respond with ONLY valid JSON matching this EXACT schema.
+Use "guidelines" as the array key, not "adjudicative_guideline_analyses" or any other variation.
+
+The response must be a JSON object with these exact top-level keys:
+- case_id
+- overall_assessment
+- guidelines (array of 13 guideline objects)
+- whole_person_analysis (array)
+- follow_up_recommendations (array)
+
+Respond with ONLY the JSON object, no markdown blocks, no explanation.
+"""
         )
-    
+
     return ANALYSIS_PROMPT_TEMPLATE.format(document_text=document_text[:20000])
 
 

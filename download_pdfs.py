@@ -472,6 +472,8 @@ Output:
                        help="Force re-download even if PDFs exist")
     parser.add_argument("--rate-limit", type=float, default=0.15,
                        help="Seconds to wait between requests (default: 0.15 for ~6 cases/sec)")
+    parser.add_argument("--no-archive", action="store_true",
+                       help="Skip archiving existing checkpoint files before starting")
 
     args = parser.parse_args()
 
@@ -481,6 +483,34 @@ Output:
         logger.error(f"Links file not found: {links_file}")
         logger.info("Run 'python run_full_scrape.py' first to collect links")
         sys.exit(1)
+
+    # Archive existing checkpoints before starting (unless --no-archive specified)
+    if not args.no_archive:
+        output_dir = Path(args.output)
+        checkpoint_files = list(output_dir.glob("checkpoint_*.json"))
+        if checkpoint_files:
+            logger.info(f"Found {len(checkpoint_files)} existing checkpoint files")
+
+            # Import archive function
+            import shutil
+            from datetime import datetime
+
+            # Create timestamped archive directory
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            archive_dir = output_dir / "checkpoints_archive" / f"checkpoints_{timestamp}"
+            archive_dir.mkdir(parents=True, exist_ok=True)
+
+            # Move checkpoint files
+            moved_count = 0
+            for checkpoint_file in checkpoint_files:
+                try:
+                    dest = archive_dir / checkpoint_file.name
+                    shutil.move(str(checkpoint_file), str(dest))
+                    moved_count += 1
+                except Exception as e:
+                    logger.error(f"Failed to archive {checkpoint_file.name}: {e}")
+
+            logger.success(f"Archived {moved_count} checkpoint files to {archive_dir}")
 
     cases = download_and_parse_pdfs(
         links_file=links_file,

@@ -284,3 +284,75 @@ class SimpleAnalysisResult(BaseModel):
     guidelines: List[SimpleGuidelineResult]
     summary: str
     concerns: List[str]
+
+
+class ComparisonAnalysisResult(BaseModel):
+    """Comparison of native, LLM, and native-guided LLM analysis results"""
+    case_id: str = Field(
+        description="Identifier for this analysis"
+    )
+    analysis_timestamp: str = Field(
+        description="ISO timestamp of analysis"
+    )
+    native_result: SEAD4AnalysisResult = Field(
+        description="Result from native/rule-based analysis"
+    )
+    enhanced_native_result: Optional[SEAD4AnalysisResult] = Field(
+        default=None,
+        description="Result from enhanced native analysis (N-grams + TF-IDF + Embeddings)"
+    )
+    llm_result: SEAD4AnalysisResult = Field(
+        description="Result from LLM-based analysis (no native guidance)"
+    )
+    native_rag_result: Optional[SEAD4AnalysisResult] = Field(
+        default=None,
+        description="Result from LLM with native guidance (RAG)"
+    )
+
+    def get_comparison_summary(self) -> dict:
+        """Generate a summary comparing all approaches"""
+        summary = {
+            "case_id": self.case_id,
+            "native": {
+                "recommendation": self.native_result.overall_assessment.recommendation.value,
+                "confidence": self.native_result.overall_assessment.confidence,
+                "relevant_guidelines": len(self.native_result.get_relevant_guidelines())
+            },
+            "llm": {
+                "recommendation": self.llm_result.overall_assessment.recommendation.value,
+                "confidence": self.llm_result.overall_assessment.confidence,
+                "relevant_guidelines": len(self.llm_result.get_relevant_guidelines())
+            },
+            "agreement_native_llm": self.native_result.overall_assessment.recommendation == self.llm_result.overall_assessment.recommendation
+        }
+
+        if self.enhanced_native_result:
+            summary["enhanced_native"] = {
+                "recommendation": self.enhanced_native_result.overall_assessment.recommendation.value,
+                "confidence": self.enhanced_native_result.overall_assessment.confidence,
+                "relevant_guidelines": len(self.enhanced_native_result.get_relevant_guidelines())
+            }
+
+        if self.native_rag_result:
+            summary["native_rag"] = {
+                "recommendation": self.native_rag_result.overall_assessment.recommendation.value,
+                "confidence": self.native_rag_result.overall_assessment.confidence,
+                "relevant_guidelines": len(self.native_rag_result.get_relevant_guidelines())
+            }
+
+            # Check agreement based on what's available
+            if self.enhanced_native_result:
+                summary["agreement_all_four"] = (
+                    self.native_result.overall_assessment.recommendation ==
+                    self.enhanced_native_result.overall_assessment.recommendation ==
+                    self.llm_result.overall_assessment.recommendation ==
+                    self.native_rag_result.overall_assessment.recommendation
+                )
+            else:
+                summary["agreement_all_three"] = (
+                    self.native_result.overall_assessment.recommendation ==
+                    self.llm_result.overall_assessment.recommendation ==
+                    self.native_rag_result.overall_assessment.recommendation
+                )
+
+        return summary

@@ -23,7 +23,7 @@ This package provides the core analysis functionality for the DOHA project. It u
 pip install -r requirements.txt
 
 # Set API key for your chosen provider
-export GOOGLE_API_KEY=your_key_here      # For Gemini (default)
+export GEMINI_API_KEY=your_key_here      # For Gemini (default)
 # OR
 export ANTHROPIC_API_KEY=your_key_here   # For Claude
 ```
@@ -199,7 +199,7 @@ The analyzer produces structured JSON with this schema:
 ### Google Gemini (Default)
 
 ```bash
-export GOOGLE_API_KEY=your_key_here
+export GEMINI_API_KEY=your_key_here
 python analyze.py --input report.pdf --provider gemini
 ```
 
@@ -223,7 +223,7 @@ python analyze.py --input report.pdf --provider claude
 ### Environment Variables
 
 **Required (choose one):**
-- `GOOGLE_API_KEY` - Google Gemini API key
+- `GEMINI_API_KEY` - Google Gemini API key
 - `ANTHROPIC_API_KEY` - Anthropic Claude API key
 
 **Optional:**
@@ -386,8 +386,8 @@ cases = parser.parse_directory("./pdfs")
 - Only needed for RAG/precedent matching
 
 **"API key not found"**
-- Set `GOOGLE_API_KEY` or `ANTHROPIC_API_KEY`
-- Verify environment variable: `echo $GOOGLE_API_KEY`
+- Set `GEMINI_API_KEY` or `ANTHROPIC_API_KEY`
+- Verify environment variable: `echo $GEMINI_API_KEY`
 
 **"Index not found at path"**
 - Build index first: `python build_index.py --from-cases <data> --output <path>`

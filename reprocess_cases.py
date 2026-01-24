@@ -242,8 +242,8 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
 
             updated_count += 1
 
-            # Save checkpoint every 1000 cases
-            if updated_count % 1000 == 0:
+            # Save checkpoint every 5000 cases
+            if updated_count % 5000 == 0:
                 if is_parquet:
                     df = pd.DataFrame(cases)
                     save_parquet_with_size_limit(df, output_path, max_size_mb=MAX_PARQUET_SIZE_MB)

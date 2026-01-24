@@ -25,3 +25,4 @@ Thumbs.db
 
 # Local settings (allow .claude/settings.json and other config to be committed)
 .claude/settings.local.json
+.env
