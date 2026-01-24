@@ -41,12 +41,13 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
     Reprocess cases to re-extract metadata from existing full_text.
 
     Args:
-        input_file: Path to existing all_cases.json
+        input_file: Path to existing all_cases.json or all_cases.parquet
         output_file: Path to save updated cases (defaults to input_file)
         force_all: If True, reprocess all cases. If False, only reprocess cases with Unknown values.
     """
     input_path = Path(input_file)
     output_path = Path(output_file) if output_file else input_path
+    is_parquet = input_path.suffix == '.parquet'
 
     if not input_path.exists():
         logger.error(f"Input file not found: {input_path}")
@@ -55,7 +56,7 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
     # Load existing cases (support both JSON and Parquet)
     logger.info(f"Loading cases from {input_path}")
 
-    if input_path.suffix == '.parquet':
+    if is_parquet:
         if not HAS_PANDAS:
             logger.error("pandas not installed - cannot read parquet files")
             logger.error("Install with: pip install pandas pyarrow")
@@ -128,8 +129,12 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
 
             # Save checkpoint every 100 cases
             if updated_count % 100 == 0:
-                with open(output_path, 'w') as f:
-                    json.dump(cases, f, indent=2)
+                if is_parquet:
+                    df = pd.DataFrame(cases)
+                    df.to_parquet(output_path, index=False, engine='pyarrow', compression='gzip')
+                else:
+                    with open(output_path, 'w') as f:
+                        json.dump(cases, f, indent=2)
                 logger.info(f"  Checkpoint saved: {updated_count} cases updated")
 
         except Exception as e:
@@ -137,8 +142,15 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
             error_count += 1
 
     # Save final results
-    with open(output_path, 'w') as f:
-        json.dump(cases, f, indent=2)
+    if is_parquet:
+        logger.info(f"Saving to parquet: {output_path}")
+        df = pd.DataFrame(cases)
+        df.to_parquet(output_path, index=False, engine='pyarrow', compression='gzip')
+        size_mb = output_path.stat().st_size / (1024 * 1024)
+        logger.info(f"Saved {len(cases)} cases to parquet ({size_mb:.1f}MB)")
+    else:
+        with open(output_path, 'w') as f:
+            json.dump(cases, f, indent=2)
 
     logger.info(f"\n{'='*60}")
     logger.success(f"REPROCESSING COMPLETE")
@@ -161,7 +173,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--output", "-o",
-        help="Output JSON file (default: same as input)"
+        help="Output file (default: same as input, preserves format)"
     )
     parser.add_argument(
         "--force-all", "-f",
