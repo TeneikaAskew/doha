@@ -19,10 +19,14 @@ from analyzers.gemini_analyzer import GeminiSEAD4Analyzer
 from schemas.models import ComparisonAnalysisResult, SEAD4AnalysisResult
 import os
 
-# Lazy import for heavy ML dependencies (only load when needed)
-# This makes the app start instantly instead of 5-10 minute cold start
+# Lazy import for heavy ML dependencies with background loading
+# This makes the app start instantly, then loads models in background
+@st.cache_resource
 def get_enhanced_analyzer():
-    """Lazy import of EnhancedNativeSEAD4Analyzer to avoid slow startup"""
+    """
+    Lazy import and cache of EnhancedNativeSEAD4Analyzer.
+    First call downloads ML models (~80MB), subsequent calls use cache.
+    """
     from analyzers.enhanced_native_analyzer import EnhancedNativeSEAD4Analyzer
     return EnhancedNativeSEAD4Analyzer
 
@@ -944,3 +948,12 @@ else:
 st.sidebar.divider()
 st.sidebar.caption("SEAD-4 Analyzer Demo v1.0")
 st.sidebar.caption("Built with Streamlit")
+
+# Background loading: Pre-load ML models after UI renders
+# This ensures models are ready when user clicks "Run Comparison Analysis"
+# First load takes ~3-5 seconds, cached for all subsequent uses
+try:
+    get_enhanced_analyzer()
+except Exception:
+    # Silent fail - models will load on first use instead
+    pass
