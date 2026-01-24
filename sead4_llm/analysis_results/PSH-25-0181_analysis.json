@@ -1,0 +1,308 @@
+{
+  "case_id": "PSH-25-0181",
+  "document_source": "native_analysis",
+  "analysis_timestamp": "2026-01-24T15:10:50.656174",
+  "overall_assessment": {
+    "recommendation": "UNFAVORABLE",
+    "confidence": 0.6,
+    "summary": "Analysis identified 2 severe concern area(s) based on keyword and pattern matching. Further investigation recommended.",
+    "key_concerns": [
+      "Financial Considerations: 1 disqualifying condition(s) identified",
+      "Alcohol Consumption: 3 disqualifying condition(s) identified",
+      "Psychological Conditions: 2 disqualifying condition(s) identified",
+      "Criminal Conduct: 2 disqualifying condition(s) identified",
+      "Handling Protected Information: 3 disqualifying condition(s) identified"
+    ],
+    "key_mitigations": [
+      "Financial Considerations: 2 potentially applicable mitigating condition(s)",
+      "Alcohol Consumption: 2 potentially applicable mitigating condition(s)",
+      "Psychological Conditions: 2 potentially applicable mitigating condition(s)",
+      "Criminal Conduct: 2 potentially applicable mitigating condition(s)",
+      "Handling Protected Information: 2 potentially applicable mitigating condition(s)"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": null
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "No relevant indicators found in document",
+      "confidence": 0.8
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "No relevant indicators found in document",
+      "confidence": 0.8
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "No relevant indicators found in document",
+      "confidence": 0.8
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "No relevant indicators found in document",
+      "confidence": 0.8
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "No relevant indicators found in document",
+      "confidence": 0.8
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": true,
+      "severity": "B",
+      "disqualifiers": [
+        {
+          "code": "AG \u00b6 19(c)",
+          "text": "a history of not meeting financial obligations",
+          "evidence": "Pattern-based match: 2 keywords found",
+          "confidence": 0.7
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG \u00b6 20(a)",
+          "text": "the behavior happened so long ago, was so infrequent, or occurred under such circumstances that it is unlikely to recur and does not cast doubt on the individual's current reliability, trustworthiness, or good judgment",
+          "applicability": "PARTIAL",
+          "reasoning": "Pattern-based analysis suggests potential applicability (keyword matches: 17)",
+          "evidence": null
+        },
+        {
+          "code": "AG \u00b6 20(b)",
+          "text": "the conditions that resulted in the financial problem were largely beyond the person's control (e.g., loss of employment, a business downturn, unexpected medical emergency, a death, divorce or separation, clear victimization by predatory lending practices, or identity theft), and the individual acted responsibly under the circumstances",
+          "applicability": "PARTIAL",
+          "reasoning": "Pattern-based analysis suggests potential applicability (keyword matches: 11)",
+          "evidence": null
+        }
+      ],
+      "reasoning": "Guideline F (Financial Considerations) appears relevant based on keyword analysis. Identified 1 potential disqualifying condition(s). Found 2 potentially applicable mitigating condition(s). Assessed severity: moderate concerns.",
+      "confidence": 0.6
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": true,
+      "severity": "D",
+      "disqualifiers": [
+        {
+          "code": "AG \u00b6 22(a)",
+          "text": "alcohol-related incidents away from work, such as driving while under the influence, fighting, child or spouse abuse, disturbing the peace, or other incidents of concern, regardless of the frequency of the individual's alcohol use or whether the individual has been diagnosed with alcohol use disorder",
+          "evidence": "Pattern-based match: 21 keywords found",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG \u00b6 22(b)",
+          "text": "alcohol-related incidents at work, such as reporting for work or duty in an intoxicated or impaired condition, drinking on the job, or jeopardizing the welfare and safety of others, regardless of whether the individual is diagnosed with alcohol use disorder",
+          "evidence": "Pattern-based match: 12 keywords found",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG \u00b6 22(c)",
+          "text": "habitual or binge consumption of alcohol to the point of impaired judgment, regardless of whether the individual is diagnosed with alcohol use disorder",
+          "evidence": "Pattern-based match: 9 keywords found",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG \u00b6 23(a)",
+          "text": "so much time has passed, or the behavior was so infrequent, or it happened under such unusual circumstances that it is unlikely to recur or does not cast doubt on the individual's current reliability, trustworthiness, or judgment",
+          "applicability": "PARTIAL",
+          "reasoning": "Pattern-based analysis suggests potential applicability (keyword matches: 19)",
+          "evidence": null
+        },
+        {
+          "code": "AG \u00b6 23(b)",
+          "text": "the individual acknowledges his or her pattern of maladaptive alcohol use, provides evidence of actions taken to overcome this problem, and has demonstrated a clear and established pattern of modified consumption or abstinence in accordance with treatment recommendations",
+          "applicability": "PARTIAL",
+          "reasoning": "Pattern-based analysis suggests potential applicability (keyword matches: 21)",
+          "evidence": null
+        }
+      ],
+      "reasoning": "Guideline G (Alcohol Consumption) appears relevant based on keyword analysis. Identified 3 potential disqualifying condition(s). Found 2 potentially applicable mitigating condition(s). Assessed severity: severe security concerns.",
+      "confidence": 0.6
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "No relevant indicators found in document",
+      "confidence": 0.8
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": true,
+      "severity": "B",
+      "disqualifiers": [
+        {
+          "code": "AG \u00b6 28(a)",
+          "text": "behavior that casts doubt on an individual's judgment, stability, reliability, or trustworthiness, not covered under any other guideline and that may indicate an emotional, mental, or personality condition, including, but not limited to, irresponsible, violent, self-harm, suicidal, paranoid, manipulative, impulsive, chronic lying, deceitful, exploitative, or bizarre behaviors",
+          "evidence": "Pattern-based match: 16 keywords found",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG \u00b6 28(b)",
+          "text": "an opinion by a duly qualified mental health professional that the individual has a condition that may impair judgment, stability, reliability, or trustworthiness",
+          "evidence": "Pattern-based match: 11 keywords found",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG \u00b6 29(a)",
+          "text": "the identified condition is readily controllable with treatment, and the individual has demonstrated ongoing and consistent compliance with the treatment plan",
+          "applicability": "PARTIAL",
+          "reasoning": "Pattern-based analysis suggests potential applicability (keyword matches: 6)",
+          "evidence": null
+        },
+        {
+          "code": "AG \u00b6 29(b)",
+          "text": "the individual has voluntarily entered a counseling or treatment program for a condition that is amenable to treatment, and the individual is currently receiving counseling or treatment with a favorable prognosis by a duly qualified mental health professional",
+          "applicability": "PARTIAL",
+          "reasoning": "Pattern-based analysis suggests potential applicability (keyword matches: 16)",
+          "evidence": null
+        }
+      ],
+      "reasoning": "Guideline I (Psychological Conditions) appears relevant based on keyword analysis. Identified 2 potential disqualifying condition(s). Found 2 potentially applicable mitigating condition(s). Assessed severity: moderate concerns.",
+      "confidence": 0.6
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": true,
+      "severity": "B",
+      "disqualifiers": [
+        {
+          "code": "AG \u00b6 31(a)",
+          "text": "a pattern of minor offenses, any one of which on its own would be unlikely to affect a national security eligibility decision, but which in combination cast doubt on the individual's judgment, reliability, or trustworthiness",
+          "evidence": "Pattern-based match: 14 keywords found",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG \u00b6 31(b)",
+          "text": "evidence (including, but not limited to, a credible allegation, an admission, and matters of official record) of criminal conduct, regardless of whether the individual was formally charged, prosecuted, or convicted",
+          "evidence": "Pattern-based match: 9 keywords found",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG \u00b6 32(a)",
+          "text": "so much time has elapsed since the criminal behavior happened, or it happened under such unusual circumstances, that it is unlikely to recur and does not cast doubt on the individual's reliability, trustworthiness, or good judgment",
+          "applicability": "PARTIAL",
+          "reasoning": "Pattern-based analysis suggests potential applicability (keyword matches: 20)",
+          "evidence": null
+        },
+        {
+          "code": "AG \u00b6 32(b)",
+          "text": "the individual was pressured or coerced into committing the act and those pressures are no longer present in the person's life",
+          "applicability": "PARTIAL",
+          "reasoning": "Pattern-based analysis suggests potential applicability (keyword matches: 6)",
+          "evidence": null
+        }
+      ],
+      "reasoning": "Guideline J (Criminal Conduct) appears relevant based on keyword analysis. Identified 2 potential disqualifying condition(s). Found 2 potentially applicable mitigating condition(s). Assessed severity: moderate concerns.",
+      "confidence": 0.6
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG \u00b6 34(a)",
+          "text": "deliberate or negligent disclosure of protected information to unauthorized persons, including, but not limited to, personal or business contacts, the media, or persons present at seminars, meetings, or conferences",
+          "evidence": "Pattern-based match: 6 keywords found",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG \u00b6 34(b)",
+          "text": "collecting or storing protected information in any unauthorized location",
+          "evidence": "Pattern-based match: 2 keywords found",
+          "confidence": 0.7
+        },
+        {
+          "code": "AG \u00b6 34(c)",
+          "text": "loading, drafting, editing, modifying, storing, transmitting, or otherwise handling protected information, including images, on any unauthorized equipment or medium",
+          "evidence": "Pattern-based match: 3 keywords found",
+          "confidence": 0.85
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG \u00b6 35(a)",
+          "text": "so much time has elapsed since the behavior, or it has happened so infrequently or under such unusual circumstances, that it is unlikely to recur and does not cast doubt on the individual's current reliability, trustworthiness, or good judgment",
+          "applicability": "PARTIAL",
+          "reasoning": "Pattern-based analysis suggests potential applicability (keyword matches: 19)",
+          "evidence": null
+        },
+        {
+          "code": "AG \u00b6 35(b)",
+          "text": "the individual responded favorably to counseling or remedial security training and now demonstrates a positive attitude toward the discharge of security responsibilities",
+          "applicability": "PARTIAL",
+          "reasoning": "Pattern-based analysis suggests potential applicability (keyword matches: 7)",
+          "evidence": null
+        }
+      ],
+      "reasoning": "Guideline K (Handling Protected Information) appears relevant based on keyword analysis. Identified 3 potential disqualifying condition(s). Found 2 potentially applicable mitigating condition(s). Assessed severity: serious concerns.",
+      "confidence": 0.6
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "No relevant indicators found in document",
+      "confidence": 0.8
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "No relevant indicators found in document",
+      "confidence": 0.8
+    }
+  ],
+  "whole_person_analysis": [],
+  "follow_up_recommendations": [],
+  "similar_precedents": [],
+  "raw_text_excerpt": "*The original of this document contains information which is subject to withholding from disclosure \nunder 5 U.S. C. \u00a7 552. Such material has been deleted from this copy and replaced with XXXXXX\u2019s. \n \nUnited States Department of Energy \nOffice of Hearings and Appeals \n \n \nIn the Matter of:  Personnel Security Hearing \n) \n) \nFiling Date: \n    August 12, 2025 \n \n \n)  \n \nCase No.: \nPSH-25-0181 \n \n \n \n \n \n \n \n) \n__________________________________________) \n \n \n \nIssued: January 16, 2026 \n __________"
+}

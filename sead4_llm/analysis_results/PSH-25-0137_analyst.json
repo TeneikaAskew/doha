@@ -1,0 +1,24 @@
+{
+  "case_id": "PSH-25-0137",
+  "guidelines": [
+    "F",
+    "B",
+    "D"
+  ],
+  "assessments": {
+    "F": {
+      "severity": "A",
+      "justification": ""
+    },
+    "B": {
+      "severity": "A",
+      "justification": ""
+    },
+    "D": {
+      "severity": "A",
+      "justification": ""
+    }
+  },
+  "overall_recommendation": "FAVORABLE",
+  "timestamp": "2026-01-24T18:36:23.599307"
+}
