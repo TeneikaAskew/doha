@@ -381,7 +381,7 @@ Examples:
 
 Output:
   Creates both all_cases.json (local use) and all_cases.parquet (Git-friendly <90MB)
-  Build index with: python sead4_llm/build_index.py --from-json doha_parsed_cases/all_cases.json
+  Build index with: python sead4_llm/build_index.py --from-json doha_parsed_cases/all_cases.parquet
         """
     )
     parser.add_argument("--links", default="./doha_full_scrape/all_case_links.json",
@@ -416,5 +416,5 @@ Output:
     )
 
     logger.info(f"\nNext step: Build index from parsed cases")
-    logger.info(f"Run: python sead4_llm/build_index.py --from-json {args.output}/all_cases.json --output ./doha_index")
-    logger.info(f"\nNote: Index builder prefers Parquet (most consistent), falls back to JSON if needed")
+    logger.info(f"Run: python sead4_llm/build_index.py --from-json {args.output}/all_cases.parquet --output ./doha_index")
+    logger.info(f"\nNote: Index builder auto-detects format and prefers Parquet")
