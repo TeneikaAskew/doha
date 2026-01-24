@@ -253,7 +253,7 @@ with col_doha_logo:
 
 with col_title:
     st.markdown('<h1 class="dcsa-blue">SEAD-4 Security Clearance Analyzer</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="text-muted">DOHA Case Analysis — Comparative approach evaluation</p>', unsafe_allow_html=True)
+    st.markdown('<p class="text-muted">DOHA Case Analysis - Assessing Case Outcomes Based on DOHA Precedent<br>Using a multi-model approach to evaluation</p>', unsafe_allow_html=True)
 
 st.divider()
 
