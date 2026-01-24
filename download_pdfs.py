@@ -120,10 +120,10 @@ def download_and_parse_pdfs(
         logger.success("All cases already processed!")
         return existing_cases
 
-    # Download with browser - restart browser every 100 cases to prevent memory buildup
+    # Download with browser - restart browser every 2000 cases to prevent memory buildup
     cases = []
     failed = []
-    browser_restart_interval = 100  # Restart browser every N cases to clear memory
+    browser_restart_interval = 2000  # Restart browser every N cases to clear memory
 
     # Process in batches to restart browser periodically
     total_processed = 0

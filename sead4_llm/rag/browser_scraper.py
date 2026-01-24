@@ -66,7 +66,8 @@ class DOHABrowserScraper(DOHAScraper):
         # Navigate to DOHA main page to establish session/cookies
         # This is important for the request context API to work properly
         try:
-            self.page.goto("https://doha.ogc.osd.mil/Industrial-Security-Program/", wait_until="domcontentloaded", timeout=30000)
+            # Use commit wait strategy (faster) - just need to establish connection, not load full page
+            self.page.goto("https://doha.ogc.osd.mil/Industrial-Security-Program/", wait_until="commit", timeout=10000)
             logger.debug("Established session with DOHA website")
         except Exception as e:
             logger.warning(f"Could not navigate to DOHA homepage: {e}")
