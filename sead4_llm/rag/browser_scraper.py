@@ -127,7 +127,7 @@ class DOHABrowserScraper(DOHAScraper):
             logger.error(f"Browser error fetching {url}: {e}")
             return ""
 
-    def get_case_links(self, year: int, is_archived: bool = None) -> List[Tuple[str, str]]:
+    def get_case_links(self, year: int, is_archived: bool = None) -> List[Tuple[str, str, str, str]]:
         """
         Get links to case decisions for a given year using browser
 
@@ -136,7 +136,11 @@ class DOHABrowserScraper(DOHAScraper):
             is_archived: Whether to use archived URL pattern (auto-detect if None)
 
         Returns:
-            List of (case_number, url) tuples
+            List of (case_number, url, file_type, filename) tuples
+            - case_number: e.g., "19-02453"
+            - url: FileId URL
+            - file_type: "pdf" or "txt"
+            - filename: e.g., "19-02453.h1.pdf"
         """
         from bs4 import BeautifulSoup
         import re
@@ -171,45 +175,65 @@ class DOHABrowserScraper(DOHAScraper):
 
             # New structure uses /FileId/{number}/ pattern
             if '/FileId/' in href:
-                file_id_match = re.search(r'/FileId/(\d+)', href)
-                if file_id_match:
-                    file_id = file_id_match.group(1)
-                    case_number = f"{year}-{file_id}"
+                # Extract filename from span element (e.g., "19-02453.h1.pdf")
+                span = a.find('span')
+                if not span:
+                    continue
 
-                    # Make absolute URL
-                    if not href.startswith('http'):
-                        if href.startswith('/'):
-                            href = 'https://doha.ogc.osd.mil' + href
-                        else:
-                            href = url + href
+                filename = span.get_text().strip()
+                if not filename:
+                    continue
 
-                    links.append((case_number, href))
+                # Detect file type from filename extension
+                if filename.lower().endswith('.pdf'):
+                    file_type = 'pdf'
+                elif filename.lower().endswith('.txt'):
+                    file_type = 'txt'
+                else:
+                    continue  # Skip unknown file types
 
-            # Also look for old-style case number patterns as fallback
-            elif re.search(r'\d{2}-\d+', href):
-                case_match = re.search(r'(\d{2}-\d+)', href)
+                # Extract case number from filename (e.g., "19-02453" from "19-02453.h1.pdf")
+                case_match = re.match(r'(\d{2}-\d+)', filename)
                 if case_match:
                     case_number = case_match.group(1)
-                    if not href.startswith('http'):
-                        if href.startswith('/'):
-                            href = 'https://doha.ogc.osd.mil' + href
-                        else:
-                            href = url + href
-                    links.append((case_number, href))
+                else:
+                    # Fallback to FileId-based case number
+                    file_id_match = re.search(r'/FileId/(\d+)', href)
+                    if file_id_match:
+                        case_number = f"{year}-{file_id_match.group(1)}"
+                    else:
+                        continue
 
-        # Remove duplicates
+                # Make absolute URL
+                if not href.startswith('http'):
+                    if href.startswith('/'):
+                        href = 'https://doha.ogc.osd.mil' + href
+                    else:
+                        href = url + href
+
+                links.append((case_number, href, file_type, filename))
+
+        # Remove duplicates based on (case_number, file_type) combination
         seen = set()
         unique_links = []
-        for case_num, case_url in links:
-            if case_num not in seen:
-                seen.add(case_num)
-                unique_links.append((case_num, case_url))
+        for case_num, case_url, file_type, filename in links:
+            key = (case_num, file_type)
+            if key not in seen:
+                seen.add(key)
+                unique_links.append((case_num, case_url, file_type, filename))
 
-        logger.info(f"Found {len(unique_links)} cases for year {year}")
+        # Count by file type
+        pdf_count = sum(1 for l in unique_links if l[2] == 'pdf')
+        txt_count = sum(1 for l in unique_links if l[2] == 'txt')
+        logger.info(f"Found {len(unique_links)} links for year {year} (PDF: {pdf_count}, TXT: {txt_count})")
         return unique_links
 
-    def get_2016_and_prior_links(self) -> List[Tuple[str, str]]:
-        """Get links from all "2016 and Prior" pages using browser"""
+    def get_2016_and_prior_links(self) -> List[Tuple[str, str, str, str]]:
+        """Get links from all "2016 and Prior" pages using browser
+
+        Returns:
+            List of (case_number, url, file_type, filename) tuples
+        """
         from bs4 import BeautifulSoup
         import re
 
@@ -232,44 +256,65 @@ class DOHABrowserScraper(DOHAScraper):
                 href = a['href']
 
                 if '/FileId/' in href:
-                    file_id_match = re.search(r'/FileId/(\d+)', href)
-                    if file_id_match:
-                        file_id = file_id_match.group(1)
-                        case_number = f"pre2016-{file_id}"
+                    # Extract filename from span element
+                    span = a.find('span')
+                    if not span:
+                        continue
 
-                        if not href.startswith('http'):
-                            if href.startswith('/'):
-                                href = 'https://doha.ogc.osd.mil' + href
-                            else:
-                                href = url + href
+                    filename = span.get_text().strip()
+                    if not filename:
+                        continue
 
-                        page_links.append((case_number, href))
+                    # Detect file type from filename extension
+                    if filename.lower().endswith('.pdf'):
+                        file_type = 'pdf'
+                    elif filename.lower().endswith('.txt'):
+                        file_type = 'txt'
+                    else:
+                        continue  # Skip unknown file types
 
-                elif re.search(r'\d{2}-\d+', href):
-                    case_match = re.search(r'(\d{2}-\d+)', href)
+                    # Extract case number from filename
+                    case_match = re.match(r'(\d{2}-\d+)', filename)
                     if case_match:
                         case_number = case_match.group(1)
-                        if not href.startswith('http'):
-                            if href.startswith('/'):
-                                href = 'https://doha.ogc.osd.mil' + href
-                            else:
-                                href = url + href
-                        page_links.append((case_number, href))
+                    else:
+                        # Fallback to FileId-based case number
+                        file_id_match = re.search(r'/FileId/(\d+)', href)
+                        if file_id_match:
+                            case_number = f"pre2016-{file_id_match.group(1)}"
+                        else:
+                            continue
 
-            # Remove duplicates
+                    if not href.startswith('http'):
+                        if href.startswith('/'):
+                            href = 'https://doha.ogc.osd.mil' + href
+                        else:
+                            href = url + href
+
+                    page_links.append((case_number, href, file_type, filename))
+
+            # Remove duplicates based on (case_number, file_type)
             seen_on_page = set()
-            for case_num, case_url in page_links:
-                if case_num not in seen_on_page:
-                    seen_on_page.add(case_num)
-                    all_links.append((case_num, case_url))
+            for case_num, case_url, file_type, filename in page_links:
+                key = (case_num, file_type)
+                if key not in seen_on_page:
+                    seen_on_page.add(key)
+                    all_links.append((case_num, case_url, file_type, filename))
 
-            logger.info(f"Found {len(page_links)} cases on page {page}")
+            logger.info(f"Found {len(page_links)} links on page {page}")
 
-        logger.info(f"Found total of {len(all_links)} cases in 2016 and Prior pages")
+        # Count by file type
+        pdf_count = sum(1 for l in all_links if l[2] == 'pdf')
+        txt_count = sum(1 for l in all_links if l[2] == 'txt')
+        logger.info(f"Found total of {len(all_links)} links in 2016 and Prior pages (PDF: {pdf_count}, TXT: {txt_count})")
         return all_links
 
-    def get_2016_and_prior_appeal_links(self) -> List[Tuple[str, str]]:
-        """Get appeal links from all "2016 and Prior" appeal pages using browser"""
+    def get_2016_and_prior_appeal_links(self) -> List[Tuple[str, str, str, str]]:
+        """Get appeal links from all "2016 and Prior" appeal pages using browser
+
+        Returns:
+            List of (case_number, url, file_type, filename) tuples
+        """
         from bs4 import BeautifulSoup
         import re
 
@@ -292,43 +337,60 @@ class DOHABrowserScraper(DOHAScraper):
                 href = a['href']
 
                 if '/FileId/' in href:
-                    file_id_match = re.search(r'/FileId/(\d+)', href)
-                    if file_id_match:
-                        file_id = file_id_match.group(1)
-                        case_number = f"appeal-pre2016-{file_id}"
+                    # Extract filename from span element
+                    span = a.find('span')
+                    if not span:
+                        continue
 
-                        if not href.startswith('http'):
-                            if href.startswith('/'):
-                                href = 'https://doha.ogc.osd.mil' + href
-                            else:
-                                href = url + href
+                    filename = span.get_text().strip()
+                    if not filename:
+                        continue
 
-                        page_links.append((case_number, href))
+                    # Detect file type from filename extension
+                    if filename.lower().endswith('.pdf'):
+                        file_type = 'pdf'
+                    elif filename.lower().endswith('.txt'):
+                        file_type = 'txt'
+                    else:
+                        continue  # Skip unknown file types
 
-                elif re.search(r'\d{2}-\d+', href):
-                    case_match = re.search(r'(\d{2}-\d+)', href)
+                    # Extract case number from filename
+                    case_match = re.match(r'(\d{2}-\d+)', filename)
                     if case_match:
-                        case_number = f"appeal-{case_match.group(1)}"
-                        if not href.startswith('http'):
-                            if href.startswith('/'):
-                                href = 'https://doha.ogc.osd.mil' + href
-                            else:
-                                href = url + href
-                        page_links.append((case_number, href))
+                        case_number = case_match.group(1)
+                    else:
+                        # Fallback to FileId-based case number
+                        file_id_match = re.search(r'/FileId/(\d+)', href)
+                        if file_id_match:
+                            case_number = f"appeal-pre2016-{file_id_match.group(1)}"
+                        else:
+                            continue
 
-            # Remove duplicates
+                    if not href.startswith('http'):
+                        if href.startswith('/'):
+                            href = 'https://doha.ogc.osd.mil' + href
+                        else:
+                            href = url + href
+
+                    page_links.append((case_number, href, file_type, filename))
+
+            # Remove duplicates based on (case_number, file_type)
             seen_on_page = set()
-            for case_num, case_url in page_links:
-                if case_num not in seen_on_page:
-                    seen_on_page.add(case_num)
-                    all_links.append((case_num, case_url))
+            for case_num, case_url, file_type, filename in page_links:
+                key = (case_num, file_type)
+                if key not in seen_on_page:
+                    seen_on_page.add(key)
+                    all_links.append((case_num, case_url, file_type, filename))
 
-            logger.info(f"Found {len(page_links)} appeal cases on page {page}")
+            logger.info(f"Found {len(page_links)} appeal links on page {page}")
 
-        logger.info(f"Found total of {len(all_links)} appeal cases in 2016 and Prior pages")
+        # Count by file type
+        pdf_count = sum(1 for l in all_links if l[2] == 'pdf')
+        txt_count = sum(1 for l in all_links if l[2] == 'txt')
+        logger.info(f"Found total of {len(all_links)} appeal links in 2016 and Prior pages (PDF: {pdf_count}, TXT: {txt_count})")
         return all_links
 
-    def get_appeal_case_links(self, year: int, is_archived: bool = None) -> List[Tuple[str, str]]:
+    def get_appeal_case_links(self, year: int, is_archived: bool = None) -> List[Tuple[str, str, str, str]]:
         """
         Get links to Appeal Board decisions for a given year using browser
 
@@ -337,7 +399,7 @@ class DOHABrowserScraper(DOHAScraper):
             is_archived: Whether to use archived URL pattern (auto-detect if None)
 
         Returns:
-            List of (case_number, url) tuples
+            List of (case_number, url, file_type, filename) tuples
         """
         from bs4 import BeautifulSoup
         import re
@@ -379,41 +441,57 @@ class DOHABrowserScraper(DOHAScraper):
 
             # New structure uses /FileId/{number}/ pattern
             if '/FileId/' in href:
-                file_id_match = re.search(r'/FileId/(\d+)', href)
-                if file_id_match:
-                    file_id = file_id_match.group(1)
-                    case_number = f"appeal-{year}-{file_id}"
+                # Extract filename from span element
+                span = a.find('span')
+                if not span:
+                    continue
 
-                    # Make absolute URL
-                    if not href.startswith('http'):
-                        if href.startswith('/'):
-                            href = 'https://doha.ogc.osd.mil' + href
-                        else:
-                            href = url + href
+                filename = span.get_text().strip()
+                if not filename:
+                    continue
 
-                    links.append((case_number, href))
+                # Detect file type from filename extension
+                if filename.lower().endswith('.pdf'):
+                    file_type = 'pdf'
+                elif filename.lower().endswith('.txt'):
+                    file_type = 'txt'
+                else:
+                    continue  # Skip unknown file types
 
-            # Also look for old-style case number patterns as fallback
-            elif re.search(r'\d{2}-\d+', href):
-                case_match = re.search(r'(\d{2}-\d+)', href)
+                # Extract case number from filename
+                case_match = re.match(r'(\d{2}-\d+)', filename)
                 if case_match:
-                    case_number = f"appeal-{case_match.group(1)}"
-                    if not href.startswith('http'):
-                        if href.startswith('/'):
-                            href = 'https://doha.ogc.osd.mil' + href
-                        else:
-                            href = url + href
-                    links.append((case_number, href))
+                    case_number = case_match.group(1)
+                else:
+                    # Fallback to FileId-based case number
+                    file_id_match = re.search(r'/FileId/(\d+)', href)
+                    if file_id_match:
+                        case_number = f"appeal-{year}-{file_id_match.group(1)}"
+                    else:
+                        continue
 
-        # Remove duplicates
+                # Make absolute URL
+                if not href.startswith('http'):
+                    if href.startswith('/'):
+                        href = 'https://doha.ogc.osd.mil' + href
+                    else:
+                        href = url + href
+
+                links.append((case_number, href, file_type, filename))
+
+        # Remove duplicates based on (case_number, file_type)
         seen = set()
         unique_links = []
-        for case_num, case_url in links:
-            if case_num not in seen:
-                seen.add(case_num)
-                unique_links.append((case_num, case_url))
+        for case_num, case_url, file_type, filename in links:
+            key = (case_num, file_type)
+            if key not in seen:
+                seen.add(key)
+                unique_links.append((case_num, case_url, file_type, filename))
 
-        logger.info(f"Found {len(unique_links)} Appeal Board cases for year {year}")
+        # Count by file type
+        pdf_count = sum(1 for l in unique_links if l[2] == 'pdf')
+        txt_count = sum(1 for l in unique_links if l[2] == 'txt')
+        logger.info(f"Found {len(unique_links)} Appeal Board links for year {year} (PDF: {pdf_count}, TXT: {txt_count})")
         return unique_links
 
     def scrape_case_html(self, url: str) -> Optional[str]:
@@ -477,25 +555,65 @@ class DOHABrowserScraper(DOHAScraper):
         """
         Download PDF bytes using browser (bypasses bot protection)
 
+        The URL is typically an HTML page containing links to PDF and TXT files.
+        We parse the HTML to find and download the actual PDF.
+
         Args:
-            url: URL to PDF file
+            url: URL to case page (HTML with PDF link)
 
         Returns:
             PDF bytes or None on failure
         """
-        try:
-            logger.debug(f"Downloading PDF bytes from {url}")
+        from bs4 import BeautifulSoup
 
-            # Use playwright's request context to fetch the PDF
-            # This goes through the browser's session (with cookies, etc.) but doesn't navigate
+        try:
+            logger.debug(f"Fetching case page: {url}")
+
+            # First, get the HTML page to find the PDF link
             response = self.page.context.request.get(url, timeout=60000)
 
             if response.status != 200:
-                logger.error(f"Failed to download PDF: HTTP {response.status}")
+                logger.error(f"Failed to fetch page: HTTP {response.status}")
                 return None
 
-            # Get the response body
-            pdf_bytes = response.body()
+            html = response.text()
+
+            # Parse HTML to find PDF link (skip .txt files)
+            soup = BeautifulSoup(html, 'html.parser')
+            pdf_link = None
+
+            for a in soup.find_all('a', href=True):
+                href = a['href']
+                if href.lower().endswith('.pdf'):
+                    # Make absolute URL
+                    if not href.startswith('http'):
+                        if href.startswith('/'):
+                            pdf_link = 'https://doha.ogc.osd.mil' + href
+                        else:
+                            pdf_link = url.rstrip('/') + '/' + href
+                    else:
+                        pdf_link = href
+                    break
+
+            if not pdf_link:
+                logger.warning(f"No PDF link found on page: {url}")
+                return None
+
+            logger.debug(f"Downloading PDF: {pdf_link}")
+
+            # Download the actual PDF
+            pdf_response = self.page.context.request.get(pdf_link, timeout=60000)
+
+            if pdf_response.status != 200:
+                logger.error(f"Failed to download PDF: HTTP {pdf_response.status}")
+                return None
+
+            pdf_bytes = pdf_response.body()
+
+            # Validate we got a PDF
+            if not pdf_bytes or len(pdf_bytes) < 4 or not pdf_bytes[:4].startswith(b'%PDF'):
+                logger.warning(f"Response is not a PDF for {pdf_link}")
+                return None
 
             return pdf_bytes
 
@@ -512,12 +630,13 @@ class ParallelBrowserDownloader:
     thread-safety issues with Playwright's sync API.
     """
 
-    def __init__(self, num_workers: int = 4, headless: bool = True):
+    def __init__(self, num_workers: int = 4, headless: bool = True, rate_limit: float = 0.5):
         if not HAS_PLAYWRIGHT:
             raise ImportError("playwright required. Install with: pip install playwright && playwright install chromium")
 
         self.num_workers = num_workers
         self.headless = headless
+        self.rate_limit = rate_limit  # Seconds between requests per worker
         self._local = threading.local()
         self._workers_started = threading.Event()
         self._shutdown = threading.Event()
@@ -580,16 +699,83 @@ class ParallelBrowserDownloader:
         self.stop()
 
     def _download_one(self, url: str) -> Optional[bytes]:
-        """Download a single PDF using thread-local browser context"""
+        """Download a single PDF using thread-local browser context.
+
+        The URL is an HTML page containing links to PDF and TXT files.
+        We need to parse the HTML to find and download the actual PDF.
+        """
+        from bs4 import BeautifulSoup
+        import re
+
         ctx = self._get_thread_browser()
+
+        # Rate limiting per thread
+        if not hasattr(self._local, 'last_request'):
+            self._local.last_request = 0
+        elapsed = time.time() - self._local.last_request
+        if elapsed < self.rate_limit:
+            time.sleep(self.rate_limit - elapsed)
+
+        logger.info(f"Fetching page: {url}")
         try:
+            # First, get the HTML page to find the PDF link
             response = ctx.request.get(url, timeout=60000)
+            self._local.last_request = time.time()
+
             if response.status != 200:
-                logger.debug(f"Download failed: HTTP {response.status} for {url}")
+                logger.warning(f"Failed to fetch page: HTTP {response.status} for {url}")
                 return None
-            return response.body()
+
+            html = response.text()
+
+            # Parse HTML to find PDF link
+            soup = BeautifulSoup(html, 'html.parser')
+            pdf_link = None
+
+            for a in soup.find_all('a', href=True):
+                href = a['href']
+                if href.lower().endswith('.pdf'):
+                    # Make absolute URL
+                    if not href.startswith('http'):
+                        if href.startswith('/'):
+                            pdf_link = 'https://doha.ogc.osd.mil' + href
+                        else:
+                            pdf_link = url.rstrip('/') + '/' + href
+                    else:
+                        pdf_link = href
+                    break
+
+            if not pdf_link:
+                logger.warning(f"No PDF link found on page: {url}")
+                return None
+
+            logger.info(f"Downloading PDF: {pdf_link}")
+
+            # Rate limit again before PDF download
+            elapsed = time.time() - self._local.last_request
+            if elapsed < self.rate_limit:
+                time.sleep(self.rate_limit - elapsed)
+
+            # Download the actual PDF
+            pdf_response = ctx.request.get(pdf_link, timeout=60000)
+            self._local.last_request = time.time()
+
+            if pdf_response.status != 200:
+                logger.warning(f"Failed to download PDF: HTTP {pdf_response.status} for {pdf_link}")
+                return None
+
+            body = pdf_response.body()
+
+            # Validate we got a PDF (check magic bytes)
+            if not body or len(body) < 4 or not body[:4].startswith(b'%PDF'):
+                preview = body[:100].decode('utf-8', errors='replace') if body else '(empty)'
+                logger.warning(f"Not a PDF: {pdf_link} - starts with: {preview[:50]}...")
+                return None
+
+            return body
+
         except Exception as e:
-            logger.debug(f"Download error for {url}: {e}")
+            logger.warning(f"Download error for {url}: {e}")
             return None
 
     def download_batch(

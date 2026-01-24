@@ -79,7 +79,7 @@ def run_full_scrape(case_types='both'):
                 try:
                     links = scraper.get_case_links(year, is_archived=False)
                     logger.success(f"Found {len(links)} hearing cases for {year}")
-                    year_links = [("hearing", year, case_num, url) for case_num, url in links]
+                    year_links = [("hearing", year, case_num, url, file_type, filename) for case_num, url, file_type, filename in links]
                     all_links.extend(year_links)
 
                     # Save intermediate results
@@ -114,7 +114,7 @@ def run_full_scrape(case_types='both'):
                 try:
                     links = scraper.get_appeal_case_links(year, is_archived=False)
                     logger.success(f"Found {len(links)} appeal cases for {year}")
-                    year_links = [("appeal", year, case_num, url) for case_num, url in links]
+                    year_links = [("appeal", year, case_num, url, file_type, filename) for case_num, url, file_type, filename in links]
                     all_links.extend(year_links)
 
                     # Save intermediate results
@@ -149,7 +149,7 @@ def run_full_scrape(case_types='both'):
                 try:
                     links = scraper.get_case_links(year, is_archived=True)
                     logger.success(f"Found {len(links)} archived hearing cases for {year}")
-                    year_links = [("hearing", year, case_num, url) for case_num, url in links]
+                    year_links = [("hearing", year, case_num, url, file_type, filename) for case_num, url, file_type, filename in links]
                     all_links.extend(year_links)
 
                     # Save intermediate results
@@ -184,7 +184,7 @@ def run_full_scrape(case_types='both'):
                 try:
                     links = scraper.get_appeal_case_links(year, is_archived=True)
                     logger.success(f"Found {len(links)} archived appeal cases for {year}")
-                    year_links = [("appeal", year, case_num, url) for case_num, url in links]
+                    year_links = [("appeal", year, case_num, url, file_type, filename) for case_num, url, file_type, filename in links]
                     all_links.extend(year_links)
 
                     # Save intermediate results
@@ -217,7 +217,7 @@ def run_full_scrape(case_types='both'):
                 try:
                     prior_links = scraper.get_2016_and_prior_links()
                     logger.success(f"Found {len(prior_links)} pre-2017 hearing cases")
-                    prior_year_links = [("hearing", 2016, case_num, url) for case_num, url in prior_links]
+                    prior_year_links = [("hearing", 2016, case_num, url, file_type, filename) for case_num, url, file_type, filename in prior_links]
                     all_links.extend(prior_year_links)
 
                     # Save results
@@ -250,7 +250,7 @@ def run_full_scrape(case_types='both'):
                 try:
                     prior_appeal_links = scraper.get_2016_and_prior_appeal_links()
                     logger.success(f"Found {len(prior_appeal_links)} pre-2017 appeal cases")
-                    prior_appeal_year_links = [("appeal", 2016, case_num, url) for case_num, url in prior_appeal_links]
+                    prior_appeal_year_links = [("appeal", 2016, case_num, url, file_type, filename) for case_num, url, file_type, filename in prior_appeal_links]
                     all_links.extend(prior_appeal_year_links)
 
                     # Save results
@@ -270,17 +270,32 @@ def run_full_scrape(case_types='both'):
     logger.info(f"Total cases found: {len(all_links)}")
     logger.info(f"Links saved to: {all_links_file}")
 
-    # Print summary by case type and year
+    # Print summary by case type, year, and file type
+    # Handle both old (4-element) and new (6-element) link formats
     from collections import Counter, defaultdict
-    type_counts = Counter(case_type for case_type, _, _, _ in all_links)
-    year_counts = Counter(year for _, year, _, _ in all_links)
+
+    def unpack_link(link):
+        """Unpack link tuple, handling both 4 and 6 element formats."""
+        if len(link) == 6:
+            return link[0], link[1], link[4]  # case_type, year, file_type
+        else:
+            return link[0], link[1], "pdf"  # case_type, year, assume pdf
+
+    type_counts = Counter(unpack_link(link)[0] for link in all_links)
+    year_counts = Counter(unpack_link(link)[1] for link in all_links)
+    file_type_counts = Counter(unpack_link(link)[2] for link in all_links)
     type_year_counts = defaultdict(lambda: defaultdict(int))
-    for case_type, year, _, _ in all_links:
+    for link in all_links:
+        case_type, year, _ = unpack_link(link)
         type_year_counts[case_type][year] += 1
 
     logger.info("\nCases by type:")
     for case_type in sorted(type_counts.keys()):
         logger.info(f"  {case_type}: {type_counts[case_type]} cases")
+
+    logger.info("\nLinks by file type:")
+    for file_type in sorted(file_type_counts.keys()):
+        logger.info(f"  {file_type}: {file_type_counts[file_type]} links")
 
     logger.info("\nCases by year:")
     for year in sorted(year_counts.keys()):
