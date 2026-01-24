@@ -1,0 +1,10 @@
+# UI Dependencies for SEAD-4 Demo
+# Install with: pip install -r requirements-ui.txt
+
+streamlit>=1.28.0
+
+# Note: This is in addition to the base requirements.txt
+# Make sure to install base requirements first:
+# pip install -r requirements.txt
+# pip install -r requirements-enhanced.txt  # For enhanced native analyzer
+# pip install -r requirements-ui.txt        # For demo UI

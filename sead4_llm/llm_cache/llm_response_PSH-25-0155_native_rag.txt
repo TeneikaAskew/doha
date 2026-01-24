@@ -1,0 +1,300 @@
+```json
+{
+  "case_id": "PSH-25-0155",
+  "overall_assessment": {
+    "recommendation": "UNFAVORABLE",
+    "confidence": 0.95,
+    "summary": "The Individual's history of criminal conduct, particularly repeated traffic offenses and failure to appear in court, coupled with a diagnosis of Bipolar II Disorder and admitted engagement with prostitutes, raises significant concerns about his judgment, reliability, and trustworthiness. While the Individual has taken some steps to address these issues, the recency and pattern of the misconduct outweigh the mitigating factors.",
+    "key_concerns": [
+      "Pattern of criminal conduct, including traffic offenses, shoplifting, and failure to appear in court",
+      "Diagnosis of Bipolar II Disorder",
+      "Engagement with prostitutes"
+    ],
+    "key_mitigations": [
+      "Individual's acknowledgement of Bipolar II Disorder and seeking treatment",
+      "Individual's claim of ceasing engagement with prostitutes"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": null
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual has questionable allegiance to the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual is subject to foreign influence or coercion.",
+      "confidence": 1.0
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual has a preference for a foreign country over the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 13(d)",
+          "text": "sexual behavior of a public nature or that reflects lack of discretion or judgment",
+          "evidence": "In his response, the Individual stated that he had paid prostitutes for sexual services on four occasions from May 2023 to July 2024 because he had “lost self control.”",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 14(b)",
+          "text": "the sexual behavior happened so long ago, so infrequently, or under such unusual circumstances, that it is unlikely to recur and does not cast doubt on the individual's current reliability, trustworthiness, or judgment",
+          "applicability": "PARTIAL",
+          "reasoning": "While the Individual claims to have ceased this behavior in July 2024, the recency of the behavior (within the last two years) and the lack of corroborating evidence of rehabilitation limit the mitigating effect.",
+          "evidence": "According to the Individual, he engaged in these activities because of symptoms of then-undiagnosed Bipolar II Disorder and had “lost self control.” Ex. 10 at 53‒54. In his hearing testimony, the Individual denied having utilized prostitutes since July 2024. Tr. at 16‒17."
+        }
+      ],
+      "reasoning": "The Individual's engagement with prostitutes reflects poor judgment and a lack of discretion. The behavior is relatively recent, and the connection to Bipolar II Disorder, while potentially explanatory, does not fully mitigate the security concerns.",
+      "confidence": 0.85
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 16(d)",
+          "text": "credible adverse information that is not explicitly covered under any other guideline and may not be sufficient by itself for an adverse determination, but which, when combined with all available information, supports a whole-person assessment of questionable judgment, untrustworthiness, unreliability, lack of candor, unwillingness to comply with rules and regulations",
+          "evidence": "The Individual failed to appear at a hearing related to these offenses and a bench warrant was issued for his arrest. Ex. 10 at 48; see also id. (Individual stating in response to the LOI that he “forgot to go to court” on the day of the hearing).",
+          "confidence": 0.8
+        }
+      ],
+      "mitigators": [],
+      "reasoning": "The Individual's pattern of failing to appear in court and providing explanations that lack credibility raises concerns about his willingness to comply with rules and regulations and his overall reliability.",
+      "confidence": 0.75
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "While the Individual's past shoplifting offenses involved financial considerations, the primary concern is the criminal conduct itself, not a pattern of financial irresponsibility. There is no indication of current financial issues.",
+      "confidence": 0.9
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual has issues with alcohol consumption.",
+      "confidence": 1.0
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": true,
+      "severity": "B",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 25(a)",
+          "text": "any substance misuse",
+          "evidence": "In 2007, the Individual was arrested and charged with Possession of Drug Paraphernalia after a law enforcement officer observed a pipe used by the Individual to smoke marijuana in his vehicle during a traffic stop.",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 26(a)",
+          "text": "the behavior happened so long ago, was so infrequent, or happened under such circumstances that it is unlikely to recur or does not cast doubt on the individual's current reliability, trustworthiness, or good judgment",
+          "applicability": "FULL",
+          "reasoning": "The Individual's last known drug use was in 2007. He claims to have ceased use since then, and there is no evidence to contradict this claim. The significant passage of time mitigates this concern.",
+          "evidence": "According to the Individual, he has not used marijuana since his 2007 arrest. Id. at 157."
+        }
+      ],
+      "reasoning": "The Individual's past drug use is mitigated by the significant passage of time and his claim of abstinence. While the incident is disqualifying, the mitigating factor is strong.",
+      "confidence": 0.9
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 28(b)",
+          "text": "an opinion by a duly qualified mental health professional that the individual has a condition that may impair judgment, stability, reliability, or trustworthiness",
+          "evidence": "Following the evaluation, the DOE Psychologist contacted a psychiatric nurse practitioner (NP) treating the Individual’s Bipolar II Disorder who volunteered that the Individual had reported engaging in marital infidelity, including with prostitutes. Id. at 63. The DOE Psychologist subsequently issued a report of the evaluation (Report) in which she endorsed the Individual’s diagnosis with Bipolar II Disorder under the Diagnostic and Statistical Manual of Mental Health Disorders – Fifth Edition (DSM-5) and opined that this condition could impair the Individual’s judgment, stability, reliability, and trustworthiness. Id. at 65.",
+          "confidence": 0.95
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 29(a)",
+          "text": "the identified condition is readily controllable with treatment, and the individual has demonstrated ongoing and consistent compliance with the treatment plan",
+          "applicability": "PARTIAL",
+          "reasoning": "While the Individual is receiving treatment for Bipolar II Disorder, the record does not provide sufficient evidence to determine the effectiveness of the treatment or the Individual's consistent compliance with the treatment plan. The DOE Psychologist's opinion that the condition *could* impair judgment remains a concern.",
+          "evidence": null
+        }
+      ],
+      "reasoning": "The diagnosis of Bipolar II Disorder and the DOE Psychologist's opinion raise concerns about the Individual's judgment, stability, reliability, and trustworthiness. While treatment is a mitigating factor, the lack of information about its effectiveness limits the mitigation.",
+      "confidence": 0.8
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 31(a)",
+          "text": "a pattern of minor offenses, any one of which on its own would be unlikely to affect a national security eligibility decision, but which in combination cast doubt on the individual's judgment, reliability, or trustworthiness",
+          "evidence": "The SSC cited the Individual’s Possession of Drug Paraphernalia offense, three shoplifting offenses, numerous traffic offenses, multiple arrests on bench warrants for failure to appear in court related to his traffic offenses, and admission to having paid for sexual intercourse with prostitutes on four occasions.",
+          "confidence": 0.95
+        },
+        {
+          "code": "AG ¶ 31(b)",
+          "text": "evidence (including, but not limited to, a credible allegation, an admission, and matters of official record) of criminal conduct, regardless of whether the individual was formally charged, prosecuted, or convicted",
+          "evidence": "The SSC cited the Individual’s Possession of Drug Paraphernalia offense, three shoplifting offenses, numerous traffic offenses, multiple arrests on bench warrants for failure to appear in court related to his traffic offenses, and admission to having paid for sexual intercourse with prostitutes on four occasions.",
+          "confidence": 0.95
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 32(a)",
+          "text": "so much time has elapsed since the criminal behavior happened, or it happened under such unusual circumstances, that it is unlikely to recur and does not cast doubt on the individual's reliability, trustworthiness, or good judgment",
+          "applicability": "PARTIAL",
+          "reasoning": "While some of the criminal conduct occurred in the past, the Individual's recent traffic offenses and failures to appear in court demonstrate a continuing pattern of disregard for the law. The recency of these offenses limits the mitigating effect of the passage of time for earlier incidents.",
+          "evidence": null
+        }
+      ],
+      "reasoning": "The Individual's pattern of criminal conduct, including drug paraphernalia possession, shoplifting, traffic offenses, and failures to appear in court, raises significant concerns about his judgment, reliability, and trustworthiness. The recency of some of these offenses outweighs the mitigating effect of the passage of time for earlier incidents.",
+      "confidence": 0.9
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": true,
+      "severity": "B",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 34(g)",
+          "text": "any failure to comply with rules for the protection of classified or sensitive information",
+          "evidence": "see also Tr. at 16 (Individual testifying that he used his government-issued work phone to make arrangements with the prostitutes and no longer possesses a work phone after the one he used was confiscated)",
+          "confidence": 0.8
+        }
+      ],
+      "mitigators": [],
+      "reasoning": "The Individual's use of a government-issued phone to arrange meetings with prostitutes demonstrates a failure to comply with rules for the protection of sensitive information and government property. While the phone was confiscated, the incident raises concerns about his judgment and willingness to follow rules.",
+      "confidence": 0.7
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual's outside activities pose a conflict of interest with his security responsibilities.",
+      "confidence": 1.0
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "While the Individual used a government-issued phone for inappropriate purposes, this is more appropriately addressed under Guideline K (Handling Protected Information). There is no indication of other misuse of information technology.",
+      "confidence": 0.9
+    }
+  ],
+  "whole_person_analysis": [
+    {
+      "factor": "The nature, extent, and seriousness of the conduct",
+      "assessment": "The Individual's conduct includes a pattern of criminal offenses, engagement with prostitutes, and a diagnosis of Bipolar II Disorder. The combination of these factors raises serious concerns.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The circumstances surrounding the conduct, to include knowledgeable participation",
+      "assessment": "The Individual claims that his Bipolar II Disorder contributed to his engagement with prostitutes. However, he knowingly and voluntarily engaged in the criminal conduct.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The frequency and recency of the conduct",
+      "assessment": "The Individual's traffic offenses and engagement with prostitutes are relatively recent, occurring within the past two years. This recency weighs heavily against him.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The individual's age and maturity at the time of the conduct",
+      "assessment": "The Individual was an adult at the time of all the concerning conduct.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The extent to which participation is voluntary",
+      "assessment": "The Individual voluntarily engaged in the criminal conduct and the engagement with prostitutes.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The presence or absence of rehabilitation and other permanent behavioral changes",
+      "assessment": "The Individual claims to have ceased engagement with prostitutes and is receiving treatment for Bipolar II Disorder. However, there is limited evidence to support the effectiveness of the treatment or the permanence of the behavioral changes.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The motivation for the conduct",
+      "assessment": "The Individual claims that his Bipolar II Disorder contributed to his engagement with prostitutes. However, this does not excuse the criminal conduct.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The potential for pressure, coercion, exploitation, or duress",
+      "assessment": "There is no indication that the Individual was subject to pressure, coercion, exploitation, or duress.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The likelihood of continuation or recurrence",
+      "assessment": "The Individual's pattern of criminal conduct and the potential for his Bipolar II Disorder to impair his judgment raise concerns about the likelihood of continuation or recurrence.",
+      "impact": "UNFAVORABLE"
+    }
+  ],
+  "follow_up_recommendations": [
+    {
+      "action": "Obtain updated psychological evaluation from a DOE-approved mental health professional, specifically addressing the effectiveness of the Individual's treatment for Bipolar II Disorder and the potential for recurrence of symptoms that could impair judgment.",
+      "priority": "HIGH",
+      "guideline": "I",
+      "rationale": "The current record lacks sufficient information to determine the effectiveness of the Individual's treatment for Bipolar II Disorder. An updated evaluation is necessary to assess the risk of future impairment."
+    },
+    {
+      "action": "Verify the status of all outstanding warrants and fines related to the Individual's traffic offenses.",
+      "priority": "HIGH",
+      "guideline": "J",
+      "rationale": "The record indicates that the Individual may still have outstanding warrants and fines. This needs to be clarified to assess his compliance with the law."
+    },
+    {
+      "action": "Conduct a follow-up interview with the Individual to address inconsistencies in his statements and to assess his candor and willingness to comply with rules and regulations.",
+      "priority": "MEDIUM",
+      "guideline": "E",
+      "rationale": "The Individual's conflicting statements regarding his traffic offenses raise concerns about his candor and reliability."
+    }
+  ]
+}
+```

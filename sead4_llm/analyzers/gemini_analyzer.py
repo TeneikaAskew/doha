@@ -48,9 +48,9 @@ class GeminiSEAD4Analyzer:
         model: str = "gemini-2.0-flash",
         max_tokens: int = 8000
     ):
-        self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
         if not self.api_key:
-            raise ValueError("GOOGLE_API_KEY not set")
+            raise ValueError("GEMINI_API_KEY not set")
 
         genai.configure(api_key=self.api_key)
         self.model_name = model
@@ -63,7 +63,8 @@ class GeminiSEAD4Analyzer:
         case_id: Optional[str] = None,
         report_type: Optional[str] = None,
         quick_mode: bool = False,
-        precedents: Optional[List[dict]] = None
+        precedents: Optional[List[dict]] = None,
+        native_analysis: Optional[dict] = None
     ) -> SEAD4AnalysisResult:
         """
         Analyze a document against SEAD-4 guidelines
@@ -91,11 +92,14 @@ class GeminiSEAD4Analyzer:
         user_prompt = build_analysis_prompt(
             document_text=document_text,
             quick_mode=quick_mode,
-            precedents=precedents
+            precedents=precedents,
+            native_analysis=native_analysis
         )
 
         logger.info(f"Analyzing document: {case_id}")
         logger.debug(f"Document length: {len(document_text)} chars")
+        if native_analysis:
+            logger.info(f"Using native analysis guidance - relevant guidelines: {native_analysis.get('relevant_guidelines', [])}")
 
         # Combine system prompt and user prompt for Gemini
         # Gemini uses a different approach - system instruction + user content
@@ -116,11 +120,21 @@ class GeminiSEAD4Analyzer:
             response_text = response.text
             logger.debug(f"Response length: {len(response_text)} chars")
 
+            # Save raw response for debugging if verbose logging enabled
+            if logger._core.min_level <= 10:  # DEBUG level
+                cache_dir = Path("llm_cache")
+                cache_dir.mkdir(exist_ok=True)
+                debug_path = cache_dir / f"llm_response_{case_id}.txt"
+                debug_path.write_text(response_text)
+                logger.debug(f"Saved raw LLM response to {debug_path}")
+
         except Exception as e:
             logger.error(f"API call failed: {e}")
             raise
 
         # Parse response
+        # Log first 500 chars for debugging
+        logger.debug(f"Response preview: {response_text[:500]}...")
         result = self._parse_response(response_text, case_id, document_text)
 
         # Add precedents if provided
@@ -197,6 +211,11 @@ class GeminiSEAD4Analyzer:
         # Build guideline assessments
         guidelines = []
         guidelines_data = data.get('guidelines', [])
+
+        # Log if guidelines are missing
+        if not guidelines_data:
+            logger.warning("LLM response contained no guidelines data - all guidelines will be marked as not relevant")
+            logger.debug(f"Full LLM response data keys: {list(data.keys())}")
 
         # Create a map of provided guidelines
         provided_guidelines = {g.get('code'): g for g in guidelines_data}
@@ -410,7 +429,7 @@ def analyze_document(
         text: Document text to analyze
         case_id: Optional identifier
         report_type: Type of report (financial, criminal, foreign)
-        api_key: Google API key (or set GOOGLE_API_KEY env var)
+        api_key: Gemini API key (or set GEMINI_API_KEY env var)
 
     Returns:
         SEAD4AnalysisResult
@@ -453,8 +472,8 @@ if __name__ == "__main__":
     print("=" * 60)
 
     # Check for API key
-    if not os.getenv("GOOGLE_API_KEY"):
-        print("GOOGLE_API_KEY not set. Set it to run the test.")
+    if not os.getenv("GEMINI_API_KEY"):
+        print("GEMINI_API_KEY not set. Set it to run the test.")
         print("\nExample output structure:")
         from schemas.models import SEAD4AnalysisResult
         print(SEAD4AnalysisResult.model_json_schema())

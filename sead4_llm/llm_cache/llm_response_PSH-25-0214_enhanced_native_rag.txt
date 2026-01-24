@@ -1,0 +1,264 @@
+```json
+{
+  "case_id": "PSH-25-0214",
+  "overall_assessment": {
+    "recommendation": "UNFAVORABLE",
+    "confidence": 0.85,
+    "summary": "The Individual's access authorization should not be restored due to concerns regarding personal conduct and alcohol consumption. The discrepancies in self-reported alcohol consumption and the AUD diagnosis raise serious concerns about the Individual's reliability and trustworthiness.",
+    "key_concerns": [
+      "Lack of candor regarding alcohol consumption",
+      "Alcohol Use Disorder diagnosis",
+      "DUI arrest"
+    ],
+    "key_mitigations": [
+      "Attendance at AA meetings",
+      "Completion of a sixteen-hour educational program"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": "The Bond Amendment does not apply as there is no evidence of a conviction with a sentence > 1 year and incarceration >= 1 year, dishonorable discharge, or mental incompetence."
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual has questionable allegiance to the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual is subject to foreign influence or has divided allegiance.",
+      "confidence": 1.0
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual has a preference for a foreign country over the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual's sexual behavior is a security concern.",
+      "confidence": 1.0
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 16(b)",
+          "text": "deliberately providing false or misleading information; or concealing or omitting information, concerning relevant facts to an investigator, security official, competent medical or mental health professional involved in making a recommendation relevant to a national security eligibility determination, or other official government representative",
+          "evidence": "However, when the Individual underwent a Phosphatidylethanol (PEth) test after his evaluation, the results showed that he had consumed alcohol in the two to three weeks prior to the test. Id. She stated that this discrepancy called into question the credibility of the Individual’s self-reported abstinence.",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 17(d)",
+          "text": "the individual has acknowledged the behavior and obtained counseling to change the behavior or taken other positive steps to alleviate the stressors, circumstances, or factors that contributed to untrustworthy, unreliable, or other inappropriate behavior, and such behavior is unlikely to recur",
+          "applicability": "PARTIAL",
+          "reasoning": "The Individual has attended AA meetings, but the PEth test indicates a lack of full commitment to abstinence.",
+          "evidence": "see also Ex. G (records indicating that the Individual had attended approximately 59 AA meetings between November 2024 and December 2025)."
+        }
+      ],
+      "reasoning": "The discrepancy between the Individual's self-reported abstinence and the PEth test results raises concerns about his candor and trustworthiness. While he has taken some steps toward rehabilitation, the lack of full transparency is concerning.",
+      "confidence": 0.8
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual has financial issues that are a security concern.",
+      "confidence": 1.0
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 22(a)",
+          "text": "alcohol-related incidents away from work, such as driving while under the influence, fighting, child or spouse abuse, disturbing the peace, or other incidents of concern, regardless of the frequency of the individual's alcohol use or whether the individual has been diagnosed with alcohol use disorder",
+          "evidence": "Shortly after midnight on the morning of September 15, 2024, the Individual was arrested and charged with DUI.",
+          "confidence": 1.0
+        },
+        {
+          "code": "AG ¶ 22(d)",
+          "text": "diagnosis by a duly qualified medical or mental health professional (e.g., physician, clinical psychologist, psychiatrist, or licensed clinical social worker) of alcohol use disorder",
+          "evidence": "In May 2025, the LSO requested that the Individual undergo a psychological evaluation by a DOE-consultant Psychologist (DOE Psychologist), which resulted in a finding that the Individual met sufficient Diagnostic and Statistical Manual of Mental Disorders – Fifth Edition (DSM-5) criteria for a diagnosis of Alcohol Use Disorder (AUD), mild.",
+          "confidence": 1.0
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 23(b)",
+          "text": "the individual acknowledges his or her pattern of maladaptive alcohol use, provides evidence of actions taken to overcome this problem, and has demonstrated a clear and established pattern of modified consumption or abstinence in accordance with treatment recommendations",
+          "applicability": "PARTIAL",
+          "reasoning": "The Individual has attended AA meetings and completed an educational program, but the PEth test suggests he has not fully committed to abstinence.",
+          "evidence": "see also Ex. G (records indicating that the Individual had attended approximately 59 AA meetings between November 2024 and December 2025)."
+        }
+      ],
+      "reasoning": "The DUI arrest and AUD diagnosis are significant concerns. While the Individual has taken some steps to address his alcohol use, the PEth test results indicate a lack of full commitment to abstinence, raising concerns about recurrence.",
+      "confidence": 0.9
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "While alcohol is a substance, this is being addressed under Guideline G. There is no information to suggest the Individual has issues with illegal drugs or misuse of prescription drugs.",
+      "confidence": 1.0
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The AUD diagnosis is being addressed under Guideline G. There is no other information to suggest the Individual has a psychological condition that is a security concern.",
+      "confidence": 0.9
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [
+        {
+          "code": "AG ¶ 32(a)",
+          "text": "so much time has elapsed since the criminal behavior happened, or it happened under such unusual circumstances, that it is unlikely to recur and does not cast doubt on the individual's reliability, trustworthiness, or good judgment",
+          "applicability": "MINIMAL",
+          "reasoning": "While some time has passed since the DUI, it is not a significant amount of time, and the PEth test raises concerns about recurrence.",
+          "evidence": "Shortly after midnight on the morning of September 15, 2024, the Individual was arrested and charged with DUI."
+        }
+      ],
+      "reasoning": "The DUI arrest is a criminal offense. However, since it is a single incident and not a pattern of behavior, and is being addressed under Guideline G, it is not a significant concern under this guideline.",
+      "confidence": 0.8
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual has mishandled protected information.",
+      "confidence": 1.0
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual's outside activities are a security concern.",
+      "confidence": 1.0
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest the Individual has misused information technology.",
+      "confidence": 1.0
+    }
+  ],
+  "whole_person_analysis": [
+    {
+      "factor": "Nature, extent, and seriousness of the conduct",
+      "assessment": "The DUI and AUD diagnosis are serious concerns, as is the lack of candor regarding alcohol consumption.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "Circumstances surrounding the conduct, to include knowledgeable participation",
+      "assessment": "The Individual knowingly participated in the behavior that led to the DUI and the subsequent AUD diagnosis. The PEth test indicates a lack of full commitment to addressing the issue.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "Frequency and recency of the conduct",
+      "assessment": "The DUI was recent (September 2024), and the PEth test indicates recent alcohol consumption despite self-reported abstinence.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The individual's age and maturity at the time of the conduct",
+      "assessment": "The record does not provide specific information about the individual's age, but it can be assumed he is an adult.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The extent to which participation is voluntary",
+      "assessment": "The Individual voluntarily consumed alcohol.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The presence or absence of rehabilitation and other permanent behavioral changes",
+      "assessment": "The Individual has attended AA meetings and completed an educational program, but the PEth test suggests he has not fully committed to abstinence.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The motivation for the conduct",
+      "assessment": "The record does not provide specific information about the Individual's motivation for consuming alcohol.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The potential for pressure, coercion, exploitation, or duress",
+      "assessment": "There is no information to suggest the Individual was pressured, coerced, exploited, or under duress.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The likelihood of continuation or recurrence",
+      "assessment": "The PEth test results raise concerns about the likelihood of recurrence.",
+      "impact": "UNFAVORABLE"
+    }
+  ],
+  "follow_up_recommendations": [
+    {
+      "action": "Require a follow-up psychological evaluation by a DOE-approved psychologist.",
+      "priority": "HIGH",
+      "guideline": "G",
+      "rationale": "To assess the Individual's current AUD status and commitment to abstinence."
+    },
+    {
+      "action": "Require the Individual to provide documentation of continued AA attendance and any other treatment or counseling.",
+      "priority": "MEDIUM",
+      "guideline": "G",
+      "rationale": "To monitor the Individual's progress in addressing his alcohol use."
+    },
+    {
+      "action": "Conduct a follow-up interview with the Individual to address the discrepancies in his self-reported alcohol consumption.",
+      "priority": "HIGH",
+      "guideline": "E",
+      "rationale": "To assess the Individual's candor and trustworthiness."
+    }
+  ]
+}
+```

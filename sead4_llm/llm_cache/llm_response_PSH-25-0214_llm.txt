@@ -1,0 +1,273 @@
+```json
+{
+  "case_id": "PSH-25-0214",
+  "overall_assessment": {
+    "recommendation": "UNFAVORABLE",
+    "confidence": 0.85,
+    "summary": "The Individual's access authorization should not be restored due to concerns regarding alcohol consumption, lack of candor, and questionable judgment. The Individual received a DUI, was diagnosed with mild Alcohol Use Disorder, and provided inaccurate information during a security interview and psychological evaluation. While the Individual has taken some steps toward rehabilitation, concerns remain about his honesty and commitment to abstinence.",
+    "key_concerns": [
+      "DUI arrest",
+      "Diagnosis of mild Alcohol Use Disorder",
+      "Inaccurate self-reporting of alcohol consumption",
+      "Lack of full acceptance of AUD diagnosis"
+    ],
+    "key_mitigations": [
+      "Attendance at AA meetings",
+      "Initial compliance with employer-mandated alcohol testing",
+      "Stated commitment to abstinence since May 2025"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": null
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the provided document to suggest any issues regarding the Individual's allegiance to the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the provided document to suggest any issues regarding foreign influence or contacts.",
+      "confidence": 1.0
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the provided document to suggest any issues regarding foreign preference.",
+      "confidence": 1.0
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the provided document to suggest any issues regarding sexual behavior.",
+      "confidence": 1.0
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 16(b)",
+          "text": "deliberately providing false or misleading information; or concealing or omitting information, concerning relevant facts to an employer, investigator, security official, competent medical or mental health professional involved in making a recommendation relevant to a national security eligibility determination, or other official government representative",
+          "evidence": "However, when the Individual underwent a Phosphatidylethanol (PEth) test after his evaluation, the results showed that he had consumed alcohol in the two to three weeks prior to the test. Id. She stated that this discrepancy called into question the credibility of the Individual’s self-reported abstinence. Id.",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 17(d)",
+          "text": "the individual has acknowledged the behavior and obtained counseling to change the behavior or taken other positive steps to alleviate the stressors, circumstances, or factors that contributed to untrustworthy, unreliable, or other inappropriate behavior, and such behavior is unlikely to recur",
+          "applicability": "PARTIAL",
+          "reasoning": "The Individual has acknowledged providing inaccurate information and has attended AA meetings. However, he does not fully accept the AUD diagnosis and has stated he would consider drinking on special occasions, suggesting limited commitment to change.",
+          "evidence": "At the hearing, the Individual acknowledged that he had provided inaccurate information to the DOE Psychologist and that he had consumed alcohol within the month prior to the May 23, 2025, PEth test. Tr. at 61, 67–68."
+        }
+      ],
+      "reasoning": "The Individual's inaccurate reporting of alcohol consumption to the DOE Psychologist raises concerns about his candor and trustworthiness. While he has acknowledged the behavior and taken some steps, his lack of full acceptance of the AUD diagnosis and willingness to consider future alcohol consumption indicate incomplete mitigation.",
+      "confidence": 0.8
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the provided document to suggest any issues regarding financial considerations.",
+      "confidence": 1.0
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 22(a)",
+          "text": "alcohol-related incidents away from work, such as driving while under the influence, fighting, child or spouse abuse, disturbing the peace, or other incidents of concern, regardless of the frequency of the individual's alcohol use or whether the individual has been diagnosed with alcohol use disorder",
+          "evidence": "Shortly after midnight on the morning of September 15, 2024, the Individual was arrested and charged with DUI. Ex. 10 at 1.",
+          "confidence": 1.0
+        },
+        {
+          "code": "AG ¶ 22(d)",
+          "text": "diagnosis by a duly qualified medical or mental health professional (e.g., physician, clinical psychologist, psychiatrist, or licensed clinical social worker) of alcohol use disorder",
+          "evidence": "In May 2025, the LSO requested that the Individual undergo a psychological evaluation by a DOE-consultant Psychologist (DOE Psychologist), which resulted in a finding that the Individual met sufficient Diagnostic and Statistical Manual of Mental Disorders – Fifth Edition (DSM-5) criteria for a diagnosis of Alcohol Use Disorder (AUD), mild. Ex. 5 at 7.",
+          "confidence": 1.0
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 23(b)",
+          "text": "the individual acknowledges his or her pattern of maladaptive alcohol use, provides evidence of actions taken to overcome this problem, and has demonstrated a clear and established pattern of modified consumption or abstinence in accordance with treatment recommendations",
+          "applicability": "PARTIAL",
+          "reasoning": "The Individual acknowledges the DUI and has attended AA meetings. However, he does not fully acknowledge a pattern of maladaptive alcohol use or fully accept the AUD diagnosis. His stated willingness to drink on special occasions suggests limited commitment to abstinence.",
+          "evidence": "The Individual said that since that event, he has decided not to consume any alcohol because of the issues with his security clearance and because not consuming alcohol makes him feel better. Id. at 26. However, the Individual also testified that he would consider drinking in the future on “special occasions.” Id. at 55."
+        }
+      ],
+      "reasoning": "The DUI arrest and AUD diagnosis raise significant concerns about the Individual's judgment and reliability. While he has taken some steps toward rehabilitation, his lack of full acceptance of the AUD diagnosis and willingness to consider future alcohol consumption indicate incomplete mitigation.",
+      "confidence": 0.9
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The document focuses on alcohol consumption. While the term 'substance abuse' is used, the context indicates it refers to alcohol. There is no evidence of illegal drug use or misuse of other substances.",
+      "confidence": 0.95
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "While the Individual was diagnosed with mild AUD, this falls under Guideline G. There is no other information to suggest any other psychological conditions that would impair judgment, stability, reliability, or trustworthiness.",
+      "confidence": 0.9
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": true,
+      "severity": "B",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 31(b)",
+          "text": "evidence (including, but not limited to, a credible allegation, an admission, and matters of official record) of criminal conduct, regardless of whether the individual was formally charged, prosecuted, or convicted",
+          "evidence": "Shortly after midnight on the morning of September 15, 2024, the Individual was arrested and charged with DUI. Ex. 10 at 1.",
+          "confidence": 1.0
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 32(a)",
+          "text": "so much time has elapsed since the criminal behavior happened, or it happened under such unusual circumstances, that it is unlikely to recur and does not cast doubt on the individual's reliability, trustworthiness, or good judgment",
+          "applicability": "PARTIAL",
+          "reasoning": "The DUI occurred in September 2024, which is relatively recent. While the Individual has taken some steps since then, the recency of the incident and the concerns about his alcohol consumption habits limit the mitigating effect of time elapsed.",
+          "evidence": null
+        }
+      ],
+      "reasoning": "The DUI arrest constitutes criminal conduct. While it is a single incident, its recency and the related concerns about alcohol consumption make this a moderate concern.",
+      "confidence": 0.8
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the provided document to suggest any issues regarding the handling of protected information.",
+      "confidence": 1.0
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the provided document to suggest any issues regarding outside activities.",
+      "confidence": 1.0
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the provided document to suggest any issues regarding the use of information technology.",
+      "confidence": 1.0
+    }
+  ],
+  "whole_person_analysis": [
+    {
+      "factor": "The nature, extent, and seriousness of the conduct",
+      "assessment": "The DUI and inaccurate reporting are serious, indicating poor judgment and lack of candor.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The circumstances surrounding the conduct, to include knowledgeable participation",
+      "assessment": "The Individual knowingly consumed alcohol and provided inaccurate information.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The frequency and recency of the conduct",
+      "assessment": "The DUI was recent (September 2024), and the inaccurate reporting occurred in May 2025.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The individual's age and maturity at the time of the conduct",
+      "assessment": "The document does not provide the Individual's age, making it difficult to assess maturity.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The extent to which participation is voluntary",
+      "assessment": "The Individual voluntarily consumed alcohol and provided inaccurate information.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The presence or absence of rehabilitation and other permanent behavioral changes",
+      "assessment": "The Individual has attended AA meetings, but his commitment to abstinence is questionable.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The motivation for the conduct",
+      "assessment": "The motivation for the inaccurate reporting appears to be to downplay the extent of his alcohol consumption.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The potential for pressure, coercion, exploitation, or duress",
+      "assessment": "There is no indication of pressure, coercion, exploitation, or duress.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The likelihood of continuation or recurrence",
+      "assessment": "The Individual's stated willingness to drink on special occasions raises concerns about recurrence.",
+      "impact": "UNFAVORABLE"
+    }
+  ],
+  "follow_up_recommendations": [
+    {
+      "action": "Obtain updated psychological evaluation from a DOE-approved psychologist.",
+      "priority": "HIGH",
+      "guideline": "G",
+      "rationale": "A current evaluation is needed to assess the Individual's progress in addressing his AUD and commitment to abstinence."
+    },
+    {
+      "action": "Conduct a follow-up interview to address inconsistencies in the Individual's statements.",
+      "priority": "MEDIUM",
+      "guideline": "E",
+      "rationale": "Clarify the Individual's understanding of his alcohol consumption and his commitment to providing accurate information."
+    },
+    {
+      "action": "Request documentation of continued AA attendance and any sponsor relationships.",
+      "priority": "MEDIUM",
+      "guideline": "G",
+      "rationale": "Verify the Individual's continued participation in support meetings and the development of a support network."
+    }
+  ]
+}
+```

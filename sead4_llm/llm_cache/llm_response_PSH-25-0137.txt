@@ -1,0 +1,272 @@
+```json
+{
+  "case_id": "PSH-25-0137",
+  "overall_assessment": {
+    "recommendation": "UNFAVORABLE",
+    "confidence": 0.8,
+    "summary": "The individual's history of severe alcohol use disorder (AUD) and PTSD, while showing improvement, does not yet demonstrate sufficient rehabilitation or reformation to meet the 'clearly consistent with national interest' standard. The DOE Psychologist's concerns regarding the lack of formal aftercare and the relatively short period of documented abstinence weigh heavily against granting access authorization at this time.",
+    "key_concerns": [
+      "Recent history of severe Alcohol Use Disorder (AUD)",
+      "Untreated PTSD contributing to impaired judgment",
+      "Insufficient documented abstinence period",
+      "Lack of formal aftercare following treatment"
+    ],
+    "key_mitigations": [
+      "Acknowledgement of maladaptive alcohol use",
+      "Participation in residential treatment program and IOP",
+      "Consistent attendance at AA meetings",
+      "Ongoing therapy addressing mental health needs"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": null
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to allegiance to the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The document does not contain any information regarding foreign contacts, interests, or activities that could create a risk of foreign influence or exploitation.",
+      "confidence": 1.0
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to indicate a preference for a foreign country over the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The document does not contain any information regarding sexual behavior that would raise security concerns.",
+      "confidence": 1.0
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "While the alcohol use and PTSD could be viewed as questionable judgment, they are more directly addressed under Guidelines G and I. There is no indication of dishonesty or unwillingness to comply with rules and regulations outside of the substance abuse issues.",
+      "confidence": 0.9
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The document does not contain any information regarding financial issues that would raise security concerns.",
+      "confidence": 1.0
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 22(c)",
+          "text": "habitual or binge consumption of alcohol to the point of impaired judgment, regardless of whether the individual is diagnosed with alcohol use disorder",
+          "evidence": "In an enhanced subject interview (ESI), the Individual disclosed to the investigator that she consumed “300ml to 650ml [approximately 10–22 ounces]” of liquor nightly at home.",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG ¶ 22(d)",
+          "text": "diagnosis by a duly qualified medical or mental health professional (e.g., physician, clinical psychologist, psychiatrist, or licensed clinical social worker) of alcohol use disorder",
+          "evidence": "the Local Security Office (LSO) requested that the Individual undergo a psychological evaluation in February 2025, by a DOE-consultant Psychologist (DOE Psychologist), which resulted in a finding that the Individual met sufficient Diagnostic and Statistical Manual of Mental Disorders – Fifth Edition (DSM-5) criteria for a diagnosis of Alcohol Use Disorder (AUD), severe, without adequate evidence of rehabilitation or reformation.",
+          "confidence": 1.0
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 23(b)",
+          "text": "The individual acknowledges his or her pattern of maladaptive alcohol use, provides evidence of actions taken to overcome this problem, and has demonstrated a clear and established pattern of modified consumption or abstinence in accordance with treatment recommendations",
+          "applicability": "PARTIAL",
+          "reasoning": "The individual acknowledges her alcohol use and has taken steps to address it, including treatment and AA attendance. However, the period of documented abstinence is relatively short, and the DOE Psychologist expressed concerns about the lack of formal aftercare.",
+          "evidence": "The Individual testified that she stopped consuming alcohol entirely on May 19, 2025. She provided three negative PEth tests to support this assertion, and those tests are dated August 4, 2025, September 22, 2025, and November 17, 2025."
+        },
+        {
+          "code": "AG ¶ 23(c)",
+          "text": "the individual is participating in counseling or a treatment program, has no previous history of treatment and relapse, and is making satisfactory progress in a treatment program",
+          "applicability": "PARTIAL",
+          "reasoning": "The individual participated in a residential treatment program and an IOP. She is also attending AA meetings and seeing a therapist. However, the DOE Psychologist noted the lack of formal aftercare and the need for more focused PTSD treatment.",
+          "evidence": "The Individual completed a thirty-two-day residential alcohol treatment program in June 2025... Upon completing her residential treatment program, the Individual enrolled in a fourteen-week IOP, which she completed in October 2025... After completing the IOP, according to the Individual’s testimony, she began attending AA meetings consistently about three times a week... The Individual began seeing her personal therapist in May 2019 and continues to see her on a weekly basis."
+        }
+      ],
+      "reasoning": "The individual's history of severe AUD is a significant concern. While she has taken positive steps toward recovery, the relatively short period of documented abstinence and the lack of formal aftercare raise concerns about the likelihood of recurrence. The DOE Psychologist's assessment, while acknowledging progress, does not provide sufficient confidence in the individual's long-term sobriety.",
+      "confidence": 0.8
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The document focuses on alcohol consumption. There is no information to suggest any illegal drug use or misuse of prescription drugs.",
+      "confidence": 1.0
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 28(b)",
+          "text": "an opinion by a duly qualified mental health professional that the individual has a condition that may impair judgment, stability, reliability, or trustworthiness",
+          "evidence": "The DOE Psychologist also found that the Individual’s judgment was impaired by untreated symptoms of Post Traumatic Stress Disorder (PTSD). Id. at 30–31, 35 (explaining that the Individual meets sufficient criteria for PTSD and that the condition impairs her judgment because she uses alcohol “to mediate the symptoms of PTSD”).",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 29(b)",
+          "text": "the individual has voluntarily entered a counseling or treatment program for a condition that is amenable to treatment, and the individual is currently receiving counseling or treatment with a favorable prognosis by a duly qualified mental health professional",
+          "applicability": "PARTIAL",
+          "reasoning": "The individual is seeing a therapist weekly and discussing her traumas. However, the DOE Psychologist expressed concern that the treatment was not specifically focused on PTSD.",
+          "evidence": "The Individual began seeing her personal therapist in May 2019 and continues to see her on a weekly basis. Tr. at 22; Ex. L (letter from personal therapist explaining that she and the Individual meet weekly to “address [the Individual’s] mental health needs which include . . . sobriety and PTSD”)."
+        }
+      ],
+      "reasoning": "The diagnosis of PTSD and its impact on judgment are concerning. While the individual is in therapy, the DOE Psychologist's concerns about the lack of focused PTSD treatment and its connection to alcohol use contribute to the overall security risk.",
+      "confidence": 0.7
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The document does not contain any information regarding criminal conduct.",
+      "confidence": 1.0
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to the handling of protected information.",
+      "confidence": 1.0
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The document does not contain any information regarding outside activities that would raise security concerns.",
+      "confidence": 1.0
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The document does not contain any information regarding misuse of information technology.",
+      "confidence": 1.0
+    }
+  ],
+  "whole_person_analysis": [
+    {
+      "factor": "The nature, extent, and seriousness of the conduct",
+      "assessment": "The individual's alcohol consumption was severe and habitual, leading to a diagnosis of AUD and impaired judgment. The PTSD diagnosis further complicates the situation.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The circumstances surrounding the conduct, to include knowledgeable participation",
+      "assessment": "The individual attributes her increased alcohol consumption to work-related stress and personal loss. She has acknowledged the problem and sought treatment.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The frequency and recency of the conduct",
+      "assessment": "The heavy alcohol consumption was recent, with the individual consuming significant amounts of liquor daily until May 2025.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The individual's age and maturity at the time of the conduct",
+      "assessment": "The individual was an adult during the period of heavy alcohol consumption.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The extent to which participation is voluntary",
+      "assessment": "The individual voluntarily sought treatment for her alcohol use and is participating in therapy.",
+      "impact": "FAVORABLE"
+    },
+    {
+      "factor": "The presence or absence of rehabilitation and other permanent behavioral changes",
+      "assessment": "The individual has demonstrated some progress in rehabilitation, including abstinence from alcohol, participation in treatment programs, and attendance at AA meetings. However, the DOE Psychologist raised concerns about the lack of formal aftercare and the need for more focused PTSD treatment.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The motivation for the conduct",
+      "assessment": "The individual's motivation for alcohol consumption appears to be related to managing stress and coping with PTSD symptoms.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The potential for pressure, coercion, exploitation, or duress",
+      "assessment": "There is no indication of pressure, coercion, exploitation, or duress.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The likelihood of continuation or recurrence",
+      "assessment": "The DOE Psychologist's concerns about the lack of formal aftercare and the relatively short period of documented abstinence raise concerns about the likelihood of recurrence.",
+      "impact": "UNFAVORABLE"
+    }
+  ],
+  "follow_up_recommendations": [
+    {
+      "action": "Obtain updated psychological evaluation from a DOE-approved mental health professional, specifically addressing the individual's PTSD treatment and prognosis.",
+      "priority": "HIGH",
+      "guideline": "I",
+      "rationale": "The DOE Psychologist's concerns about the lack of focused PTSD treatment need to be addressed with a more comprehensive evaluation."
+    },
+    {
+      "action": "Require the individual to provide documentation of consistent attendance at AA meetings or a similar support group.",
+      "priority": "MEDIUM",
+      "guideline": "G",
+      "rationale": "Documented attendance at AA meetings would provide stronger evidence of the individual's commitment to sobriety and participation in aftercare."
+    },
+    {
+      "action": "Obtain additional PEth test results to demonstrate a longer period of sustained abstinence.",
+      "priority": "HIGH",
+      "guideline": "G",
+      "rationale": "A longer period of documented abstinence would provide greater confidence in the individual's ability to maintain sobriety."
+    },
+    {
+      "action": "Require the individual to engage in formal aftercare as recommended by the DOE Psychologist.",
+      "priority": "HIGH",
+      "guideline": "G",
+      "rationale": "Addressing the DOE Psychologist's concern about the lack of formal aftercare is crucial for demonstrating long-term rehabilitation."
+    }
+  ]
+}
+```
