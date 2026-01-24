@@ -26,3 +26,12 @@ Thumbs.db
 # Local settings (allow .claude/settings.json and other config to be committed)
 .claude/settings.local.json
 .env
+
+# Vector indexes and embeddings
+doha_index/
+
+# LLM cache files
+sead4_llm/llm_cache/
+
+# Large data files
+doha_parsed_cases/all_cases.parquet
