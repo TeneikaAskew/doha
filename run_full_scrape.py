@@ -25,6 +25,15 @@ def run_full_scrape(case_types='both'):
     output_dir = Path("./doha_full_scrape")
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Path for combined links file
+    all_links_file = output_dir / "all_case_links.json"
+
+    def save_all_links():
+        """Save combined links file (checkpoint)"""
+        with open(all_links_file, 'w') as f:
+            json.dump(all_links, f, indent=2)
+        logger.debug(f"Checkpoint: saved {len(all_links)} total links")
+
     # Years to scrape - automatically include current year + 1 (for early postings)
     current_year = datetime.now().year
     years = list(range(2019, current_year + 2))  # 2019 through current year + 1
@@ -62,6 +71,7 @@ def run_full_scrape(case_types='both'):
                             existing_links = json.load(f)
                         all_links.extend(existing_links)
                         logger.success(f"Loaded {len(existing_links)} hearing cases for {year}")
+                        save_all_links()
                         continue
                     except Exception as e:
                         logger.warning(f"Failed to load existing hearing links, will re-scrape: {e}")
@@ -75,6 +85,7 @@ def run_full_scrape(case_types='both'):
                     # Save intermediate results
                     with open(links_file, 'w') as f:
                         json.dump(year_links, f, indent=2)
+                    save_all_links()
 
                 except Exception as e:
                     logger.error(f"Error scraping hearings for {year}: {e}")
@@ -95,6 +106,7 @@ def run_full_scrape(case_types='both'):
                             existing_links = json.load(f)
                         all_links.extend(existing_links)
                         logger.success(f"Loaded {len(existing_links)} appeal cases for {year}")
+                        save_all_links()
                         continue
                     except Exception as e:
                         logger.warning(f"Failed to load existing appeal links, will re-scrape: {e}")
@@ -108,6 +120,7 @@ def run_full_scrape(case_types='both'):
                     # Save intermediate results
                     with open(links_file, 'w') as f:
                         json.dump(year_links, f, indent=2)
+                    save_all_links()
 
                 except Exception as e:
                     logger.error(f"Error scraping appeals for {year}: {e}")
@@ -128,6 +141,7 @@ def run_full_scrape(case_types='both'):
                             existing_links = json.load(f)
                         all_links.extend(existing_links)
                         logger.success(f"Loaded {len(existing_links)} archived hearing cases for {year}")
+                        save_all_links()
                         continue
                     except Exception as e:
                         logger.warning(f"Failed to load existing links, will re-scrape: {e}")
@@ -141,6 +155,7 @@ def run_full_scrape(case_types='both'):
                     # Save intermediate results
                     with open(links_file, 'w') as f:
                         json.dump(year_links, f, indent=2)
+                    save_all_links()
 
                 except Exception as e:
                     logger.error(f"Error scraping archived hearings for {year}: {e}")
@@ -161,6 +176,7 @@ def run_full_scrape(case_types='both'):
                             existing_links = json.load(f)
                         all_links.extend(existing_links)
                         logger.success(f"Loaded {len(existing_links)} archived appeal cases for {year}")
+                        save_all_links()
                         continue
                     except Exception as e:
                         logger.warning(f"Failed to load existing links, will re-scrape: {e}")
@@ -174,6 +190,7 @@ def run_full_scrape(case_types='both'):
                     # Save intermediate results
                     with open(links_file, 'w') as f:
                         json.dump(year_links, f, indent=2)
+                    save_all_links()
 
                 except Exception as e:
                     logger.error(f"Error scraping archived appeals for {year}: {e}")
@@ -193,6 +210,7 @@ def run_full_scrape(case_types='both'):
                         existing_links = json.load(f)
                     all_links.extend(existing_links)
                     logger.success(f"Loaded {len(existing_links)} pre-2017 hearing cases")
+                    save_all_links()
                 except Exception as e:
                     logger.warning(f"Failed to load existing links, will re-scrape: {e}")
             else:
@@ -205,14 +223,13 @@ def run_full_scrape(case_types='both'):
                     # Save results
                     with open(prior_links_file, 'w') as f:
                         json.dump(prior_year_links, f, indent=2)
+                    save_all_links()
 
                 except Exception as e:
                     logger.error(f"Error scraping 2016 and prior: {e}")
 
-    # Save all links
-    all_links_file = output_dir / "all_case_links.json"
-    with open(all_links_file, 'w') as f:
-        json.dump(all_links, f, indent=2)
+    # Save all links (final)
+    save_all_links()
 
     logger.info(f"\n{'='*60}")
     logger.success(f"LINK COLLECTION COMPLETE!")
