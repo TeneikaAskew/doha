@@ -63,6 +63,14 @@ class DOHABrowserScraper(DOHAScraper):
         # Set realistic viewport
         self.page.set_viewport_size({"width": 1920, "height": 1080})
 
+        # Navigate to DOHA main page to establish session/cookies
+        # This is important for the request context API to work properly
+        try:
+            self.page.goto("https://doha.ogc.osd.mil/Industrial-Security-Program/", wait_until="domcontentloaded", timeout=30000)
+            logger.debug("Established session with DOHA website")
+        except Exception as e:
+            logger.warning(f"Could not navigate to DOHA homepage: {e}")
+
         logger.info("Browser started successfully")
 
     def stop_browser(self):
@@ -254,6 +262,66 @@ class DOHABrowserScraper(DOHAScraper):
             logger.info(f"Found {len(page_links)} cases on page {page}")
 
         logger.info(f"Found total of {len(all_links)} cases in 2016 and Prior pages")
+        return all_links
+
+    def get_2016_and_prior_appeal_links(self) -> List[Tuple[str, str]]:
+        """Get appeal links from all "2016 and Prior" appeal pages using browser"""
+        from bs4 import BeautifulSoup
+        import re
+
+        all_links = []
+
+        for page in range(1, self.DOHA_APPEAL_2016_PRIOR_PAGES + 1):
+            url = self.DOHA_APPEAL_2016_PRIOR_PATTERN.format(page=page)
+            logger.info(f"Fetching 2016 and Prior appeals page {page}/{self.DOHA_APPEAL_2016_PRIOR_PAGES}...")
+
+            html = self._browser_get(url)
+
+            if not html or len(html) < 100:
+                logger.warning(f"Failed to get content for appeal page {page}")
+                continue
+
+            soup = BeautifulSoup(html, 'html.parser')
+
+            page_links = []
+            for a in soup.find_all('a', href=True):
+                href = a['href']
+
+                if '/FileId/' in href:
+                    file_id_match = re.search(r'/FileId/(\d+)', href)
+                    if file_id_match:
+                        file_id = file_id_match.group(1)
+                        case_number = f"appeal-pre2016-{file_id}"
+
+                        if not href.startswith('http'):
+                            if href.startswith('/'):
+                                href = 'https://doha.ogc.osd.mil' + href
+                            else:
+                                href = url + href
+
+                        page_links.append((case_number, href))
+
+                elif re.search(r'\d{2}-\d+', href):
+                    case_match = re.search(r'(\d{2}-\d+)', href)
+                    if case_match:
+                        case_number = f"appeal-{case_match.group(1)}"
+                        if not href.startswith('http'):
+                            if href.startswith('/'):
+                                href = 'https://doha.ogc.osd.mil' + href
+                            else:
+                                href = url + href
+                        page_links.append((case_number, href))
+
+            # Remove duplicates
+            seen_on_page = set()
+            for case_num, case_url in page_links:
+                if case_num not in seen_on_page:
+                    seen_on_page.add(case_num)
+                    all_links.append((case_num, case_url))
+
+            logger.info(f"Found {len(page_links)} appeal cases on page {page}")
+
+        logger.info(f"Found total of {len(all_links)} appeal cases in 2016 and Prior pages")
         return all_links
 
     def get_appeal_case_links(self, year: int, is_archived: bool = None) -> List[Tuple[str, str]]:

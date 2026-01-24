@@ -31,7 +31,7 @@ def download_and_parse_pdfs(
     output_dir: Path,
     max_cases: int = None,
     force: bool = False,
-    rate_limit: float = 2.0,
+    rate_limit: float = 0.15,
     case_type: str = "both"
 ):
     """Download PDFs using browser automation and parse them
@@ -41,7 +41,7 @@ def download_and_parse_pdfs(
         output_dir: Output directory for parsed cases and PDFs
         max_cases: Maximum number of cases to download (for testing)
         force: Force re-download even if PDFs exist
-        rate_limit: Seconds to wait between requests (default: 2.0)
+        rate_limit: Seconds to wait between requests (default: 0.15, currently unused by PDF downloads)
         case_type: Which case types to download - 'hearings', 'appeals', or 'both' (default)
     """
 
@@ -308,8 +308,8 @@ Examples:
                        help="Maximum number of cases to download (for testing)")
     parser.add_argument("--force", action="store_true",
                        help="Force re-download even if PDFs exist")
-    parser.add_argument("--rate-limit", type=float, default=2.0,
-                       help="Seconds to wait between requests (default: 2.0)")
+    parser.add_argument("--rate-limit", type=float, default=0.15,
+                       help="Seconds to wait between requests (default: 0.15 for ~6 cases/sec)")
 
     args = parser.parse_args()
 
