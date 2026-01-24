@@ -6,12 +6,15 @@ bypassing bot protection that blocks requests-based scraping.
 """
 import json
 import time
+import threading
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict, Any
 from loguru import logger
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from queue import Queue
 
 try:
-    from playwright.sync_api import sync_playwright, Page, Browser
+    from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
     HAS_PLAYWRIGHT = True
 except ImportError:
     HAS_PLAYWRIGHT = False
@@ -499,6 +502,160 @@ class DOHABrowserScraper(DOHAScraper):
         except Exception as e:
             logger.error(f"Failed to download PDF from {url}: {e}")
             return None
+
+
+class ParallelBrowserDownloader:
+    """
+    Parallel PDF downloader using thread-local browser instances.
+
+    Each worker thread gets its own playwright/browser/context to avoid
+    thread-safety issues with Playwright's sync API.
+    """
+
+    def __init__(self, num_workers: int = 4, headless: bool = True):
+        if not HAS_PLAYWRIGHT:
+            raise ImportError("playwright required. Install with: pip install playwright && playwright install chromium")
+
+        self.num_workers = num_workers
+        self.headless = headless
+        self._local = threading.local()
+        self._workers_started = threading.Event()
+        self._shutdown = threading.Event()
+
+    def _get_thread_browser(self):
+        """Get or create a browser instance for the current thread"""
+        if not hasattr(self._local, 'playwright'):
+            # Initialize playwright for this thread
+            self._local.playwright = sync_playwright().start()
+            self._local.browser = self._local.playwright.chromium.launch(headless=self.headless)
+            self._local.context = self._local.browser.new_context(
+                viewport={"width": 1920, "height": 1080}
+            )
+
+            # Establish session by navigating to homepage
+            page = self._local.context.new_page()
+            try:
+                page.goto("https://doha.ogc.osd.mil/Industrial-Security-Program/",
+                         wait_until="commit", timeout=15000)
+                logger.debug(f"Thread {threading.current_thread().name}: Session established")
+            except Exception as e:
+                logger.warning(f"Thread {threading.current_thread().name}: Could not establish session: {e}")
+            page.close()
+
+        return self._local.context
+
+    def _cleanup_thread_browser(self):
+        """Clean up browser instance for current thread"""
+        if hasattr(self._local, 'context'):
+            try:
+                self._local.context.close()
+            except Exception:
+                pass
+        if hasattr(self._local, 'browser'):
+            try:
+                self._local.browser.close()
+            except Exception:
+                pass
+        if hasattr(self._local, 'playwright'):
+            try:
+                self._local.playwright.stop()
+            except Exception:
+                pass
+
+    def start(self):
+        """Initialize (actual browser start happens per-thread)"""
+        logger.info(f"Parallel downloader ready with {self.num_workers} workers")
+        self._shutdown.clear()
+
+    def stop(self):
+        """Signal shutdown (cleanup happens in threads)"""
+        self._shutdown.set()
+        logger.info("Parallel downloader stopped")
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+
+    def _download_one(self, url: str) -> Optional[bytes]:
+        """Download a single PDF using thread-local browser context"""
+        ctx = self._get_thread_browser()
+        try:
+            response = ctx.request.get(url, timeout=60000)
+            if response.status != 200:
+                logger.debug(f"Download failed: HTTP {response.status} for {url}")
+                return None
+            return response.body()
+        except Exception as e:
+            logger.debug(f"Download error for {url}: {e}")
+            return None
+
+    def download_batch(
+        self,
+        links: List[Tuple[str, str, str, str]],  # (case_type, year, case_number, url)
+        callback=None
+    ) -> List[Dict[str, Any]]:
+        """
+        Download multiple PDFs in parallel.
+
+        Args:
+            links: List of (case_type, year, case_number, url) tuples
+            callback: Optional callback(case_number, pdf_bytes_or_none, error_or_none) called for each result
+
+        Returns:
+            List of result dicts with keys: case_type, year, case_number, url, pdf_bytes, error
+        """
+        results = []
+        results_lock = threading.Lock()
+
+        def download_task(link):
+            case_type, year, case_number, url = link
+            try:
+                pdf_bytes = self._download_one(url)
+                result = {
+                    "case_type": case_type,
+                    "year": year,
+                    "case_number": case_number,
+                    "url": url,
+                    "pdf_bytes": pdf_bytes,
+                    "error": None if pdf_bytes else "No bytes returned"
+                }
+            except Exception as e:
+                result = {
+                    "case_type": case_type,
+                    "year": year,
+                    "case_number": case_number,
+                    "url": url,
+                    "pdf_bytes": None,
+                    "error": str(e)
+                }
+
+            with results_lock:
+                results.append(result)
+
+            if callback:
+                callback(
+                    result["case_number"],
+                    result["pdf_bytes"],
+                    result["error"]
+                )
+
+            return result
+
+        # Use thread pool with cleanup
+        with ThreadPoolExecutor(max_workers=self.num_workers) as executor:
+            futures = [executor.submit(download_task, link) for link in links]
+
+            # Wait for all to complete
+            for future in as_completed(futures):
+                try:
+                    future.result()  # Raise any exceptions
+                except Exception as e:
+                    logger.error(f"Worker error: {e}")
+
+        return results
 
 
 def scrape_with_browser(
