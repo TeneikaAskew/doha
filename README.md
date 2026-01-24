@@ -26,19 +26,75 @@ An LLM-powered system for analyzing security clearance reports against SEAD-4 ad
 The typical workflow consists of three main phases:
 
 ### Phase 1: Data Collection (Optional - for precedent matching)
-Run from **project root** directory:
-1. Scrape case links: `python run_full_scrape.py`
-2. Download PDFs: `python download_pdfs.py`
+
+**Run from project root directory:**
+
+1. **Collect case links** (~11 minutes for all ~31,860 cases):
+   ```bash
+   python run_full_scrape.py
+   # Or filter by case type:
+   python run_full_scrape.py --case-type hearings   # ~30,850 cases
+   python run_full_scrape.py --case-type appeals    # ~1,010+ cases
+   ```
+   - Uses Playwright browser automation to bypass bot protection
+   - Creates `./doha_full_scrape/all_case_links.json`
+   - Automatically resumes if interrupted - loads completed years
+
+2. **Download and parse PDFs** (~1.5-9 hours depending on system):
+   ```bash
+   python download_pdfs.py --max-cases 10           # Test with 10 first
+   python download_pdfs.py                           # Then download all (~31,860 cases)
+   python download_pdfs.py --case-type hearings     # Only hearings
+   python download_pdfs.py --case-type appeals      # Only appeals
+   ```
+   - Browser-based download bypasses PDF protection
+   - Creates both JSON (~250MB, gitignored) and Parquet (~60-90MB, committed)
+   - Organizes PDFs: `hearing_pdfs/` and `appeal_pdfs/`
+   - Saves checkpoints every 50 cases
+   - Automatically skips already-downloaded cases
 
 ### Phase 2: Index Building (Optional - for precedent matching)
-Run from **sead4_llm/** directory:
-3. Build RAG index: `python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index`
+
+**Run from sead4_llm/ directory:**
+
+3. **Build RAG index** (5-10 minutes):
+   ```bash
+   cd sead4_llm
+
+   # Create new index (automatically prefers Parquet format)
+   python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index
+
+   # Update existing index with new cases only (much faster for daily updates)
+   python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index --update
+
+   # Test the index
+   python build_index.py --test --index ../doha_index
+   ```
+   - Automatically detects and prefers Parquet (most consistent)
+   - Falls back to JSON if Parquet not available
+   - `--update` flag only adds new cases (skips existing ones)
+   - Creates vector embeddings for semantic search
 
 ### Phase 3: Analysis
-Run from **sead4_llm/** directory:
-4. Analyze reports: `python analyze.py --input report.pdf [--use-rag --index ../doha_index]`
 
-**Note**: Phases 1-2 are only needed if you want precedent matching. You can perform basic SEAD-4 analysis without them.
+**Run from sead4_llm/ directory:**
+
+4. **Analyze security clearance reports**:
+   ```bash
+   # Basic analysis (no precedent matching)
+   python analyze.py --input report.pdf --output result.json
+
+   # With precedent matching (requires index from Phase 2)
+   python analyze.py --input report.pdf --use-rag --index ../doha_index
+
+   # Batch processing
+   python analyze.py --input-dir ./reports --output-dir ./results --use-rag --index ../doha_index
+
+   # Use Claude instead of Gemini
+   python analyze.py --input report.pdf --provider claude
+   ```
+
+**Note**: Phases 1-2 are only needed for precedent matching. Basic SEAD-4 analysis works without them.
 
 ## Requirements
 
@@ -202,7 +258,31 @@ python build_index.py --local-dir ../downloaded_cases --output ../doha_index
 
 # Or from parsed case data (accepts both Parquet and JSON, prefers Parquet)
 python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index
+
+# Update existing index with new cases only (incremental, much faster)
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index --update
 ```
+
+### Incremental Index Updates
+
+If you periodically download new DOHA cases, use the `--update` flag to add only new cases to your existing index:
+
+```bash
+cd sead4_llm
+
+# Download new cases (automatically skips existing)
+cd ..
+python download_pdfs.py
+
+# Update index with new cases only
+cd sead4_llm
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index --update
+```
+
+This is much faster than rebuilding the entire index and is useful for:
+- Daily/weekly scraping to stay current
+- Adding individual case types (e.g., adding appeals after initially indexing only hearings)
+- Recovering from interrupted downloads
 
 ### Using the Index
 
@@ -268,6 +348,20 @@ python analyze.py --input report.pdf --use-rag --index ../doha_index --provider 
 }
 ```
 
+## Claude Code Permissions
+
+This project includes pre-configured permissions for Claude Code (`.claude/settings.json`) that allow common development commands without prompts:
+
+- Core utilities: `ls`, `cat`, `grep`, `find`, `pwd`, etc.
+- File operations: `mkdir`, `rm`, `mv`, `cp`, `chmod`, etc.
+- Programming: `python`, `node`, `ruby`, `go`, `rust`, etc.
+- Package managers: `pip`, `npm`, `yarn`, `cargo`, etc.
+- Version control: `git`, `gh`
+- Development tools: `docker`, `kubectl`, `terraform`, `playwright`, etc.
+- Testing frameworks: `pytest`, `jest`, `mocha`, `rspec`, etc.
+
+The settings are automatically applied when you clone the repository. For user-specific overrides, create `.claude/settings.local.json` (which is gitignored).
+
 ## Configuration
 
 ### Environment Variables
@@ -295,8 +389,11 @@ python analyze.py --input <file> [--output <path>] [--provider <gemini|claude>] 
 # Batch processing
 python analyze.py --input-dir <directory> --output-dir <directory> [--provider <gemini|claude>] [--batch]
 
-# Build DOHA index from cases (Parquet or JSON)
+# Build DOHA index from cases (Parquet or JSON, prefers Parquet)
 python build_index.py --from-cases <path> --output <path>
+
+# Update existing index with new cases only (incremental)
+python build_index.py --from-cases <path> --output <path> --update
 
 # Test existing index
 python build_index.py --test --index <path>

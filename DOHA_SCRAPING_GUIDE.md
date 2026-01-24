@@ -42,7 +42,191 @@ python download_pdfs.py --case-type appeals      # Download only appeals
 
 # 3. Build RAG index
 cd sead4_llm
-python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ../doha_index
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index
+```
+
+## 📋 Detailed Workflow
+
+### Full Initial Setup (First Time)
+
+**Prerequisites:**
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Install Playwright and browser
+pip install playwright
+playwright install chromium
+
+# Install system dependencies (Ubuntu/Debian)
+sudo apt-get update && sudo apt-get install -y \
+    libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon0 \
+    libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
+    libpango-1.0-0 libcairo2 libasound2t64 libxfixes3
+```
+
+**Step 1: Collect Case Links** (~11 minutes)
+
+From project root directory:
+```bash
+python run_full_scrape.py
+```
+
+What this does:
+- Launches headless Chromium browser via Playwright
+- Scrapes DOHA website for all case links (hearings + appeals)
+- Processes 2016-2026 (current year + next year)
+- Includes all archived pages (17 pages of pre-2017 hearings, 3+ pages of pre-2017 appeals)
+- Saves results per year: `doha_full_scrape/hearing_links_YYYY.json`, `appeal_links_YYYY.json`
+- Creates combined file: `doha_full_scrape/all_case_links.json`
+- **Resume capability**: Automatically skips years already scraped
+
+Output structure:
+```
+doha_full_scrape/
+├── all_case_links.json          # Combined: ~31,860 links
+├── hearing_links_2019.json      # Per-year files
+├── hearing_links_2020.json
+├── appeal_links_2019.json
+├── appeal_links_2020.json
+└── ...
+```
+
+**Step 2: Download and Parse PDFs** (~1.5-9 hours)
+
+From project root directory:
+```bash
+# Test with 10 cases first
+python download_pdfs.py --max-cases 10
+
+# If successful, download all
+python download_pdfs.py
+```
+
+What this does:
+- Uses browser request context API to download PDFs (bypasses bot protection)
+- Extracts text with PyMuPDF
+- Parses metadata: case number, outcome, guidelines, judge, case type
+- Extracts key content: SOR allegations (hearings) or discussion (appeals)
+- Saves in two formats:
+  - `all_cases.json` (~250MB) - Local use, gitignored
+  - `all_cases.parquet` (~60-90MB) - Git commits, compressed
+- Organizes PDFs by type: `hearing_pdfs/`, `appeal_pdfs/`
+- **Checkpoint every 50 cases**: `checkpoint_hearing_50.json`, `checkpoint_appeal_50.json`
+- **Resume capability**: Skips cases that exist in both PDF file AND parsed JSON
+
+Output structure:
+```
+doha_parsed_cases/
+├── all_cases.json              # All parsed cases (gitignored if >100MB)
+├── all_cases.parquet           # Compressed format (<90MB, committed)
+├── checkpoint_hearing_50.json  # Resume checkpoints
+├── checkpoint_appeal_50.json
+├── hearing_pdfs/               # ~30,850 PDFs
+│   ├── 19-12345.pdf
+│   ├── 20-67890.pdf
+│   └── ...
+└── appeal_pdfs/                # ~1,010+ PDFs
+    ├── appeal-2019-108848.pdf
+    ├── appeal-2020-234567.pdf
+    └── ...
+```
+
+**Step 3: Build RAG Index** (5-10 minutes)
+
+From sead4_llm/ directory:
+```bash
+cd sead4_llm
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index
+```
+
+What this does:
+- Automatically detects Parquet files (prefers over JSON)
+- Loads and combines all parquet files if split
+- Converts to IndexedCase objects with normalized metadata
+- Generates embeddings using sentence-transformers
+- Builds vector index for semantic similarity search
+- Saves to `doha_index/` directory
+
+Output structure:
+```
+doha_index/
+├── cases.json                  # Case metadata
+└── embeddings.npy              # Vector embeddings
+```
+
+**Step 4: Test the Index**
+
+```bash
+python build_index.py --test --index ../doha_index
+```
+
+### Incremental Updates (Daily/Weekly)
+
+Once you have the initial dataset, use this workflow for updates:
+
+**From project root:**
+```bash
+# Step 1: Collect new links (skips completed years automatically)
+python run_full_scrape.py
+
+# Step 2: Download only new PDFs (skips existing automatically)
+python download_pdfs.py
+
+# Step 3: Update index with new cases only
+cd sead4_llm
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index --update
+```
+
+The `--update` flag:
+- Loads existing index
+- Filters out cases already indexed
+- Only processes new cases
+- Much faster than full rebuild (seconds vs minutes)
+
+### Case Type Filtering
+
+You can process specific case types:
+
+```bash
+# Collect only hearing links
+python run_full_scrape.py --case-type hearings
+
+# Download only hearing PDFs
+python download_pdfs.py --case-type hearings
+
+# Later, add appeals to existing dataset
+python run_full_scrape.py --case-type appeals
+python download_pdfs.py --case-type appeals
+
+# Update index with both types
+cd sead4_llm
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index --update
+```
+
+### Recovery from Interruptions
+
+**If link collection was interrupted:**
+```bash
+# Just run again - it loads completed years and continues
+python run_full_scrape.py
+```
+
+**If PDF download was interrupted:**
+```bash
+# Merge checkpoint files if all_cases.json is missing
+python merge_checkpoints.py
+
+# Then resume download (skips existing)
+python download_pdfs.py
+```
+
+**If cases have UNKNOWN outcomes:**
+```bash
+# Re-parse metadata from existing full_text
+python reprocess_cases.py
+
+# Creates updated all_cases.parquet with corrected metadata
 ```
 
 ## 📊 What We Found
@@ -316,16 +500,38 @@ python download_pdfs.py --force
 ```bash
 cd sead4_llm
 
-# From parsed cases
-python build_index.py --from-json ../doha_parsed_cases/all_cases.json \
-                      --output ./doha_index
+# Create new index from parsed cases (automatically prefers Parquet)
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index
+
+# Update existing index with new cases only (incremental, much faster)
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index --update
 
 # From local PDFs (if you have them)
-python build_index.py --local-dir ../doha_pdfs --output ./doha_index
+python build_index.py --local-dir ../doha_pdfs --output ../doha_index
 
 # Test the index
-python build_index.py --test --index ./doha_index
+python build_index.py --test --index ../doha_index
 ```
+
+**Index Update Workflow** (for daily/weekly updates):
+```bash
+# From project root:
+# 1. Collect new case links (automatically skips completed years)
+python run_full_scrape.py
+
+# 2. Download only new PDFs (automatically skips existing)
+python download_pdfs.py
+
+# 3. Update index with new cases only
+cd sead4_llm
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index --update
+```
+
+The `--update` flag:
+- Only adds cases that aren't already in the index
+- Much faster than rebuilding from scratch
+- Perfect for periodic scraping to stay current
+- Works with both Parquet and JSON formats
 
 ## 🚨 Troubleshooting
 

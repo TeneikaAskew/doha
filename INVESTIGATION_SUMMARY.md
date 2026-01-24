@@ -107,7 +107,7 @@ python download_pdfs.py --case-type appeals      # Only appeals
 
 # Step 3: Build RAG index
 cd sead4_llm
-python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ../doha_index
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index
 ```
 
 ### Alternative: Local File Processing
@@ -169,7 +169,7 @@ python download_pdfs.py                           # Then download all
 
 # Step 3: Build RAG index
 cd sead4_llm
-python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ../doha_index
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index
 
 # Step 4: Test the index
 python build_index.py --test --index ../doha_index

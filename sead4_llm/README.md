@@ -90,7 +90,7 @@ python download_pdfs.py                   # Download all 30K+ cases
 
 # Build index from parsed cases
 cd sead4_llm
-python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ./doha_index
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.json --output ./doha_index
 ```
 
 See [DOHA_SCRAPING_GUIDE.md](../DOHA_SCRAPING_GUIDE.md) for complete details on browser-based scraping.
@@ -120,7 +120,7 @@ Supported file formats: `.pdf`, `.html`, `.txt`
 If you have case data in JSON format:
 
 ```bash
-python build_index.py --from-json ./cases.json --output ./doha_index
+python build_index.py --from-cases ./cases.json --output ./doha_index
 ```
 
 Expected JSON format:
