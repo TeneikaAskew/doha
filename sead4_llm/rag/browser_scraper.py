@@ -101,7 +101,7 @@ class DOHABrowserScraper(DOHAScraper):
 
         try:
             # Navigate to page
-            response = self.page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            response = self.page.goto(url, wait_until="domcontentloaded", timeout=120000)
 
             self._last_request = time.time()
 
@@ -240,6 +240,7 @@ class DOHABrowserScraper(DOHAScraper):
         all_links = []
 
         for page in range(1, self.DOHA_2016_PRIOR_PAGES + 1):
+            # Page 2: flat URL works reliably, nested times out - just use flat for all pages
             url = self.DOHA_2016_PRIOR_PATTERN.format(page=page)
             logger.info(f"Fetching 2016 and Prior page {page}/{self.DOHA_2016_PRIOR_PAGES}...")
 

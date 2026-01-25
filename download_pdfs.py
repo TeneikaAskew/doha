@@ -18,6 +18,9 @@ from rag.browser_scraper import DOHABrowserScraper, ParallelBrowserDownloader
 from loguru import logger
 import fitz  # PyMuPDF
 
+# Import merge_checkpoints for recovery before orphan deletion
+from merge_checkpoints import merge_checkpoints as do_merge_checkpoints
+
 # Optional progress bar
 try:
     from tqdm import tqdm
@@ -33,8 +36,145 @@ except ImportError:
     HAS_PANDAS = False
     logger.warning("pandas not installed - parquet output will be skipped. Install with: pip install pandas pyarrow")
 
-# GitHub file size limit with buffer
-MAX_PARQUET_SIZE_MB = 90  # Stay under GitHub's 100MB limit
+# GitHub file size limits
+GITHUB_FILE_LIMIT_MB = 100  # GitHub's actual hard limit
+MAX_PARQUET_SIZE_MB = 95  # Target for splitting (leaves room for compression variance)
+
+
+def validate_pdf_case_consistency(
+    hearing_pdf_dir: Path,
+    appeal_pdf_dir: Path,
+    existing_cases: list,
+    delete_orphans: bool = False
+) -> dict:
+    """
+    Validate that PDFs on disk match cases in all_cases.json.
+
+    Checks:
+    1. All PDFs on disk have matching cases in all_cases.json
+    2. All cases in all_cases.json have matching PDFs on disk
+
+    Args:
+        hearing_pdf_dir: Directory containing hearing PDFs
+        appeal_pdf_dir: Directory containing appeal PDFs
+        existing_cases: List of case dicts from all_cases.json
+        delete_orphans: If True, delete PDFs that have no matching case
+
+    Returns:
+        Dict with validation statistics
+    """
+    # Build set of case numbers from existing cases (by type)
+    hearing_case_numbers = set()
+    appeal_case_numbers = set()
+
+    for case in existing_cases:
+        case_number = case.get('case_number') if isinstance(case, dict) else getattr(case, 'case_number', None)
+        case_type = case.get('case_type', 'hearing') if isinstance(case, dict) else getattr(case, 'case_type', 'hearing')
+
+        if case_number:
+            if case_type == 'appeal':
+                appeal_case_numbers.add(case_number)
+            else:
+                hearing_case_numbers.add(case_number)
+
+    # Get PDFs on disk
+    hearing_pdfs_on_disk = set()
+    appeal_pdfs_on_disk = set()
+
+    if hearing_pdf_dir.exists():
+        for pdf in hearing_pdf_dir.glob("*.pdf"):
+            hearing_pdfs_on_disk.add(pdf.stem)  # filename without extension = case_number
+
+    if appeal_pdf_dir.exists():
+        for pdf in appeal_pdf_dir.glob("*.pdf"):
+            appeal_pdfs_on_disk.add(pdf.stem)
+
+    # Find mismatches
+    # Orphaned PDFs: on disk but NOT in all_cases.json
+    orphaned_hearing_pdfs = hearing_pdfs_on_disk - hearing_case_numbers
+    orphaned_appeal_pdfs = appeal_pdfs_on_disk - appeal_case_numbers
+
+    # Missing PDFs: in all_cases.json but NOT on disk
+    missing_hearing_pdfs = hearing_case_numbers - hearing_pdfs_on_disk
+    missing_appeal_pdfs = appeal_case_numbers - appeal_pdfs_on_disk
+
+    total_pdfs_on_disk = len(hearing_pdfs_on_disk) + len(appeal_pdfs_on_disk)
+    total_cases_in_json = len(hearing_case_numbers) + len(appeal_case_numbers)
+    total_orphaned = len(orphaned_hearing_pdfs) + len(orphaned_appeal_pdfs)
+    total_missing = len(missing_hearing_pdfs) + len(missing_appeal_pdfs)
+
+    # Log validation results
+    logger.info(f"\n{'='*60}")
+    logger.info(f"PDF/Case Consistency Validation")
+    logger.info(f"{'='*60}")
+    logger.info(f"PDFs on disk: {total_pdfs_on_disk} ({len(hearing_pdfs_on_disk)} hearings, {len(appeal_pdfs_on_disk)} appeals)")
+    logger.info(f"Cases in all_cases.json: {total_cases_in_json} ({len(hearing_case_numbers)} hearings, {len(appeal_case_numbers)} appeals)")
+
+    if total_orphaned > 0:
+        logger.warning(f"Orphaned PDFs (no matching case): {total_orphaned}")
+        if orphaned_hearing_pdfs:
+            logger.warning(f"  - Hearing orphans: {len(orphaned_hearing_pdfs)}")
+            # Show sample of orphaned hearing PDFs
+            sample_hearing = sorted(list(orphaned_hearing_pdfs))[:5]
+            logger.warning(f"    Sample hearing orphans: {sample_hearing}")
+        if orphaned_appeal_pdfs:
+            logger.warning(f"  - Appeal orphans: {len(orphaned_appeal_pdfs)}")
+            # Show sample of orphaned appeal PDFs
+            sample_appeal = sorted(list(orphaned_appeal_pdfs))[:5]
+            logger.warning(f"    Sample appeal orphans: {sample_appeal}")
+
+    if total_missing > 0:
+        logger.warning(f"Missing PDFs (case exists but no PDF): {total_missing}")
+        if missing_hearing_pdfs:
+            logger.warning(f"  - Missing hearing PDFs: {len(missing_hearing_pdfs)}")
+            # Show sample of missing hearing PDFs
+            sample_missing_hearing = sorted(list(missing_hearing_pdfs))[:5]
+            logger.warning(f"    Sample missing hearings: {sample_missing_hearing}")
+        if missing_appeal_pdfs:
+            logger.warning(f"  - Missing appeal PDFs: {len(missing_appeal_pdfs)}")
+            # Show sample of missing appeal PDFs
+            sample_missing_appeal = sorted(list(missing_appeal_pdfs))[:5]
+            logger.warning(f"    Sample missing appeals: {sample_missing_appeal}")
+
+    if total_orphaned == 0 and total_missing == 0:
+        logger.success(f"✓ All PDFs and cases are in sync!")
+
+    # Delete orphaned PDFs if requested
+    deleted_count = 0
+    if delete_orphans and total_orphaned > 0:
+        logger.info(f"\nDeleting {total_orphaned} orphaned PDFs...")
+
+        for case_number in orphaned_hearing_pdfs:
+            pdf_path = hearing_pdf_dir / f"{case_number}.pdf"
+            try:
+                pdf_path.unlink()
+                deleted_count += 1
+            except Exception as e:
+                logger.error(f"Failed to delete {pdf_path}: {e}")
+
+        for case_number in orphaned_appeal_pdfs:
+            pdf_path = appeal_pdf_dir / f"{case_number}.pdf"
+            try:
+                pdf_path.unlink()
+                deleted_count += 1
+            except Exception as e:
+                logger.error(f"Failed to delete {pdf_path}: {e}")
+
+        logger.success(f"Deleted {deleted_count} orphaned PDFs")
+
+    logger.info(f"{'='*60}\n")
+
+    return {
+        "pdfs_on_disk": total_pdfs_on_disk,
+        "cases_in_json": total_cases_in_json,
+        "orphaned_pdfs": total_orphaned,
+        "missing_pdfs": total_missing,
+        "deleted_pdfs": deleted_count,
+        "orphaned_hearing_pdfs": list(orphaned_hearing_pdfs),
+        "orphaned_appeal_pdfs": list(orphaned_appeal_pdfs),
+        "missing_hearing_pdfs": list(missing_hearing_pdfs),
+        "missing_appeal_pdfs": list(missing_appeal_pdfs)
+    }
 
 
 def validate_parquet_file(file_path: Path, expected_rows: int, operation: str = "save") -> None:
@@ -108,6 +248,7 @@ def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size
         return [output_path]
 
     # Need to split - estimate cases per file
+    # Use 5% buffer - with 95MB limit this targets ~90MB chunks
     bytes_per_case = (total_size_mb * 1024 * 1024) / len(df)
     cases_per_file = int((max_size_mb * 1024 * 1024) / bytes_per_case * 0.95)  # 5% buffer
 
@@ -125,10 +266,10 @@ def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size
         validate_parquet_file(chunk_path, len(chunk), f"chunk {i} save")
         size_mb = chunk_path.stat().st_size / (1024 * 1024)
 
-        # Verify chunk doesn't exceed size limit
-        if size_mb > max_size_mb:
-            logger.error(f"❌ Chunk {i} exceeds {max_size_mb}MB: {size_mb:.1f}MB")
-            raise ValueError(f"Parquet splitting failed, chunk {i} too large: {size_mb:.1f}MB > {max_size_mb}MB")
+        # Verify chunk doesn't exceed GitHub's limit
+        if size_mb > GITHUB_FILE_LIMIT_MB:
+            logger.error(f"❌ Chunk {i} exceeds GitHub's {GITHUB_FILE_LIMIT_MB}MB limit: {size_mb:.1f}MB")
+            raise ValueError(f"Parquet splitting failed, chunk {i} too large: {size_mb:.1f}MB > {GITHUB_FILE_LIMIT_MB}MB")
 
         logger.success(f"Saved {len(chunk)} cases to {chunk_path} ({size_mb:.1f}MB)")
         created_files.append(chunk_path)
@@ -217,9 +358,7 @@ def download_and_parse_pdfs(
         ]
         logger.info(f"Filtered to {len(all_links)} {case_type} (excluded {count_before - len(all_links)})")
 
-    if max_cases:
-        all_links = all_links[:max_cases]
-        logger.info(f"Limited to {max_cases} cases")
+    # NOTE: max_cases is applied AFTER filtering to unprocessed cases (see below)
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -265,8 +404,18 @@ def download_and_parse_pdfs(
         except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
             logger.warning(f"Could not load existing cases: {e}")
 
+    # Validate PDFs on disk match cases in all_cases.json
+    # Note: Checkpoint merge and orphan deletion happens in __main__ BEFORE this function
+    validate_pdf_case_consistency(
+        hearing_pdf_dir=hearing_pdf_dir,
+        appeal_pdf_dir=appeal_pdf_dir,
+        existing_cases=existing_cases,
+        delete_orphans=False  # Already handled in __main__
+    )
+
     # Filter links to only unprocessed cases
     links_to_process = []
+    skipped_already_processed = 0
     for link in all_links:
         # Handle different formats:
         # - Old format (3 elements): (year, case_number, url)
@@ -292,13 +441,22 @@ def download_and_parse_pdfs(
         # URL check catches cases where PDF was saved with different case_number
         if not force:
             if url in processed_urls:
+                skipped_already_processed += 1
                 continue  # Already have this case by URL
             if pdf_path.exists():
+                skipped_already_processed += 1
                 continue  # Already have PDF file
 
         links_to_process.append(link)
 
-    logger.info(f"Will process {len(links_to_process)} cases (skipped {len(all_links) - len(links_to_process)})")
+    # Apply max_cases limit AFTER filtering to only unprocessed cases
+    remaining_for_later = 0
+    if max_cases and len(links_to_process) > max_cases:
+        remaining_for_later = len(links_to_process) - max_cases
+        links_to_process = links_to_process[:max_cases]
+        logger.info(f"Limited to {max_cases} cases this run ({remaining_for_later} remaining for later)")
+
+    logger.info(f"Will process {len(links_to_process)} cases (skipped {skipped_already_processed} already processed)")
 
     if not links_to_process:
         logger.success("All cases already processed!")
@@ -557,9 +715,29 @@ def download_and_parse_pdfs(
         logger.error("   Install with: pip install pandas pyarrow")
         logger.error("   Parquet files are REQUIRED to avoid GitHub 100MB file size limit")
 
+    # Load existing failed cases and merge with new failures
     failed_file = output_dir / "failed_cases.json"
+    existing_failed = []
+    if failed_file.exists():
+        try:
+            with open(failed_file) as f:
+                existing_failed = json.load(f)
+            if not isinstance(existing_failed, list):
+                existing_failed = []
+        except (json.JSONDecodeError, Exception) as e:
+            logger.warning(f"Could not load existing failed cases: {e}")
+            existing_failed = []
+
+    # Merge: keep existing failed cases, add new ones (dedupe by case_number)
+    failed_by_case = {f.get('case_number'): f for f in existing_failed}
+    for f in failed:
+        failed_by_case[f.get('case_number')] = f  # Update/add new failures
+    all_failed = list(failed_by_case.values())
+
     with open(failed_file, 'w') as f:
-        json.dump(failed, f, indent=2)
+        json.dump(all_failed, f, indent=2)
+
+    logger.info(f"Failed cases: {len(failed)} new + {len(existing_failed)} existing = {len(all_failed)} total")
 
     # Calculate statistics
     from collections import Counter
@@ -577,20 +755,43 @@ def download_and_parse_pdfs(
     logger.info(f"\n{'='*80}")
     logger.success(f"DOWNLOAD COMPLETE!")
     logger.info(f"{'='*80}")
-    logger.info(f"Successfully parsed: {len(cases)} new cases")
-    for case_type, count in sorted(new_case_types.items()):
-        logger.info(f"  - {case_type}: {count}")
 
-    logger.info(f"\nTotal cases in index: {len(all_parsed_cases)} cases")
+    # Show what was downloaded THIS RUN
+    logger.info(f"\nThis run: {len(cases)} new cases downloaded")
+    if new_case_types:
+        for case_type, count in sorted(new_case_types.items()):
+            logger.info(f"  - {case_type}: {count}")
+    else:
+        logger.info(f"  (no new cases)")
+
+    # Show what was already in all_cases.json BEFORE
+    existing_count = len(existing_cases)
+    logger.info(f"\nPreviously in all_cases.json: {existing_count} cases")
+
+    # Show TOTAL in all_cases.json now
+    logger.info(f"\nTotal in all_cases.json now: {len(all_parsed_cases)} cases ({existing_count} existing + {len(cases)} new)")
     for case_type, count in sorted(all_case_types.items()):
         logger.info(f"  - {case_type}: {count}")
 
-    logger.info(f"\nFailed: {len(failed)} cases")
+    # Show what's in the RAG search index (if it exists)
+    rag_index_file = Path("./doha_index/cases.json")
+    if rag_index_file.exists():
+        try:
+            with open(rag_index_file) as f:
+                rag_cases = json.load(f)
+            logger.info(f"\nIn RAG search index: {len(rag_cases)} cases")
+        except Exception as e:
+            logger.warning(f"\nRAG search index: error reading ({e})")
+    else:
+        logger.info(f"\nRAG search index: not yet built (run build_index.py)")
+
+    logger.info(f"\nFailed this run: {len(failed)} cases")
+    logger.info(f"Total failed (all runs): {len(all_failed)} cases")
     logger.info(f"Results saved to: {final_file}")
     logger.info(f"PDFs organized in:")
     logger.info(f"  - Hearings: {hearing_pdf_dir}")
     logger.info(f"  - Appeals: {appeal_pdf_dir}")
-    if failed:
+    if all_failed:
         logger.info(f"Failed cases logged to: {failed_file}")
 
     return all_parsed_cases
@@ -642,15 +843,80 @@ Output:
         logger.info("Run 'python run_full_scrape.py' first to collect links")
         sys.exit(1)
 
-    # Archive existing checkpoints before starting (unless --no-archive specified)
+    # Check for orphans and merge checkpoints if needed
     output_dir = Path(args.output)
+    checkpoint_files = list(output_dir.glob("checkpoint_*.json"))
+    hearing_pdf_dir = output_dir / "hearing_pdfs"
+    appeal_pdf_dir = output_dir / "appeal_pdfs"
 
-    if not args.no_archive:
-        checkpoint_files = list(output_dir.glob("checkpoint_*.json"))
-        if checkpoint_files:
-            logger.info(f"Found {len(checkpoint_files)} existing checkpoint files")
+    def get_orphaned_pdfs():
+        """Get PDFs on disk that aren't in all_cases.json"""
+        existing_case_numbers = set()
+        all_cases_file = output_dir / "all_cases.json"
+        if all_cases_file.exists():
+            try:
+                with open(all_cases_file) as f:
+                    cases = json.load(f)
+                for case in cases:
+                    if isinstance(case, dict) and "case_number" in case:
+                        existing_case_numbers.add(case["case_number"])
+            except Exception:
+                pass
 
-            # Import archive function
+        pdfs_on_disk = set()
+        if hearing_pdf_dir.exists():
+            pdfs_on_disk.update(p.stem for p in hearing_pdf_dir.glob("*.pdf"))
+        if appeal_pdf_dir.exists():
+            pdfs_on_disk.update(p.stem for p in appeal_pdf_dir.glob("*.pdf"))
+
+        return pdfs_on_disk - existing_case_numbers, pdfs_on_disk, existing_case_numbers
+
+    if checkpoint_files:
+        logger.info(f"Found {len(checkpoint_files)} existing checkpoint files")
+
+        # Step 1: Check for orphaned PDFs
+        orphaned_pdfs, pdfs_on_disk, _ = get_orphaned_pdfs()
+
+        if orphaned_pdfs:
+            # Step 2: Merge checkpoints to try to recover cases
+            logger.warning(f"Found {len(orphaned_pdfs)} orphaned PDFs - merging checkpoints to recover cases")
+            try:
+                do_merge_checkpoints(str(output_dir), output_parquet=True, output_json=True)
+                logger.success("Checkpoint merge complete")
+
+                # Step 3: Recheck for orphans after merge
+                orphaned_pdfs_after, _, _ = get_orphaned_pdfs()
+                recovered = len(orphaned_pdfs) - len(orphaned_pdfs_after)
+
+                if recovered > 0:
+                    logger.success(f"Recovered {recovered} cases from checkpoints")
+
+                # Step 4: Delete remaining orphans
+                if orphaned_pdfs_after:
+                    logger.warning(f"Still {len(orphaned_pdfs_after)} orphaned PDFs after merge - deleting")
+                    deleted = 0
+                    for case_number in orphaned_pdfs_after:
+                        # Try both directories
+                        for pdf_dir in [hearing_pdf_dir, appeal_pdf_dir]:
+                            pdf_path = pdf_dir / f"{case_number}.pdf"
+                            if pdf_path.exists():
+                                try:
+                                    pdf_path.unlink()
+                                    deleted += 1
+                                except Exception as e:
+                                    logger.error(f"Failed to delete {pdf_path}: {e}")
+                    logger.success(f"Deleted {deleted} orphaned PDFs")
+                else:
+                    logger.success("All orphans resolved by checkpoint merge")
+
+            except Exception as e:
+                logger.error(f"Checkpoint merge failed: {e}")
+                logger.warning("Proceeding anyway - some cases may need re-download")
+        else:
+            logger.info("No orphaned PDFs found - skipping checkpoint merge")
+
+        # Step 5: Archive checkpoint files (unless --no-archive)
+        if not args.no_archive:
             import shutil
             from datetime import datetime
 

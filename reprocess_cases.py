@@ -25,8 +25,9 @@ try:
 except ImportError:
     HAS_PANDAS = False
 
-# GitHub file size limit with buffer
-MAX_PARQUET_SIZE_MB = 90  # Stay under GitHub's 100MB limit
+# GitHub file size limits
+GITHUB_FILE_LIMIT_MB = 100  # GitHub's actual hard limit
+MAX_PARQUET_SIZE_MB = 95  # Target for splitting (leaves room for compression variance)
 
 def is_bad_case_number(case_number: str) -> bool:
     """Check if case_number is missing or invalid.
@@ -340,10 +341,10 @@ def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size
         atomic_write_parquet(chunk, chunk_path)
         size_mb = chunk_path.stat().st_size / (1024 * 1024)
 
-        # Verify chunk doesn't exceed size limit
-        if size_mb > max_size_mb:
-            logger.error(f"❌ Chunk {i} exceeds {max_size_mb}MB: {size_mb:.1f}MB")
-            raise ValueError(f"Parquet splitting failed, chunk {i} too large: {size_mb:.1f}MB > {max_size_mb}MB")
+        # Verify chunk doesn't exceed GitHub's limit
+        if size_mb > GITHUB_FILE_LIMIT_MB:
+            logger.error(f"❌ Chunk {i} exceeds GitHub's {GITHUB_FILE_LIMIT_MB}MB limit: {size_mb:.1f}MB")
+            raise ValueError(f"Parquet splitting failed, chunk {i} too large: {size_mb:.1f}MB > {GITHUB_FILE_LIMIT_MB}MB")
 
         logger.success(f"Saved {len(chunk)} cases to {chunk_path} ({size_mb:.1f}MB)")
         created_files.append(chunk_path)

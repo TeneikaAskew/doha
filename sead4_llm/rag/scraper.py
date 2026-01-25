@@ -93,7 +93,9 @@ class DOHAScraper:
     DOHA_ARCHIVE_BASE = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/Archived-ISCR-Hearing-Decisions/"
     DOHA_ARCHIVE_YEAR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/Archived-ISCR-Hearing-Decisions/{year}-ISCR-Hearing-Decisions/"
     # For 2016 and prior (split across multiple pages)
+    # Note: Page 2 has a different URL structure (nested path)
     DOHA_2016_PRIOR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/Archived-ISCR-Hearing-Decisions/2016-and-Prior-ISCR-Hearing-Decisions-{page}/"
+    DOHA_2016_PRIOR_PAGE2_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/ISCR-Hearing-Decisions/Archived-ISCR-Hearing-Decisions/2016-and-Prior-ISCR-Hearing-Decisions/2016-and-Prior-ISCR-Hearing-Decisions-2/"
     DOHA_2016_PRIOR_PAGES = 17  # There are 17 pages for 2016 and prior cases
 
     # ========================================
@@ -150,10 +152,21 @@ class DOHAScraper:
             r'clearance\s+granted',
             r'clearance\s+eligibility\s+is\s+granted',
             r'cac\s+eligibility\s+is\s+granted',  # Common Access Card cases
+            # Trustworthiness/ADP cases
+            r'trustworthiness\s+(?:designation\s+)?is\s+granted',
+            r'adp.{0,20}eligibility\s+is\s+granted',
+            r'eligibility\s+for\s+a\s+public\s+trust\s+position\s+is\s+granted',
+            r'public\s+trust\s+position\s+is\s+granted',
+            # Sensitive positions/duties
+            r'eligibility\s+for\s+(?:assignment\s+to\s+)?sensitive\s+(?:positions?|duties)\s+is\s+granted',
+            r'assignment\s+to\s+sensitive\s+(?:positions?|duties)\s+is\s+granted',
             # "Clearly consistent" language (means granted)
-            r'it\s+is\s+clearly\s+consistent\s+with\s+the\s+national\s+interest\s+to\s+grant',
-            r'clearly\s+consistent\s+with\s+the\s+interests\s+of\s+national\s+security',
-            r'clearly\s+consistent\s+with\s+the\s+security\s+interests',
+            # Allow for page numbers (e.g., \n6\n) interrupting the phrase
+            # Support both "interest" and "interests" (singular and plural)
+            r'it\s+is\s+clearly\s+consistent[\s\d]*with\s+the\s+national\s+interests?\s+to\s+grant',
+            r'clearly\s+consistent[\s\d]*with\s+the\s+national\s+interests?\s+to\s+grant',
+            r'clearly\s+consistent[\s\d]*with\s+the\s+interests\s+of\s+national\s+security',
+            r'clearly\s+consistent[\s\d]*with\s+the\s+security\s+interests',
             r'national\s+security\s+eligibility\s+is\s+granted',
             # Appeal Board: favorable decision affirmed = grant upheld
             r'favorable\s+decision\s+(?:is\s+)?affirmed',
@@ -174,11 +187,23 @@ class DOHAScraper:
             r'clearance\s+denied',
             r'clearance\s+eligibility\s+is\s+denied',
             r'cac\s+eligibility\s+is\s+denied',  # Common Access Card cases
+            # Trustworthiness/ADP cases
+            r'trustworthiness\s+(?:designation\s+)?is\s+denied',
+            r'adp.{0,20}eligibility\s+is\s+denied',
+            r'eligibility\s+for\s+a\s+public\s+trust\s+position\s+is\s+denied',
+            r'public\s+trust\s+position\s+is\s+denied',
+            # Sensitive positions/duties
+            r'eligibility\s+for\s+(?:assignment\s+to\s+)?sensitive\s+(?:positions?|duties)\s+is\s+denied',
+            r'assignment\s+to\s+sensitive\s+(?:positions?|duties)\s+is\s+denied',
             # "Not clearly consistent" language (means denied)
-            r'it\s+is\s+not\s+clearly\s+consistent\s+with\s+the\s+national\s+interest\s+to\s+grant',
-            r'not\s+clearly\s+consistent\s+with\s+the\s+national\s+interest',
-            r'not\s+clearly\s+consistent\s+with\s+the\s+interests\s+of\s+national\s+security',
-            r'not\s+clearly\s+consistent\s+with\s+the\s+security\s+interests',
+            # Allow for page numbers (e.g., \n6\n) interrupting the phrase
+            r'it\s+is\s+not\s+clearly\s+consistent[\s\d]*with\s+the\s+national\s+interest',
+            r'not\s+clearly\s+consistent[\s\d]*with\s+the\s+national\s+interest',
+            r'not\s+clearly\s+consistent[\s\d]*with\s+the\s+interests\s+of\s+national\s+security',
+            r'not\s+clearly\s+consistent[\s\d]*with\s+the\s+security\s+interests',
+            # Alternative phrasing: "clearly not consistent" (same meaning)
+            r'it\s+is\s+clearly\s+not\s+consistent[\s\d]*with\s+the\s+national\s+interest',
+            r'clearly\s+not\s+consistent[\s\d]*with\s+the\s+national\s+interest',
             r'national\s+security\s+eligibility\s+is\s+denied',
             # Appeal Board: adverse decision affirmed = denial upheld
             r'adverse\s+decision\s+(?:is\s+)?affirmed',
@@ -587,8 +612,9 @@ class DOHAScraper:
             # Appeal Board-specific outcome extraction
             return self._extract_appeal_outcome(text)
 
-        # For hearing decisions: search in the last 3000 characters
-        search_text = text_lower[-3000:]
+        # For hearing decisions: search in the last 5000 characters
+        # Extended from 3000 to catch older cases with conclusion further back
+        search_text = text_lower[-5000:]
 
         # Track the last (rightmost) match position for each outcome
         last_match_positions = {}
@@ -602,6 +628,20 @@ class DOHAScraper:
                         last_match_positions[outcome] = pos
 
         if not last_match_positions:
+            # Fallback: Try to find DECISION or CONCLUSION section in full text
+            # Some documents end with footnotes, hiding the actual decision
+            decision_match = re.search(
+                r'(?:^|\n)\s*(?:DECISION|CONCLUSION)\s*\n(.{100,2000}?)(?:\n\s*(?:FORMAL FINDINGS|signed:|administrative judge|\d+\.\s)|\Z)',
+                text,
+                re.IGNORECASE | re.DOTALL
+            )
+            if decision_match:
+                decision_section = decision_match.group(1).lower()
+                for outcome, patterns in self.OUTCOME_PATTERNS.items():
+                    for pattern in patterns:
+                        if re.search(pattern, decision_section, re.IGNORECASE):
+                            return outcome
+
             return "UNKNOWN"
 
         # Return the outcome with the latest (rightmost) match
@@ -610,23 +650,89 @@ class DOHAScraper:
         return max(last_match_positions, key=last_match_positions.get)
 
     def _is_appeal_document(self, text: str) -> bool:
-        """Detect if this is an Appeal Board decision vs a Hearing decision."""
-        # Check for Appeal Board-specific markers in first 2500 chars (increased range)
-        header_text = text[:2500].lower()
-        appeal_markers = [
-            'appeal board',
-            'appeal board decision',
-            'applicant appealed',
-            'government appealed',
-            'department counsel appealed',  # Common in appeals
-            'cross-appeal',
-            'the board gives deference',  # Unique to appeal documents
-            'favorable decision reversed',  # In digest section
-            'adverse decision reversed',    # In digest section
-            'decision is affirmed',         # In digest section
-            'decision is reversed',         # In digest section
+        """Detect if this is an Appeal Board decision vs a Hearing decision.
+
+        Important: Hearing decisions often CITE appeal board cases or discuss
+        procedural history involving appeals. We need to check document structure.
+
+        Key distinguisher: Appeal Board decisions have "APPEAL BOARD DECISION" as
+        a formal document title (on its own line), while hearing decisions may
+        reference appeal board actions in running text.
+        """
+        text_lower = text.lower()
+        header_text = text_lower[:2500]
+
+        # Check for appeal board document titles
+        # Variants: "APPEAL BOARD DECISION", "APPEAL BOARD SUMMARY DISPOSITION",
+        # "APPEAL BOARD DETERMINATION", "APPEAL BOARD DECISION AND REMAND ORDER",
+        # "APPEAL BOARD DECISION AND REVERSAL ORDER", "APPEAL BOARD DECISION AND ORDER FOR REMAND"
+        # This appears on its own line, typically after the case number line
+        # Must NOT match references like "the appeal board decision remanding..."
+        # Use \s+ to handle line breaks in HTML files
+        appeal_title_pattern = r'appeal\s+board\s+(?:decision|determination|summary\s+disposition)(?:\s+and\s+(?:(?:remand|reversal)\s+order|order\s+for\s+remand))?\s*\n'
+        if re.search(appeal_title_pattern, header_text):
+            return True
+
+        # Also check title followed by APPEARANCES (common format)
+        if re.search(r'appeal\s+board\s+(?:decision|determination|summary\s+disposition)(?:\s+and\s+(?:(?:remand|reversal)\s+order|order\s+for\s+remand))?\s*\n+\s*appearances', header_text):
+            return True
+
+        # Check for "DECISION OF ADMINISTRATIVE JUDGE" - definitive HEARING marker
+        # This title only appears in hearing decisions, never in appeal board decisions
+        has_decision_of_aj = bool(re.search(r'decision\s+of\s+administrative\s+judge', header_text))
+
+        # Check for HEARING-specific structural markers
+        has_formal_findings = bool(re.search(r'\bformal\s+findings\b', text_lower))
+        has_conclusion_or_decision = bool(re.search(r'\n\s*(?:conclusion|decision)\s*\n', text_lower))
+
+        # If it has "DECISION OF ADMINISTRATIVE JUDGE" title, it's definitely a hearing
+        if has_decision_of_aj:
+            return False
+
+        # If document has formal findings AND conclusion/decision section, it's a hearing
+        if has_formal_findings and has_conclusion_or_decision:
+            return False
+
+        # Check for "applicant/government appealed" patterns specific to appeals
+        # Must include filing language (not just historical references)
+        early_text = text_lower[:1200]
+        appeal_action_patterns = [
+            # Applicant appealed with filing language
+            r'applicant\s+(?:has\s+)?(?:timely\s+)?appealed\s+pursuant',
+            r'applicant\s+(?:filed|submitted)\s+(?:a\s+)?(?:timely\s+)?appeal',
+            # Government/Department Counsel appealed
+            r'(?:government|department\s+counsel)\s+(?:has\s+)?(?:timely\s+)?appealed',
+            # Cross-appeal
+            r'cross-appeal',
+            # "Applicant raises/raised the following issues on appeal"
+            r'applicant\s+(?:raises|raised)\s+the\s+following\s+issue',
         ]
-        return any(marker in header_text for marker in appeal_markers)
+
+        for pattern in appeal_action_patterns:
+            if re.search(pattern, early_text):
+                return True
+
+        # Check for DIGEST section patterns (unique to appeal documents)
+        # These are summaries in the first ~1500 chars
+        # Use regex with \s+ to handle line breaks in the text
+        digest_text = text_lower[:1500]
+        digest_patterns = [
+            r'favorable\s+decision\s+reversed',
+            r'adverse\s+decision\s+reversed',
+            r'adverse\s+decision\s+affirmed',
+            r'favorable\s+decision\s+affirmed',
+            r'favorable\s+decision\s+remanded',
+            r'adverse\s+decision\s+remanded',
+            r'case\s+remanded',
+            # Also check for "board reverses" in digest
+            r'board\s+reverses',
+        ]
+
+        # These markers in digest section indicate appeal
+        if any(re.search(p, digest_text) for p in digest_patterns):
+            return True
+
+        return False
 
     def _extract_appeal_outcome(self, text: str) -> str:
         """Extract outcome specifically for Appeal Board decisions.
@@ -644,24 +750,103 @@ class DOHAScraper:
         """
         text_lower = text.lower()
 
-        # Check the Order section (last 1500 chars) for explicit outcome
-        order_text = text_lower[-1500:]
+        # First, try to find explicit ORDER section in the document
+        # Some appeal documents have concurring/dissenting opinions after ORDER
+        # Note: Don't use "administrative judge" as ending - it can appear in the outcome sentence
+        order_match = re.search(r'\n\s*order\s*\n(.{100,2000}?)(?:\n\s*signed:|\n\s*concurring|\n\s*dissenting|\n\s*separate\s+opinion|\Z)', text_lower, re.DOTALL)
+        if order_match:
+            order_text = order_match.group(1)
+        else:
+            # Fall back to last 1500 chars
+            order_text = text_lower[-1500:]
 
         # Pattern 1: Explicit "adverse decision" or "favorable decision" in Order
         # Allow for case numbers like "in iscr case no. 24-01718" between words
-        if re.search(r'the\s+(?:judge.{0,5}\s+)?adverse\s+decision.{0,50}is\s+affirmed', order_text):
+        # Also match "judge adverse" (typo missing possessive)
+        if re.search(r'(?:the\s+)?(?:judge.{0,5}\s+)?adverse\s+(?:security\s+clearance\s+)?decision.{0,50}is\s+affirmed', order_text):
             return "DENIED"
-        if re.search(r'the\s+(?:judge.{0,5}\s+)?favorable\s+decision.{0,50}is\s+affirmed', order_text):
+        if re.search(r'(?:the\s+)?(?:judge.{0,5}\s+)?favorable\s+(?:security\s+clearance\s+)?decision.{0,50}is\s+affirmed', order_text):
             return "GRANTED"
-        if re.search(r'the\s+(?:judge.{0,5}\s+)?adverse\s+decision.{0,50}is\s+reversed', order_text):
+        if re.search(r'(?:the\s+)?(?:judge.{0,5}\s+)?adverse\s+(?:security\s+clearance\s+)?decision.{0,50}is\s+reversed', order_text):
             return "GRANTED"
-        if re.search(r'the\s+(?:judge.{0,5}\s+)?favorable\s+decision.{0,50}is\s+reversed', order_text):
+        if re.search(r'(?:the\s+)?(?:judge.{0,5}\s+)?favorable\s+(?:security\s+clearance\s+)?decision.{0,50}is\s+reversed', order_text):
             return "DENIED"
 
+        # Pattern 1b: "decision/judgment ... granting/denying" in Order section
+        # Catches: "the decision of the administrative judge granting applicant a clearance is affirmed"
+        # Catches: "the judgment of the administrative judge denying applicant a clearance is affirmed"
+        # Catches: "the judge's decision denying applicant a security clearance is affirmed"
+        # Order can be "decision...judge...granting" OR "judge...decision...granting"
+        # NOTE: re.DOTALL needed for .{0,50} etc to match across newlines
+        if re.search(r'(?:(?:decision|judgment).{0,50}(?:judge|aj).{0,50}granting|(?:judge|aj).{0,20}(?:decision|judgment).{0,30}granting).{0,100}(?:is\s+)?affirmed', order_text, re.DOTALL):
+            return "GRANTED"
+        if re.search(r'(?:(?:decision|judgment).{0,50}(?:judge|aj).{0,50}denying|(?:judge|aj).{0,20}(?:decision|judgment).{0,30}denying).{0,100}(?:is\s+)?affirmed', order_text, re.DOTALL):
+            return "DENIED"
+        if re.search(r'(?:(?:decision|judgment).{0,50}(?:judge|aj).{0,50}granting|(?:judge|aj).{0,20}(?:decision|judgment).{0,30}granting).{0,100}(?:is\s+)?reversed', order_text, re.DOTALL):
+            return "DENIED"
+        if re.search(r'(?:(?:decision|judgment).{0,50}(?:judge|aj).{0,50}denying|(?:judge|aj).{0,20}(?:decision|judgment).{0,30}denying).{0,100}(?:is\s+)?reversed', order_text, re.DOTALL):
+            return "GRANTED"
+
+        # Pattern 1c: "judge's favorable/unfavorable security clearance decision is reversed/affirmed"
+        # Catches: "the judge's favorable security clearance decision is reversed"
+        if re.search(r'judge.{0,5}s?\s+favorable.{0,50}decision.{0,30}is\s+affirmed', order_text, re.DOTALL):
+            return "GRANTED"
+        if re.search(r'judge.{0,5}s?\s+favorable.{0,50}decision.{0,30}is\s+reversed', order_text, re.DOTALL):
+            return "DENIED"
+        if re.search(r'judge.{0,5}s?\s+unfavorable.{0,50}decision.{0,30}is\s+affirmed', order_text, re.DOTALL):
+            return "DENIED"
+        if re.search(r'judge.{0,5}s?\s+unfavorable.{0,50}decision.{0,30}is\s+reversed', order_text, re.DOTALL):
+            return "GRANTED"
+
+        # Pattern 1d: ADP/Trustworthiness cases
+        # "determination...denying applicant access...is affirmed" -> DENIED
+        # "judge's unfavorable trustworthiness determination is affirmed" -> DENIED
+        # "judge's favorable security clearance is affirmed" -> GRANTED
+        if re.search(r'(?:determination|decision).{0,50}denying\s+applicant.{0,100}is\s+affirmed', order_text, re.DOTALL):
+            return "DENIED"
+        if re.search(r'(?:determination|decision).{0,50}granting\s+applicant.{0,100}is\s+affirmed', order_text, re.DOTALL):
+            return "GRANTED"
+        if re.search(r'(?:determination|decision).{0,50}denying\s+applicant.{0,100}is\s+reversed', order_text, re.DOTALL):
+            return "GRANTED"
+        if re.search(r'(?:determination|decision).{0,50}granting\s+applicant.{0,100}is\s+reversed', order_text, re.DOTALL):
+            return "DENIED"
+
+        # Trustworthiness determination patterns
+        if re.search(r'unfavorable\s+trustworthiness\s+determination.{0,50}is\s+affirmed', order_text, re.DOTALL):
+            return "DENIED"
+        if re.search(r'favorable\s+trustworthiness\s+determination.{0,50}is\s+affirmed', order_text, re.DOTALL):
+            return "GRANTED"
+        if re.search(r'unfavorable\s+trustworthiness\s+determination.{0,50}is\s+reversed', order_text, re.DOTALL):
+            return "GRANTED"
+        if re.search(r'favorable\s+trustworthiness\s+determination.{0,50}is\s+reversed', order_text, re.DOTALL):
+            return "DENIED"
+
+        # "favorable/unfavorable security clearance is affirmed/reversed" (without "decision")
+        if re.search(r'favorable\s+(?:security\s+)?clearance\s+is\s+affirmed', order_text):
+            return "GRANTED"
+        if re.search(r'unfavorable\s+(?:security\s+)?clearance\s+is\s+affirmed', order_text):
+            return "DENIED"
+        if re.search(r'favorable\s+(?:security\s+)?clearance\s+is\s+reversed', order_text):
+            return "DENIED"
+        if re.search(r'unfavorable\s+(?:security\s+)?clearance\s+is\s+reversed', order_text):
+            return "GRANTED"
+
+        # Pattern 1e: "denying/granting applicant a clearance is remanded"
+        # Must check BEFORE generic remand patterns
+        # Include "positions" for ADP cases
+        if re.search(r'(?:denying|granting).{0,100}(?:clearance|eligibility|designation|positions?).{0,30}is\s+remanded', order_text, re.DOTALL):
+            return "REMANDED"
+
         # Pattern 2: Check for remand
-        if re.search(r'(?:case|decision).{0,50}is\s+remanded', order_text):
+        if re.search(r'(?:case|decision|determination).{0,50}is\s+remanded', order_text, re.DOTALL):
             return "REMANDED"
         if re.search(r'remanded\s+(?:to|for)', order_text):
+            return "REMANDED"
+        # "board remands the case"
+        if re.search(r'board\s+remands\s+(?:the\s+)?case', order_text):
+            return "REMANDED"
+        # Also catch "judgment...is remanded"
+        if re.search(r'judgment.{0,30}is\s+remanded', order_text):
             return "REMANDED"
 
         # Pattern 3: "The decision is AFFIRMED" - need to determine underlying decision
@@ -843,6 +1028,23 @@ class DOHAScraper:
             return "DENIED"
         if re.search(r'case\s+(?:is\s+)?remanded', digest_text):
             return "REMANDED"
+
+        # Pattern 7: HTML format cases without ORDER section
+        # These use "Board affirms the Judge's decision" format in the body
+        # Search in last 2000 chars for these patterns
+        last_text = text_lower[-2000:]
+
+        # "Board affirms the Judge's adverse decision"
+        if re.search(r'board\s+affirms\s+(?:the\s+)?(?:administrative\s+)?judge.{0,30}adverse', last_text, re.DOTALL):
+            return "DENIED"
+        # "Board affirms the Judge's [date] decision" when context shows denial
+        if re.search(r'board\s+affirms\s+(?:the\s+)?(?:administrative\s+)?judge', last_text):
+            # Check body for denial context
+            if 'not clearly consistent' in text_lower or 'denied' in digest_text:
+                return "DENIED"
+            # Check body for grant context
+            if 'clearly consistent' in text_lower[:5000] and 'not clearly' not in text_lower[:5000]:
+                return "GRANTED"
 
         return "UNKNOWN"
 
@@ -1377,7 +1579,11 @@ class DOHAScraper:
         all_links = []
 
         for page in range(1, self.DOHA_2016_PRIOR_PAGES + 1):
-            url = self.DOHA_2016_PRIOR_PATTERN.format(page=page)
+            # Page 2 has a different URL structure (nested path)
+            if page == 2:
+                url = self.DOHA_2016_PRIOR_PAGE2_PATTERN
+            else:
+                url = self.DOHA_2016_PRIOR_PATTERN.format(page=page)
             logger.info(f"Fetching 2016 and Prior page {page}/{self.DOHA_2016_PRIOR_PAGES}...")
 
             try:
