@@ -75,9 +75,16 @@ GUIDELINE_NGRAMS = {
     'F': {
         'bigrams': ['financial considerations', 'financial difficulty', 'delinquent debt',
                    'bankruptcy filed', 'foreclosure proceedings', 'financial irresponsibility',
-                   'inability to satisfy', 'tax lien'],
+                   'inability to satisfy', 'tax lien', 'credit report', 'unpaid debt',
+                   'financial problems', 'overdue accounts', 'collection account',
+                   'charged off', 'past due', 'owed money', 'outstanding debt',
+                   'failed to pay', 'debts owed', 'financial issues', 'credit card',
+                   'medical debt', 'student loan', 'delinquent accounts', 'credit history',
+                   'financial record', 'financial situation', 'debts totaling'],
         'trigrams': ['history of financial', 'unable to satisfy', 'financial problems resulted',
-                    'delinquent debt totaling', 'filed for bankruptcy']
+                    'delinquent debt totaling', 'filed for bankruptcy', 'failure to pay',
+                    'history of not', 'unwilling to satisfy', 'unable or unwilling',
+                    'debts listed on', 'alleged in sor', 'financial considerations concern']
     },
     'G': {
         'bigrams': ['alcohol consumption', 'alcohol use', 'driving under',
@@ -140,7 +147,9 @@ CONTEXT_INDICATORS = {
     'E': ['conduct', 'disclosure', 'statement', 'violation', 'omission',
           'falsification', 'dishonest', 'misleading', 'concealment'],
     'F': ['debt', 'bankruptcy', 'foreclosure', 'delinquent', 'financial',
-          'payment', 'credit', 'lien', 'judgment', 'defaulted'],
+          'payment', 'credit', 'lien', 'judgment', 'defaulted', 'owed', 'unpaid',
+          'collection', 'account', 'creditor', 'charged', 'overdue', 'resolved',
+          'alleged', 'sor', 'totaling', 'owing', 'admitted', 'denied'],
     'J': ['conduct', 'conviction', 'arrest', 'offense', 'charge', 'crime',
           'illegal', 'violation', 'sentenced', 'probation'],
     'I': ['disorder', 'condition', 'diagnosis', 'treatment', 'impairment',

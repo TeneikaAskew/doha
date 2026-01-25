@@ -331,8 +331,17 @@ def load_cached_llm_result(case_id: str, suffix: str) -> tuple[SEAD4AnalysisResu
 
     try:
         log_timing(f"load_cached_llm_result: Reading file...")
-        # Read cached response (use UTF-8 for Windows compatibility)
-        response_text = cache_file.read_text(encoding='utf-8')
+        # Try multiple encodings to handle different file sources
+        response_text = None
+        for encoding in ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']:
+            try:
+                response_text = cache_file.read_text(encoding=encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        if response_text is None:
+            # Last resort: read as bytes and decode with errors='replace'
+            response_text = cache_file.read_bytes().decode('utf-8', errors='replace')
 
         # Use cached parser instance (fast after first load)
         log_timing(f"load_cached_llm_result: Getting parser...")
@@ -593,7 +602,6 @@ if test_reports_dir.exists():
     elif st.session_state.last_selected_file != selected_file:
         log_timing(f"FILE CHANGED: {st.session_state.last_selected_file} -> {selected_file}")
         st.session_state.last_selected_file = selected_file
-        st.session_state.analyses_run = False  # Reset so analyses don't auto-run
         # Reset analyst assessment for new case
         st.session_state.analyst_guidelines = []
         st.session_state.analyst_assessments = {}
@@ -697,13 +705,13 @@ with tab_pdf:
     with col_analyst:
         analyst_assessment_form(case_id, SEAD4_GUIDELINES)
 
-# 1. Basic Native - auto-runs when tab is viewed
+# 1. Basic Native - always runs immediately (fast ~100ms)
 with tab1:
     log_timing("Rendering Basic Native tab")
     st.subheader("Basic Native")
     st.caption("Keyword matching and pattern recognition")
 
-    # Auto-run if not already done
+    # Always run immediately - it's fast (~100ms)
     if 'native' not in results:
         with st.status("Running Basic Native analysis...", expanded=True) as status:
             st.write("Analyzing document with keyword matching...")
@@ -712,7 +720,10 @@ with tab1:
             results['native'] = native_analyzer.analyze(document_text, case_id=f"{case_id}_native")
             log_timing("Basic Native: COMPLETE")
             status.update(label="Analysis complete!", state="complete", expanded=False)
-    else:
+        # Rerun to display results
+        st.rerun()
+
+    if 'native' in results:
         # Calculate precision against ground truth if available
         native_relevant = [g.code for g in results['native'].get_relevant_guidelines()]
         native_set = set(native_relevant)
@@ -757,12 +768,13 @@ with tab1:
                         for d in g.disqualifiers:
                             st.write(f"- {d.code}: {d.text[:100]}...")
 
-# 2. Enhanced Native - auto-runs when tab is viewed
+# 2. Enhanced Native - always runs immediately (fast after first load due to @st.cache_resource)
 with tab2:
     log_timing("Rendering Enhanced Native tab")
     st.subheader("Enhanced Native")
     st.caption("N-grams + TF-IDF + Semantic Embeddings + Contextual Analysis")
 
+    # Always run immediately - models are cached so it's fast after first load
     if 'enhanced' not in results:
         with st.status("Running Enhanced Native analysis...", expanded=True) as status:
             st.write("Loading ML models (sentence transformers)...")
@@ -772,7 +784,10 @@ with tab2:
             results['enhanced'] = enhanced_analyzer.analyze(document_text, case_id=f"{case_id}_enhanced")
             log_timing("Enhanced Native: COMPLETE")
             status.update(label="Analysis complete!", state="complete", expanded=False)
-    else:
+        # Rerun to display results
+        st.rerun()
+
+    if 'enhanced' in results:
         # Calculate precision against ground truth if available
         enhanced_relevant = [g.code for g in results['enhanced'].get_relevant_guidelines()]
         enhanced_set = set(enhanced_relevant)
@@ -817,7 +832,7 @@ with tab2:
                         for d in g.disqualifiers:
                             st.write(f"- {d.code}: {d.text[:100]}...")
 
-# 3. LLM (if enabled) - auto-runs when tab is viewed
+# 3. LLM (if enabled) - loads from cache or runs on button click
 if include_llm:
     with tab3:
         log_timing("Rendering LLM tab")
@@ -825,7 +840,7 @@ if include_llm:
         st.caption("Gemini 2.0 Flash analyzing independently - no pre-filtering from native analyzer")
 
         if 'llm' not in results:
-            # Try loading from file cache first
+            # Try loading from file cache first (fast)
             cached_llm, cached_usage = load_cached_llm_result(case_id, "llm")
             if cached_llm:
                 results['llm'] = cached_llm
@@ -835,18 +850,21 @@ if include_llm:
             elif not api_key:
                 st.warning("No API key configured. Set GEMINI_API_KEY to run LLM analysis.")
             else:
-                with st.status("Running LLM analysis...", expanded=True) as status:
-                    st.write("Calling Gemini API...")
-                    log_timing("LLM: RUNNING...")
-                    llm_analyzer = GeminiSEAD4Analyzer()
-                    results['llm'] = llm_analyzer.analyze(document_text, case_id=f"{case_id}_llm")
-                    # Capture token usage for cost calculation and save to cache
-                    if llm_analyzer.get_last_usage():
-                        st.session_state['llm_usage'] = llm_analyzer.get_last_usage()
-                        save_llm_cache_metadata(case_id, "llm", llm_analyzer.get_last_usage())
-                    st.session_state['llm_from_cache'] = False
-                    log_timing("LLM: COMPLETE")
-                    status.update(label="Analysis complete!", state="complete", expanded=False)
+                # Show button to run LLM (requires API call, so user must explicitly request)
+                st.info("LLM analysis requires an API call (~$0.02). Click below to run.")
+                if st.button("Run LLM Analysis", key="run_llm_btn", type="primary"):
+                    with st.status("Running LLM analysis...", expanded=True) as status:
+                        st.write("Calling Gemini API...")
+                        log_timing("LLM: RUNNING...")
+                        llm_analyzer = GeminiSEAD4Analyzer()
+                        results['llm'] = llm_analyzer.analyze(document_text, case_id=f"{case_id}_llm")
+                        # Capture token usage for cost calculation and save to cache
+                        if llm_analyzer.get_last_usage():
+                            st.session_state['llm_usage'] = llm_analyzer.get_last_usage()
+                            save_llm_cache_metadata(case_id, "llm", llm_analyzer.get_last_usage())
+                        st.session_state['llm_from_cache'] = False
+                        log_timing("LLM: COMPLETE")
+                        status.update(label="Analysis complete!", state="complete", expanded=False)
                     # Rerun to display results
                     st.rerun()
         if 'llm' in results:
@@ -904,15 +922,15 @@ if include_llm:
                             for d in g.disqualifiers:
                                 st.write(f"- {d.code}: {d.text[:100]}...")
 
-    # 4. Enhanced LLM (RAG) - runs independently, needs Enhanced Native first
+    # 4. Enhanced LLM (RAG) - loads from cache or runs on button click
     with tab4:
         log_timing("Rendering Enhanced LLM (RAG) tab")
         st.subheader("Enhanced LLM (RAG)")
         st.caption("Enhanced native guides LLM for focused analysis")
 
         if 'rag' not in results:
-            # Try loading from file cache first
-            cached_rag, cached_usage = load_cached_llm_result(case_id, "enhanced_native_rag")
+            # Try loading from file cache first (fast)
+            cached_rag, cached_usage = load_cached_llm_result(case_id, "rag")
             if cached_rag:
                 results['rag'] = cached_rag
                 st.session_state['rag_from_cache'] = True
@@ -921,29 +939,32 @@ if include_llm:
             elif not api_key:
                 st.warning("No API key configured. Set GEMINI_API_KEY to run RAG analysis.")
             elif 'enhanced' not in results:
-                st.warning("RAG analysis requires Enhanced Native results first. Click the Enhanced Native tab first.")
+                st.warning("RAG analysis requires Enhanced Native results first. The Enhanced Native tab will run automatically.")
             else:
-                with st.status("Running RAG analysis...", expanded=True) as status:
-                    st.write("Preparing native guidance from Enhanced Native...")
-                    native_guidance = {
-                        'relevant_guidelines': [g.code for g in results['enhanced'].get_relevant_guidelines()],
-                        'severe_concerns': [g.code for g in results['enhanced'].get_relevant_guidelines()
-                                           if g.severity and g.severity.value in ['C', 'D']],
-                        'recommendation': results['enhanced'].overall_assessment.recommendation.value,
-                        'confidence': results['enhanced'].overall_assessment.confidence,
-                        'key_concerns': results['enhanced'].overall_assessment.key_concerns
-                    }
-                    st.write("Calling Gemini API with native guidance...")
-                    log_timing("RAG: RUNNING...")
-                    llm_analyzer = GeminiSEAD4Analyzer()
-                    results['rag'] = llm_analyzer.analyze(document_text, case_id=f"{case_id}_rag", native_analysis=native_guidance)
-                    # Capture token usage for cost calculation and save to cache
-                    if llm_analyzer.get_last_usage():
-                        st.session_state['rag_usage'] = llm_analyzer.get_last_usage()
-                        save_llm_cache_metadata(case_id, "enhanced_native_rag", llm_analyzer.get_last_usage())
-                    st.session_state['rag_from_cache'] = False
-                    log_timing("RAG: COMPLETE")
-                    status.update(label="Analysis complete!", state="complete", expanded=False)
+                # Show button to run RAG (requires API call, so user must explicitly request)
+                st.info("RAG analysis requires an API call (~$0.02). Click below to run.")
+                if st.button("Run RAG Analysis", key="run_rag_btn", type="primary"):
+                    with st.status("Running RAG analysis...", expanded=True) as status:
+                        st.write("Preparing native guidance from Enhanced Native...")
+                        native_guidance = {
+                            'relevant_guidelines': [g.code for g in results['enhanced'].get_relevant_guidelines()],
+                            'severe_concerns': [g.code for g in results['enhanced'].get_relevant_guidelines()
+                                               if g.severity and g.severity.value in ['C', 'D']],
+                            'recommendation': results['enhanced'].overall_assessment.recommendation.value,
+                            'confidence': results['enhanced'].overall_assessment.confidence,
+                            'key_concerns': results['enhanced'].overall_assessment.key_concerns
+                        }
+                        st.write("Calling Gemini API with native guidance...")
+                        log_timing("RAG: RUNNING...")
+                        llm_analyzer = GeminiSEAD4Analyzer()
+                        results['rag'] = llm_analyzer.analyze(document_text, case_id=f"{case_id}_rag", native_analysis=native_guidance)
+                        # Capture token usage for cost calculation and save to cache
+                        if llm_analyzer.get_last_usage():
+                            st.session_state['rag_usage'] = llm_analyzer.get_last_usage()
+                            save_llm_cache_metadata(case_id, "rag", llm_analyzer.get_last_usage())
+                        st.session_state['rag_from_cache'] = False
+                        log_timing("RAG: COMPLETE")
+                        status.update(label="Analysis complete!", state="complete", expanded=False)
                     # Rerun to display results
                     st.rerun()
         if 'rag' in results:
