@@ -3,7 +3,7 @@
 ## Project Overview
 
 This is an LLM-powered system for analyzing security clearance reports against SEAD-4 adjudicative guidelines. It includes:
-- Browser-based scraping of 30,850+ DOHA cases using Playwright
+- Browser-based scraping of ~36,700 DOHA cases using Playwright
 - PDF download and parsing with bot protection bypass
 - RAG-based precedent matching
 - LLM analysis with Google Gemini (default) or Anthropic Claude
@@ -116,8 +116,8 @@ python run_full_scrape.py --case-type appeals   # Only appeals
 ### Index Building
 ```bash
 cd sead4_llm
-python build_index.py --from-json ../doha_parsed_cases/all_cases.json --output ./doha_index
-python build_index.py --test --index ./doha_index
+python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --output ../doha_index
+python build_index.py --test --index ../doha_index
 ```
 
 ## Error Handling

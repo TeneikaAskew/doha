@@ -1,5 +1,7 @@
 # SEAD-4 Adjudicative Guidelines Analyzer (LLM-Based)
 
+[![CI - Tests](https://github.com/TeneikaAskew/doha/actions/workflows/ci.yml/badge.svg)](https://github.com/TeneikaAskew/doha/actions/workflows/ci.yml)
+
 An LLM-powered system for analyzing security clearance reports against SEAD-4 adjudicative guidelines with explainable reasoning and optional precedent matching.
 
 ## Why LLM-Based?
@@ -25,7 +27,7 @@ An LLM-powered system for analyzing security clearance reports against SEAD-4 ad
 
 Try the DOHA Case Explorer: **https://doha-analysis.streamlit.app/**
 
-Browse and search ~36,700 DOHA cases with filtering by outcome, guidelines, year, and case type.
+Browse and search **~36,700 DOHA cases** with filtering by outcome, guidelines, year, and case type.
 
 ### Run Locally
 

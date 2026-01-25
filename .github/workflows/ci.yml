@@ -1,0 +1,152 @@
+name: CI - Tests and Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Only run on code changes, not data/docs
+      - '**.py'
+      - 'requirements.txt'
+      - 'sead4_llm/requirements.txt'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.py'
+      - 'requirements.txt'
+      - 'sead4_llm/requirements.txt'
+      - '.github/workflows/ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Syntax check - Core files
+        run: |
+          echo "Checking Python syntax..."
+          python -m py_compile download_pdfs.py
+          python -m py_compile run_full_scrape.py
+          python -m py_compile merge_checkpoints.py
+          python -m py_compile reprocess_cases.py
+          python -m py_compile sead4_llm/rag/scraper.py
+          python -m py_compile sead4_llm/rag/browser_scraper.py
+          python -m py_compile sead4_llm/build_index.py
+          echo "✓ All syntax checks passed"
+
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests..."
+          python ci_cd/test_smoke.py
+
+      - name: Run regression tests
+        run: |
+          echo "Running regression tests..."
+          python ci_cd/test_regression.py
+
+      - name: Run regex pattern tests
+        run: |
+          echo "Running comprehensive regex pattern tests..."
+          python ci_cd/test_regex_patterns.py
+
+      - name: Verify imports work
+        run: |
+          echo "Verifying imports..."
+          python -c "
+          import sys
+          sys.path.insert(0, 'sead4_llm')
+
+          # Core imports
+          from rag.scraper import DOHAScraper, ScrapedCase
+          from rag.browser_scraper import DownloadResult, DownloadError, DownloadErrorType
+          print('✓ Core imports successful')
+
+          # Config imports
+          from config.guidelines import GUIDELINES
+          print('✓ Guidelines loaded')
+
+          # Verify ScrapedCase has required fields
+          import dataclasses
+          fields = [f.name for f in dataclasses.fields(ScrapedCase)]
+          required = ['case_number', 'outcome', 'guidelines', 'full_text', 'source_url']
+          for r in required:
+              assert r in fields, f'Missing required field: {r}'
+          print('✓ ScrapedCase schema validated')
+          "
+
+      - name: Check for common issues
+        run: |
+          echo "Checking for common issues..."
+
+          # Check for bare except clauses (should be specific)
+          if grep -rn "except:" --include="*.py" | grep -v "except:.*#" | grep -v "test_" | head -5; then
+            echo "⚠️  Warning: Found bare 'except:' clauses (consider using specific exceptions)"
+          fi
+
+          # Check requirements.txt has version constraints
+          if grep -E "^[a-zA-Z]" requirements.txt | grep -v "[=<>~]" | head -3; then
+            echo "⚠️  Warning: Some dependencies lack version constraints"
+          fi
+
+          echo "✓ Common issue check complete"
+
+  # Optional: Run on multiple Python versions
+  test-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run smoke tests
+        run: python ci_cd/test_smoke.py
+
+      - name: Run regression tests
+        run: python ci_cd/test_regression.py
+
+      - name: Run regex pattern tests
+        run: python ci_cd/test_regex_patterns.py
+
+  # Summary job that requires all tests to pass
+  ci-success:
+    needs: [test, test-matrix]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.test-matrix.result }}" != "success" ]; then
+            echo "❌ Some tests failed"
+            exit 1
+          fi
+          echo "✅ All CI checks passed!"
