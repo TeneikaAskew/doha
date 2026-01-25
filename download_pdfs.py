@@ -41,6 +41,60 @@ GITHUB_FILE_LIMIT_MB = 100  # GitHub's actual hard limit
 MAX_PARQUET_SIZE_MB = 95  # Target for splitting (leaves room for compression variance)
 
 
+# =============================================================================
+# Case Data Access Helpers
+# =============================================================================
+# These helpers standardize access to case data whether it's a ScrapedCase
+# dataclass or a dict (from JSON deserialization).
+
+def get_case_field(case, field: str, default=None):
+    """Get a field from a case object (dict or dataclass).
+
+    Args:
+        case: ScrapedCase instance or dict
+        field: Field name to retrieve
+        default: Default value if field not found
+
+    Returns:
+        Field value or default
+    """
+    if isinstance(case, dict):
+        return case.get(field, default)
+    return getattr(case, field, default)
+
+
+def set_case_field(case, field: str, value):
+    """Set a field on a case object (dict or dataclass).
+
+    Args:
+        case: ScrapedCase instance or dict
+        field: Field name to set
+        value: Value to set
+    """
+    if isinstance(case, dict):
+        case[field] = value
+    else:
+        setattr(case, field, value)
+
+
+def case_to_dict(case) -> dict:
+    """Convert a case to dict for serialization.
+
+    Args:
+        case: ScrapedCase instance or dict
+
+    Returns:
+        Dict representation of the case
+    """
+    if isinstance(case, dict):
+        return case
+    if hasattr(case, 'to_dict'):
+        return case.to_dict()
+    if hasattr(case, '__dict__'):
+        return dict(case.__dict__)
+    return dict(case)
+
+
 def validate_pdf_case_consistency(
     hearing_pdf_dir: Path,
     appeal_pdf_dir: Path,
@@ -68,8 +122,8 @@ def validate_pdf_case_consistency(
     appeal_case_numbers = set()
 
     for case in existing_cases:
-        case_number = case.get('case_number') if isinstance(case, dict) else getattr(case, 'case_number', None)
-        case_type = case.get('case_type', 'hearing') if isinstance(case, dict) else getattr(case, 'case_type', 'hearing')
+        case_number = get_case_field(case, 'case_number')
+        case_type = get_case_field(case, 'case_type', 'hearing')
 
         if case_number:
             if case_type == 'appeal':
@@ -383,17 +437,14 @@ def download_and_parse_pdfs(
             if not isinstance(existing_cases, list):
                 logger.warning(f"Invalid existing cases format: expected list, got {type(existing_cases).__name__}, ignoring")
             else:
-                # Extract case numbers AND source_urls, handling both dict and object formats
+                # Extract case numbers AND source_urls
                 for case in existing_cases:
-                    if isinstance(case, dict):
-                        if "case_number" in case:
-                            processed_cases.add(case["case_number"])
-                        if "source_url" in case:
-                            processed_urls.add(case["source_url"])
-                    elif hasattr(case, 'case_number'):
-                        processed_cases.add(case.case_number)
-                        if hasattr(case, 'source_url'):
-                            processed_urls.add(case.source_url)
+                    case_number = get_case_field(case, 'case_number')
+                    source_url = get_case_field(case, 'source_url')
+                    if case_number:
+                        processed_cases.add(case_number)
+                    if source_url:
+                        processed_urls.add(source_url)
 
                 logger.info(f"Found {len(processed_cases)} already processed cases ({len(processed_urls)} unique URLs)")
 
@@ -548,20 +599,29 @@ def download_and_parse_pdfs(
 
                         # Parse case text
                         case = scraper.parse_case_text(case_number, full_text, url)
-                        if hasattr(case, '__dict__'):
-                            case.case_type = case_type_result
-                        elif isinstance(case, dict):
-                            case['case_type'] = case_type_result
+                        set_case_field(case, 'case_type', case_type_result)
                         cases.append(case)
                         batch_cases.append(case)
 
-                        outcome = case.outcome if hasattr(case, 'outcome') else case.get('outcome', 'Unknown')
+                        outcome = get_case_field(case, 'outcome', 'Unknown')
                         logger.success(f"✓ [{case_type_result}] {case_number}: {outcome}")
 
                     except Exception as e:
-                        logger.error(f"✗ [{case_type_result}] {case_number}: Parse error - {str(e)}")
+                        # Classify the error type
+                        error_type = "parse_error"
+                        if "fitz" in str(type(e).__module__).lower() or "pdf" in str(e).lower():
+                            error_type = "parse_error"
+                        elif "timeout" in str(e).lower():
+                            error_type = "timeout"
+                        elif "network" in str(e).lower() or "connection" in str(e).lower():
+                            error_type = "network_error"
+
+                        logger.error(f"✗ [{case_type_result}] {case_number}: {type(e).__name__}: {str(e)}")
                         failed.append({
-                            "error": f"Parse error: {str(e)}",
+                            "error": f"{type(e).__name__}: {str(e)}",
+                            "error_type": error_type,
+                            "http_status": None,
+                            "error_details": f"Exception class: {type(e).__module__}.{type(e).__name__}",
                             "case_type": case_type_result,
                             "case_number": case_number,
                             "url": url,
@@ -570,12 +630,9 @@ def download_and_parse_pdfs(
 
                 # Save checkpoint after each batch
                 if batch_cases:
-                    checkpoint_cases_dicts = [
-                        c.to_dict() if hasattr(c, 'to_dict') else c
-                        for c in batch_cases
-                    ]
+                    checkpoint_cases_dicts = [case_to_dict(c) for c in batch_cases]
 
-                    batch_types = [c.get('case_type', 'hearing') if isinstance(c, dict) else getattr(c, 'case_type', 'hearing') for c in batch_cases]
+                    batch_types = [get_case_field(c, 'case_type', 'hearing') for c in batch_cases]
                     checkpoint_type = max(set(batch_types), key=batch_types.count) if batch_types else 'hearing'
 
                     checkpoint_file = output_dir / f"checkpoint_{checkpoint_type}_batch{batch_idx + 1}.json"
@@ -663,13 +720,10 @@ def download_and_parse_pdfs(
 
                     # Parse case text
                     case = scraper.parse_case_text(case_number, full_text, url)
-                    if hasattr(case, '__dict__'):
-                        case.case_type = case_type
-                    elif isinstance(case, dict):
-                        case['case_type'] = case_type
+                    set_case_field(case, 'case_type', case_type)
                     cases.append(case)
 
-                    outcome = case.outcome if hasattr(case, 'outcome') else case.get('outcome', 'Unknown')
+                    outcome = get_case_field(case, 'outcome', 'Unknown')
                     logger.success(f"[{i}/{len(links_to_process)}] ✓ [{case_type}] {case_number}: {outcome}")
 
                     total_processed += 1
@@ -677,12 +731,9 @@ def download_and_parse_pdfs(
                     # Save checkpoint every 50 cases
                     if i % 50 == 0:
                         checkpoint_cases = cases[-50:]
-                        checkpoint_cases_dicts = [
-                            c.to_dict() if hasattr(c, 'to_dict') else c
-                            for c in checkpoint_cases
-                        ]
+                        checkpoint_cases_dicts = [case_to_dict(c) for c in checkpoint_cases]
 
-                        batch_types = [c.get('case_type', 'hearing') if isinstance(c, dict) else getattr(c, 'case_type', 'hearing') for c in checkpoint_cases]
+                        batch_types = [get_case_field(c, 'case_type', 'hearing') for c in checkpoint_cases]
                         checkpoint_type = max(set(batch_types), key=batch_types.count) if batch_types else 'hearing'
 
                         checkpoint_file = output_dir / f"checkpoint_{checkpoint_type}_{i}.json"
@@ -721,10 +772,7 @@ def download_and_parse_pdfs(
             browser_scraper.stop_browser()
 
     # Merge new cases with existing
-    all_parsed_cases = existing_cases + [
-        c.to_dict() if hasattr(c, 'to_dict') else c
-        for c in cases
-    ]
+    all_parsed_cases = existing_cases + [case_to_dict(c) for c in cases]
 
     # Save final results
     final_file = output_dir / "all_cases.json"
@@ -779,11 +827,11 @@ def download_and_parse_pdfs(
     all_case_types = Counter()
 
     for case in cases:
-        case_type = case.case_type if hasattr(case, 'case_type') else case.get('case_type', 'unknown')
+        case_type = get_case_field(case, 'case_type', 'unknown')
         new_case_types[case_type] += 1
 
     for case in all_parsed_cases:
-        case_type = case.get('case_type', 'unknown')
+        case_type = get_case_field(case, 'case_type', 'unknown')
         all_case_types[case_type] += 1
 
     logger.info(f"\n{'='*80}")
@@ -925,8 +973,9 @@ Output:
                 with open(all_cases_file) as f:
                     cases = json.load(f)
                 for case in cases:
-                    if isinstance(case, dict) and "case_number" in case:
-                        existing_case_numbers.add(case["case_number"])
+                    case_number = get_case_field(case, 'case_number')
+                    if case_number:
+                        existing_case_numbers.add(case_number)
             except Exception:
                 pass
 

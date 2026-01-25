@@ -81,6 +81,59 @@ jobs:
 
           cd ..
 
+      - name: Validate case count consistency
+        id: validate_counts
+        run: |
+          echo "Validating case count consistency..."
+
+          # Get parquet case count (handle both single file and split files)
+          PARQUET_COUNT=0
+          if [ -f "doha_parsed_cases/all_cases.parquet" ]; then
+            PARQUET_COUNT=$(python -c "import pandas as pd; print(len(pd.read_parquet('doha_parsed_cases/all_cases.parquet')))")
+          else
+            # Check for split parquet files
+            for f in doha_parsed_cases/all_cases_*.parquet; do
+              if [ -f "$f" ]; then
+                COUNT=$(python -c "import pandas as pd; print(len(pd.read_parquet('$f')))")
+                PARQUET_COUNT=$((PARQUET_COUNT + COUNT))
+              fi
+            done
+          fi
+          echo "Parquet case count: $PARQUET_COUNT"
+
+          # Get index case count
+          INDEX_COUNT=0
+          if [ -f "doha_index/cases.json" ]; then
+            INDEX_COUNT=$(python -c "import json; print(len(json.load(open('doha_index/cases.json'))))")
+          fi
+          echo "Index case count: $INDEX_COUNT"
+
+          # Store counts for summary
+          echo "parquet_count=$PARQUET_COUNT" >> $GITHUB_OUTPUT
+          echo "index_count=$INDEX_COUNT" >> $GITHUB_OUTPUT
+
+          # Check for mismatch
+          if [ "$PARQUET_COUNT" -gt 0 ] && [ "$INDEX_COUNT" -gt 0 ]; then
+            if [ "$PARQUET_COUNT" -ne "$INDEX_COUNT" ]; then
+              echo "⚠️  WARNING: Case count mismatch!"
+              echo "   Parquet: $PARQUET_COUNT cases"
+              echo "   Index:   $INDEX_COUNT cases"
+              echo "   Difference: $((PARQUET_COUNT - INDEX_COUNT)) cases"
+              echo "count_mismatch=true" >> $GITHUB_OUTPUT
+
+              # Don't fail the workflow, but flag the issue
+              echo "::warning::Case count mismatch: Parquet has $PARQUET_COUNT cases, Index has $INDEX_COUNT cases"
+            else
+              echo "✓ Case counts match: $PARQUET_COUNT cases"
+              echo "count_mismatch=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "⚠️  WARNING: Could not verify case counts"
+            echo "   Parquet: $PARQUET_COUNT cases"
+            echo "   Index:   $INDEX_COUNT cases"
+            echo "count_mismatch=unknown" >> $GITHUB_OUTPUT
+          fi
+
       - name: Check for changes
         id: check_changes
         run: |
@@ -184,6 +237,29 @@ jobs:
             fi
           else
             echo "ℹ️ **No new case links, PDFs, or index updates found**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Add validation results
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Data Validation" >> $GITHUB_STEP_SUMMARY
+
+          PARQUET_COUNT="${{ steps.validate_counts.outputs.parquet_count }}"
+          INDEX_COUNT="${{ steps.validate_counts.outputs.index_count }}"
+          COUNT_MISMATCH="${{ steps.validate_counts.outputs.count_mismatch }}"
+
+          if [ -n "$PARQUET_COUNT" ] && [ -n "$INDEX_COUNT" ]; then
+            echo "| Data Source | Case Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|-------------|------------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Parquet DB  | $PARQUET_COUNT |" >> $GITHUB_STEP_SUMMARY
+            echo "| RAG Index   | $INDEX_COUNT |" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$COUNT_MISMATCH" == "true" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ **Warning: Case count mismatch detected!** The index may need to be rebuilt." >> $GITHUB_STEP_SUMMARY
+            elif [ "$COUNT_MISMATCH" == "false" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "✅ **Case counts verified - data is consistent**" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
