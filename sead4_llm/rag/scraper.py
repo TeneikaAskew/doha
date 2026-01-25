@@ -109,10 +109,12 @@ class DOHAScraper:
     DOHA_APPEAL_2021_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/2021-DOHA-Appeal-Board/"
     DOHA_APPEAL_2020_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/2020-DOHA-Appeal-Board/"
     DOHA_APPEAL_2019_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/2019-DOHA-Appeal-Board/"
-    # For archived appeal years
+    # For archived appeal years (2017, 2018)
     DOHA_APPEAL_ARCHIVE_BASE = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/Archived-DOHA-Appeal-Board/"
+    DOHA_APPEAL_ARCHIVE_YEAR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/Archived-DOHA-Appeal-Board/{year}-DOHA-Appeal-Board/"
     # For 2016 and prior appeals (split across multiple pages)
-    DOHA_APPEAL_2016_PRIOR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/Archived-DOHA-Appeal-Board/2016-and-Prior-DOHA-Appeal-Board-{page}/"
+    # Note: Extra subdirectory "2016-and-Prior-DOHA-Appeal-Board" in the path
+    DOHA_APPEAL_2016_PRIOR_PATTERN = "https://doha.ogc.osd.mil/Industrial-Security-Program/Industrial-Security-Clearance-Decisions/DOHA-Appeal-Board/Archived-DOHA-Appeal-Board/2016-and-Prior-DOHA-Appeal-Board/2016-and-Prior-DOHA-Appeal-Board-{page}/"
     DOHA_APPEAL_2016_PRIOR_PAGES = 3  # There are at least 3 pages for 2016 and prior appeal cases
 
     # Guideline patterns for extraction
@@ -210,15 +212,19 @@ class DOHAScraper:
 
     def __init__(
         self,
-        output_dir: Path = Path("./doha_cases"),
+        output_dir: Path = None,
         rate_limit: float = 2.0,  # seconds between requests (increased for politeness)
         user_agent: str = None
     ):
         if not HAS_REQUESTS:
             raise ImportError("requests and beautifulsoup4 required. Install with: pip install requests beautifulsoup4")
 
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        # Only create output_dir if explicitly provided
+        if output_dir is not None:
+            self.output_dir = Path(output_dir)
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            self.output_dir = None
         self.rate_limit = rate_limit
         self.session = requests.Session()
 
@@ -1521,6 +1527,8 @@ class DOHAScraper:
 
     def _save_cases(self, cases: List[ScrapedCase], filename: str):
         """Save cases to JSON file"""
+        if self.output_dir is None:
+            raise ValueError("output_dir must be set to save cases")
         output_path = self.output_dir / filename
 
         with open(output_path, 'w') as f:
@@ -1530,6 +1538,8 @@ class DOHAScraper:
 
     def load_cases(self, filename: str) -> List[ScrapedCase]:
         """Load cases from JSON file"""
+        if self.output_dir is None:
+            raise ValueError("output_dir must be set to load cases")
         input_path = self.output_dir / filename
 
         try:

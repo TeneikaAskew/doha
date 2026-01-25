@@ -32,7 +32,7 @@ class DOHABrowserScraper(DOHAScraper):
 
     def __init__(
         self,
-        output_dir: Path = Path("./doha_cases"),
+        output_dir: Path = None,
         rate_limit: float = 3.0,  # Longer delays for browser-based scraping
         headless: bool = True
     ):
@@ -411,7 +411,8 @@ class DOHABrowserScraper(DOHAScraper):
         # Choose URL pattern based on year
         # Appeal Board has different URL patterns for different years
         if is_archived:
-            url = self.DOHA_APPEAL_ARCHIVE_BASE
+            # Archived appeals (2017, 2018) have year-specific URLs
+            url = self.DOHA_APPEAL_ARCHIVE_YEAR_PATTERN.format(year=year)
         elif year == 2022:
             url = self.DOHA_APPEAL_2022_PATTERN
         elif year == 2021:
@@ -555,11 +556,14 @@ class DOHABrowserScraper(DOHAScraper):
         """
         Download PDF bytes using browser (bypasses bot protection)
 
-        The URL is typically an HTML page containing links to PDF and TXT files.
-        We parse the HTML to find and download the actual PDF.
+        The URL may be:
+        1. A direct PDF file (FileId URLs now return PDF directly)
+        2. An HTML page containing links to PDF and TXT files
+
+        We first check if the response is a PDF, and if not, parse as HTML.
 
         Args:
-            url: URL to case page (HTML with PDF link)
+            url: URL to case page or direct PDF
 
         Returns:
             PDF bytes or None on failure
@@ -569,14 +573,28 @@ class DOHABrowserScraper(DOHAScraper):
         try:
             logger.debug(f"Fetching case page: {url}")
 
-            # First, get the HTML page to find the PDF link
+            # Fetch the URL
             response = self.page.context.request.get(url, timeout=60000)
 
             if response.status != 200:
                 logger.error(f"Failed to fetch page: HTTP {response.status}")
                 return None
 
-            html = response.text()
+            # Get response body as bytes first
+            body = response.body()
+
+            # Check if response is already a PDF (magic bytes: %PDF)
+            if body and len(body) >= 4 and body[:4] == b'%PDF':
+                logger.debug(f"URL returned PDF directly: {url}")
+                return body
+
+            # Not a PDF, try to parse as HTML to find PDF link
+            try:
+                html = body.decode('utf-8')
+            except UnicodeDecodeError:
+                # Binary data that's not a PDF - can't parse
+                logger.warning(f"Response is binary but not a PDF: {url}")
+                return None
 
             # Parse HTML to find PDF link (skip .txt files)
             soup = BeautifulSoup(html, 'html.parser')
@@ -701,11 +719,13 @@ class ParallelBrowserDownloader:
     def _download_one(self, url: str) -> Optional[bytes]:
         """Download a single PDF using thread-local browser context.
 
-        The URL is an HTML page containing links to PDF and TXT files.
-        We need to parse the HTML to find and download the actual PDF.
+        The URL may be:
+        1. A direct PDF file (FileId URLs now return PDF directly)
+        2. An HTML page containing links to PDF and TXT files
+
+        We first check if the response is a PDF, and if not, parse as HTML.
         """
         from bs4 import BeautifulSoup
-        import re
 
         ctx = self._get_thread_browser()
 
@@ -718,7 +738,7 @@ class ParallelBrowserDownloader:
 
         logger.info(f"Fetching page: {url}")
         try:
-            # First, get the HTML page to find the PDF link
+            # Fetch the URL
             response = ctx.request.get(url, timeout=60000)
             self._local.last_request = time.time()
 
@@ -726,7 +746,21 @@ class ParallelBrowserDownloader:
                 logger.warning(f"Failed to fetch page: HTTP {response.status} for {url}")
                 return None
 
-            html = response.text()
+            # Get response body as bytes first
+            body = response.body()
+
+            # Check if response is already a PDF (magic bytes: %PDF)
+            if body and len(body) >= 4 and body[:4] == b'%PDF':
+                logger.debug(f"URL returned PDF directly: {url}")
+                return body
+
+            # Not a PDF, try to parse as HTML to find PDF link
+            try:
+                html = body.decode('utf-8')
+            except UnicodeDecodeError:
+                # Binary data that's not a PDF - can't parse
+                logger.warning(f"Response is binary but not a PDF: {url}")
+                return None
 
             # Parse HTML to find PDF link
             soup = BeautifulSoup(html, 'html.parser')
@@ -767,7 +801,7 @@ class ParallelBrowserDownloader:
             body = pdf_response.body()
 
             # Validate we got a PDF (check magic bytes)
-            if not body or len(body) < 4 or not body[:4].startswith(b'%PDF'):
+            if not body or len(body) < 4 or not body[:4] == b'%PDF':
                 preview = body[:100].decode('utf-8', errors='replace') if body else '(empty)'
                 logger.warning(f"Not a PDF: {pdf_link} - starts with: {preview[:50]}...")
                 return None
@@ -894,5 +928,5 @@ if __name__ == "__main__":
     else:
         print("\nTo scrape all cases:")
         print("  from rag.browser_scraper import scrape_with_browser")
-        print("  scrape_with_browser('./doha_cases', include_2016_and_prior=True)")
+        print("  scrape_with_browser('./doha_full_scrape', include_2016_and_prior=True)")
 
