@@ -1,0 +1,290 @@
+```json
+{
+  "case_id": "PSH-25-0206",
+  "overall_assessment": {
+    "recommendation": "UNFAVORABLE",
+    "confidence": 0.85,
+    "summary": "The individual's access authorization should not be restored due to concerns regarding foreign influence, personal conduct, and financial considerations. The individual demonstrated a lack of candor and questionable judgment by failing to disclose information and providing conflicting statements during the investigation.",
+    "key_concerns": [
+      "Foreign connections and potential for influence",
+      "Lack of candor and dishonesty",
+      "Unexplained affluence and financial discrepancies"
+    ],
+    "key_mitigations": [
+      "Individual obtained U.S. citizenship",
+      "Expressed lack of concern about coercion via family"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": null
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest the individual has divided allegiance or has committed any acts against the United States. Therefore, Guideline A is not relevant.",
+      "confidence": 1.0
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 7(a)",
+          "text": "contact, regardless of method, with a foreign family member, business or professional associate, friend, or other person who is a citizen of or resident in a foreign country if that contact creates a heightened risk of foreign exploitation, inducement, manipulation, pressure, or coercion",
+          "evidence": "The Individual was born in Iran and held Iranian citizenship, and alleged that the Individual maintained close and continuing contact with members of his family who are Iranian nationals, including his father who served in the Iranian armed forces for twenty-seven years.",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG ¶ 7(b)",
+          "text": "connections to a foreign person, group, government, or country that create a potential conflict of interest between the individual's obligation to protect classified or sensitive information or technology and the individual's desire to help a foreign person, group, or country by providing that information or technology",
+          "evidence": "The Individual was born in Iran and held Iranian citizenship, and alleged that the Individual maintained close and continuing contact with members of his family who are Iranian nationals, including his father who served in the Iranian armed forces for twenty-seven years.",
+          "confidence": 0.8
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 8(a)",
+          "text": "the nature of the relationships with foreign persons, the country in which these persons are located, or the positions or activities of those persons in that country are such that it is unlikely the individual will be placed in a position of having to choose between the interests of a foreign individual, group, organization, or government and the interests of the United States",
+          "applicability": "PARTIAL",
+          "reasoning": "While the individual claims he would not trust the Iranian government, the close family ties still present a potential vulnerability.",
+          "evidence": "He testified that he did not believe that he could be blackmailed or coerced by the Iranian government via threats to his family because, although he loves his family and does not wish them harm, he would not trust the Iranian government not to harm his family even if he were to comply with its requests."
+        },
+        {
+          "code": "AG ¶ 8(b)",
+          "text": "there is no conflict of interest, either because the individual's sense of loyalty or obligation to the foreign person, or allegiance to the group, government, or country is so minimal, or the individual has such deep and longstanding relationships and loyalties in the United States, that the individual can be expected to resolve any conflict of interest in favor of the U.S. interest",
+          "applicability": "PARTIAL",
+          "reasoning": "The individual obtained U.S. citizenship in 2019, suggesting some allegiance to the U.S. However, his close family ties to Iranian nationals, including his father's service in the Iranian armed forces, raise concerns about potential divided loyalties.",
+          "evidence": "The Individual came to the U.S. in January 2011 and obtained U.S. citizenship in 2019."
+        }
+      ],
+      "reasoning": "The individual's Iranian background and continued contact with family in Iran, including a father who served in the Iranian armed forces, raise concerns about potential foreign influence. While the individual has obtained U.S. citizenship and claims he would not be coerced, the potential for pressure remains. This is a serious concern.",
+      "confidence": 0.8
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The individual obtained U.S. citizenship, suggesting a preference for the United States. There is no evidence to suggest the individual is acting in a way that indicates a preference for Iran over the United States. Therefore, Guideline C is not relevant.",
+      "confidence": 0.9
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information pertaining to the individual's sexual behavior. Therefore, Guideline D is not relevant.",
+      "confidence": 1.0
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 16(a)",
+          "text": "deliberate omission, concealment, or falsification of relevant facts from any personnel security questionnaire, personal history statement, or similar form used to conduct investigations, determine employment qualifications, award benefits or status, determine national security eligibility or trustworthiness, or award fiduciary responsibilities",
+          "evidence": "The SSC cited the Individual having: (1) failed to disclose all employment activities on the QNSP, during the interview with the investigator, or in response to the First and Second LOIs as required; (2) provided information in response to the LOIs concerning his income from self-employment that conflicted with information he reported on personal income tax returns filed with the IRS; (3) failed to disclose personal loans in excess of $10,000 to the LSO; and, (4) failed to disclose depositing $28,300 in cash to his personal bank account on December 13, 2023, in response to the Second LOI.",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG ¶ 16(b)",
+          "text": "deliberately providing false or misleading information; or concealing or omitting information, concerning relevant facts to an employer, investigator, security official, competent medical or mental health professional involved in making a recommendation relevant to a national security eligibility determination, or other official government representative",
+          "evidence": "The SSC cited the Individual having: (1) failed to disclose all employment activities on the QNSP, during the interview with the investigator, or in response to the First and Second LOIs as required; (2) provided information in response to the LOIs concerning his income from self-employment that conflicted with information he reported on personal income tax returns filed with the IRS; (3) failed to disclose personal loans in excess of $10,000 to the LSO; and, (4) failed to disclose depositing $28,300 in cash to his personal bank account on December 13, 2023, in response to the Second LOI.",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 17(a)",
+          "text": "the individual made prompt, good-faith efforts to correct the omission, concealment, or falsification before being confronted with the facts",
+          "applicability": "NONE",
+          "reasoning": "The individual only disclosed the information after being confronted by the LSO.",
+          "evidence": null
+        }
+      ],
+      "reasoning": "The individual's failure to disclose employment activities, conflicting income reports, and large cash deposits raise serious concerns about his candor and trustworthiness. The repeated omissions and inconsistencies suggest a pattern of behavior that calls into question his reliability.",
+      "confidence": 0.9
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 19(f)",
+          "text": "failure to file or fraudulently filing annual Federal, state, or local income tax returns or failure to pay annual Federal, state, or local income tax as required",
+          "evidence": "The tax transcripts the Individual provided in response to the Fourth LOI did not reflect that the Individual reported self-employment income to the IRS consistent with that he claimed to have earned in his responses to the LOIs.",
+          "confidence": 0.8
+        },
+        {
+          "code": "AG ¶ 19(g)",
+          "text": "unexplained affluence, as shown by a lifestyle or standard of living, increase in net worth, or money transfers that are inconsistent with known legal sources of income",
+          "evidence": "The SSC alleged that the Individual had failed to establish the source of the funds he used to purchase the investment property, failed to satisfactorily establish the source of $53,300 in cash that he deposited into a personal bank account over the course of two days in December 2023, engaged in suspicious transactions totaling over $50,000 via his PayPal account, and failed to report income on his personal income tax returns for tax years 2017 through 2023 consistent with the self-employment income he claimed to have earned in those years on the LOIs.",
+          "confidence": 0.8
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 20(a)",
+          "text": "the behavior happened so long ago, was so infrequent, or occurred under such circumstances that it is unlikely to recur and does not cast doubt on the individual's current reliability, trustworthiness, or good judgment",
+          "applicability": "NONE",
+          "reasoning": "The behavior is recent and ongoing.",
+          "evidence": null
+        }
+      ],
+      "reasoning": "The individual's failure to report income, unexplained affluence, and suspicious financial transactions raise concerns about his financial responsibility and potential vulnerability to exploitation. The discrepancies between reported income and actual deposits suggest a lack of candor and potential illegal activity.",
+      "confidence": 0.8
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information pertaining to the individual's alcohol consumption. Therefore, Guideline G is not relevant.",
+      "confidence": 1.0
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information pertaining to the individual's drug involvement or substance misuse. Therefore, Guideline H is not relevant.",
+      "confidence": 1.0
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest the individual has a psychological condition that impairs judgment, stability, reliability, or trustworthiness. Therefore, Guideline I is not relevant.",
+      "confidence": 1.0
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "While there are financial discrepancies, there is no evidence of criminal charges or convictions. Therefore, Guideline J is not directly relevant, although the underlying conduct could potentially lead to criminal charges.",
+      "confidence": 0.7
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest the individual has mishandled protected information. Therefore, Guideline K is not relevant.",
+      "confidence": 1.0
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest the individual is involved in outside activities that pose a conflict of interest. Therefore, Guideline L is not relevant.",
+      "confidence": 1.0
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest the individual has misused information technology. Therefore, Guideline M is not relevant.",
+      "confidence": 1.0
+    }
+  ],
+  "whole_person_analysis": [
+    {
+      "factor": "The nature, extent, and seriousness of the conduct",
+      "assessment": "The conduct involves repeated omissions and inconsistencies in reporting income and employment, as well as potential financial irregularities. This is a serious concern.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The circumstances surrounding the conduct, to include knowledgeable participation",
+      "assessment": "The individual knowingly provided false or misleading information on multiple occasions.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The frequency and recency of the conduct",
+      "assessment": "The conduct is frequent and recent, occurring over several years and continuing up to the present time.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The individual's age and maturity at the time of the conduct",
+      "assessment": "The individual was an adult at the time of the conduct.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The extent to which participation is voluntary",
+      "assessment": "The individual voluntarily provided false or misleading information.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The presence or absence of rehabilitation and other permanent behavioral changes",
+      "assessment": "There is no evidence of rehabilitation or behavioral changes.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The motivation for the conduct",
+      "assessment": "The motivation appears to be to conceal income and employment activities.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The potential for pressure, coercion, exploitation, or duress",
+      "assessment": "The individual's foreign connections could create a potential for pressure or coercion.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The likelihood of continuation or recurrence",
+      "assessment": "Given the pattern of behavior, there is a high likelihood of continuation or recurrence.",
+      "impact": "UNFAVORABLE"
+    }
+  ],
+  "follow_up_recommendations": [
+    {
+      "action": "Conduct a more thorough financial investigation, including a review of bank records and tax returns.",
+      "priority": "HIGH",
+      "guideline": "F",
+      "rationale": "To determine the full extent of the individual's financial irregularities and potential illegal activity."
+    },
+    {
+      "action": "Conduct a polygraph examination to assess the individual's candor.",
+      "priority": "HIGH",
+      "guideline": "E",
+      "rationale": "To verify the individual's statements and identify any additional undisclosed information."
+    },
+    {
+      "action": "Interview the individual's family members in Iran to assess the potential for foreign influence.",
+      "priority": "MEDIUM",
+      "guideline": "B",
+      "rationale": "To determine the nature and extent of their relationship and any potential vulnerabilities."
+    }
+  ]
+}
+```

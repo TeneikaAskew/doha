@@ -1,0 +1,267 @@
+```json
+{
+  "case_id": "PSH-25-0170",
+  "overall_assessment": {
+    "recommendation": "FAVORABLE",
+    "confidence": 0.95,
+    "summary": "The individual's access authorization should be restored. While the individual had an alcohol-related incident and was diagnosed with mild AUD, he has since demonstrated a commitment to sobriety through therapy, IOP, SMART Recovery, and consistent negative PEth tests. The individual has shown significant rehabilitation and a low risk of relapse.",
+    "key_concerns": [
+      "Alcohol Use Disorder (mild)",
+      "Negligent Discharge of a Deadly Weapon while under the influence of alcohol"
+    ],
+    "key_mitigations": [
+      "Completion of Intensive Outpatient Program (IOP)",
+      "Consistent negative PEth tests",
+      "Active participation in SMART Recovery",
+      "Ongoing individual psychotherapy with a focus on substance abuse",
+      "Expressed commitment to abstinence"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": "The Bond Amendment does not apply as the individual's NDDW charge resulted in a deferred sentence and 90-day probation, not a conviction with a sentence > 1 year and incarceration >= 1 year. There is no indication of unlawful use of controlled substances or addiction."
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to allegiance to the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any foreign contacts or interests that could create a risk of foreign influence or coercion.",
+      "confidence": 1.0
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any preference for a foreign country over the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to sexual behavior.",
+      "confidence": 1.0
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "While the NDDW incident reflects poor judgment, the individual has taken responsibility and demonstrated positive changes. There is no indication of a pattern of questionable judgment or unwillingness to comply with rules and regulations.",
+      "confidence": 0.9
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any financial issues.",
+      "confidence": 1.0
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": true,
+      "severity": "B",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 22(a)",
+          "text": "alcohol-related incidents away from work, such as driving while under the influence, fighting, child or spouse abuse, disturbing the peace, or other incidents of concern, regardless of the frequency of the individual's alcohol use or whether the individual has been diagnosed with alcohol use disorder",
+          "evidence": "In February 2024, when he accidentally shot himself in the thigh while under the influence of alcohol.",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG ¶ 22(d)",
+          "text": "diagnosis by a duly qualified medical or mental health professional (e.g., physician, clinical psychologist, psychiatrist, or licensed clinical social worker) of alcohol use disorder",
+          "evidence": "the Individual met sufficient Diagnostic and Statistical Manual of Mental Disorders – Fifth Edition (DSM-5) criteria for a diagnosis of Alcohol Use Disorder (AUD), mild.",
+          "confidence": 1.0
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 23(b)",
+          "text": "the individual acknowledges his or her pattern of maladaptive alcohol use, provides evidence of actions taken to overcome this problem, and has demonstrated a clear and established pattern of modified consumption or abstinence in accordance with treatment recommendations",
+          "applicability": "FULL",
+          "reasoning": "The individual acknowledges his past alcohol use and has taken significant steps to overcome it, including completing an IOP, attending SMART Recovery classes, and maintaining consistent abstinence documented by negative PEth tests.",
+          "evidence": "The Individual testified that he has no plans to resume consuming alcohol in the future, and he is “very happy in [his] sobriety.” Tr. at 109. Since February 2025, he has gotten monthly PEth tests to document his abstinence. Id. Each of the ten tests that he underwent came back negative for alcohol consumption. Id.; Ex. B."
+        },
+        {
+          "code": "AG ¶ 23(c)",
+          "text": "the individual is participating in counseling or a treatment program, has no previous history of treatment and relapse, and is making satisfactory progress in a treatment program",
+          "applicability": "FULL",
+          "reasoning": "The individual is actively participating in individual therapy and SMART Recovery classes. He has no prior history of relapse and is making satisfactory progress.",
+          "evidence": "The Individual began attending SMART Recovery4 classes on a weekly basis about one week after he completed his IOP. Id. at 101; Ex. H. The Individual also completed a second EAP course about alcohol use in September 2025. Id. at 12–13, 101; Ex. E."
+        }
+      ],
+      "reasoning": "Guideline G is relevant due to the alcohol-related incident and AUD diagnosis. However, the individual has demonstrated significant rehabilitation through treatment, therapy, and a commitment to abstinence. The mitigating factors outweigh the disqualifying conditions.",
+      "confidence": 0.95
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The record does not indicate any drug involvement or substance misuse other than alcohol.",
+      "confidence": 1.0
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": true,
+      "severity": "A",
+      "disqualifiers": [],
+      "mitigators": [
+        {
+          "code": "AG ¶ 29(b)",
+          "text": "the individual has voluntarily entered a counseling or treatment program for a condition that is amenable to treatment, and the individual is currently receiving counseling or treatment with a favorable prognosis by a duly qualified mental health professional",
+          "applicability": "FULL",
+          "reasoning": "The individual voluntarily sought therapy after the incident and continues to attend sessions. The substance abuse therapist provided a favorable prognosis.",
+          "evidence": "The substance abuse therapist that the Individual worked with in the IOP testified that he was very successful and worked very hard in the program. Id. at 25–26. She stated that in her professional opinion as a licensed substance professional and a licensed clinical therapist, she believes the Individual is at low risk to return to consuming alcohol and that he has an excellent prognosis. Id. at 27–28."
+        },
+        {
+          "code": "AG ¶ 29(e)",
+          "text": "there is no indication of a current problem",
+          "applicability": "FULL",
+          "reasoning": "The individual's current behavior and commitment to sobriety indicate that there is no current psychological problem that impairs judgment, stability, reliability, or trustworthiness.",
+          "evidence": "The Individual testified that he has no plans to resume consuming alcohol in the future, and he is “very happy in [his] sobriety.” Tr. at 109."
+        }
+      ],
+      "reasoning": "Guideline I is relevant because the individual sought therapy after the incident, initially due to concerns about PTSD. However, the ongoing therapy and favorable prognosis from the substance abuse therapist mitigate any concerns about a psychological condition impacting judgment or reliability. The initial concern about PTSD appears to have been resolved through therapy.",
+      "confidence": 0.9
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": true,
+      "severity": "A",
+      "disqualifiers": [],
+      "mitigators": [
+        {
+          "code": "AG ¶ 32(a)",
+          "text": "so much time has elapsed since the criminal behavior happened, or it happened under such unusual circumstances, that it is unlikely to recur and does not cast doubt on the individual's reliability, trustworthiness, or good judgment",
+          "applicability": "FULL",
+          "reasoning": "The NDDW incident occurred in February 2024. The individual entered a plea of no contest in August 2024 and received a deferred sentence, paid $17 in court fees, was subject to a ninety-day probation, and was required to complete a gun safety course. The individual completed the gun safety course prior to the plea agreement, in April 2024. The incident was isolated and unlikely to recur given the individual's subsequent actions and commitment to sobriety.",
+          "evidence": "He entered a plea of no contest in August 2024 and received a deferred sentence, paid $17 in court fees, was subject to a ninety-day probation, and was required to complete a gun safety course. Id. The Individual completed the gun safety course prior to the plea agreement, in April 2024. Id.; Ex. J."
+        }
+      ],
+      "reasoning": "Guideline J is relevant due to the NDDW charge. However, the deferred sentence, completion of the gun safety course, and the passage of time since the incident, coupled with the individual's rehabilitation, mitigate any concerns about future criminal conduct.",
+      "confidence": 0.9
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to handling protected information.",
+      "confidence": 1.0
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any outside activities that could pose a conflict of interest.",
+      "confidence": 1.0
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any misuse of information technology.",
+      "confidence": 1.0
+    }
+  ],
+  "whole_person_analysis": [
+    {
+      "factor": "Nature and Extent of Conduct",
+      "assessment": "The NDDW incident was serious but isolated. The AUD diagnosis was mild. The individual's actions since the incident demonstrate a commitment to rehabilitation.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "Circumstances Surrounding the Conduct",
+      "assessment": "The incident occurred while the individual was at home and under the influence of alcohol. He recognized the danger of handling a firearm while distracted and attempted to disassemble it, leading to the accidental discharge.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "Frequency and Recency of the Conduct",
+      "assessment": "The NDDW incident occurred in February 2024. The AUD diagnosis was made in November 2024. The individual has been abstinent since February 2025.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "Individual's Age and Maturity",
+      "assessment": "The individual's age and maturity are not explicitly stated, but his actions suggest a level of responsibility in seeking help and addressing his alcohol use.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "Extent to Which Participation is Voluntary",
+      "assessment": "The individual voluntarily sought therapy and participated in the IOP and SMART Recovery classes. His commitment to abstinence appears genuine.",
+      "impact": "FAVORABLE"
+    },
+    {
+      "factor": "Presence or Absence of Rehabilitation",
+      "assessment": "The individual has demonstrated significant rehabilitation through therapy, IOP, SMART Recovery, and consistent negative PEth tests.",
+      "impact": "FAVORABLE"
+    },
+    {
+      "factor": "Motivation for the Conduct",
+      "assessment": "The motivation for the NDDW incident was poor judgment while under the influence of alcohol. The motivation for rehabilitation is a desire to improve his health and well-being.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "Potential for Pressure, Coercion, Exploitation, or Duress",
+      "assessment": "There is no indication of pressure, coercion, exploitation, or duress.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "Likelihood of Continuation or Recurrence",
+      "assessment": "The individual's commitment to abstinence and ongoing participation in therapy and support groups significantly reduce the likelihood of continuation or recurrence.",
+      "impact": "FAVORABLE"
+    }
+  ],
+  "follow_up_recommendations": [
+    {
+      "action": "Continue monitoring the individual's abstinence through periodic PEth tests.",
+      "priority": "LOW",
+      "guideline": "G",
+      "rationale": "To ensure continued compliance with abstinence and to detect any potential relapse."
+    },
+    {
+      "action": "Encourage continued participation in therapy and support groups.",
+      "priority": "LOW",
+      "guideline": "I",
+      "rationale": "To provide ongoing support and address any underlying issues that may contribute to alcohol use."
+    }
+  ]
+}
+```

@@ -1,0 +1,298 @@
+```json
+{
+  "case_id": "PSH-25-0167",
+  "overall_assessment": {
+    "recommendation": "UNFAVORABLE",
+    "confidence": 0.9,
+    "summary": "The Individual's access authorization is not clearly consistent with the national interest due to significant financial irresponsibility, deception, and a diagnosed gambling disorder. While the Individual has taken some steps toward remediation, the recency and severity of the issues, coupled with the psychologist's assessment, outweigh the mitigating factors.",
+    "key_concerns": [
+      "Financial irresponsibility and debt",
+      "Deception and dishonesty towards spouse",
+      "Diagnosed Gambling Disorder",
+      "Lack of candor regarding financial issues"
+    ],
+    "key_mitigations": [
+      "Deletion of gambling accounts",
+      "Expressed intent to resolve debts",
+      "Sustained remission of Gambling Disorder"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": "The Bond Amendment does not appear to apply as there is no indication of unlawful drug use, addiction, a felony conviction with incarceration >1 year, or dishonorable discharge from the Armed Forces, or mental incompetence determined by a court."
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest disloyalty or allegiance to any entity other than the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information provided to suggest the Individual is susceptible to foreign influence or has any significant foreign contacts or interests.",
+      "confidence": 1.0
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest the Individual has a preference for any foreign country over the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information pertaining to the Individual's sexual behavior that would raise a security concern.",
+      "confidence": 1.0
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 16(a)",
+          "text": "deliberate omission, concealment, or falsification of relevant facts from any personnel security questionnaire, personal history statement, or similar form used to conduct investigations, determine employment qualifications, award benefits or status, determine national security eligibility or trustworthiness, or award fiduciary responsibilities",
+          "evidence": "The Individual admitted that although his wife knew that he was gambling, she was not aware of the fact that he had “the charged off accounts.”",
+          "confidence": 0.8
+        },
+        {
+          "code": "AG ¶ 16(b)",
+          "text": "deliberately providing false or misleading information; or concealing or omitting information, concerning relevant facts to an employer, investigator, security official, competent medical or mental health professional involved in making a recommendation relevant to a national security eligibility determination, or other official government representative",
+          "evidence": "She accordingly asked the Individual if he knew anything about the accounts, “to which he denied knowing anything about them.”",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 17(a)",
+          "text": "the individual made prompt, good-faith efforts to correct the omission, concealment, or falsification before being confronted with the facts",
+          "applicability": "NONE",
+          "reasoning": "The Individual did not come forward with the information until confronted by investigators.",
+          "evidence": null
+        }
+      ],
+      "reasoning": "The Individual's dishonesty towards his wife regarding the credit card accounts opened in her name and the extent of his gambling, as well as his initial denial of knowledge about the fraudulent accounts, raises concerns about his candor and trustworthiness. This is further compounded by his failure to disclose the charged-off accounts to his wife.",
+      "confidence": 0.8
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 19(a)",
+          "text": "inability to satisfy debts",
+          "evidence": "The Individual indicated that from about October 2023 to January 2024, he was not able to make payments on “numerous cards and accounts[,]”",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG ¶ 19(b)",
+          "text": "unwillingness to satisfy debts regardless of the ability to do so",
+          "evidence": "as he “was simply trying to live above [his] means[.]”",
+          "confidence": 0.7
+        },
+        {
+          "code": "AG ¶ 19(d)",
+          "text": "deceptive or illegal financial practices such as embezzlement, employee theft, check fraud, expense account fraud, mortgage fraud, filing deceptive loan statements and other intentional financial breaches of trust",
+          "evidence": "In 2012, the Individual used his wife’s personal information to open two credit card accounts.",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG ¶ 19(h)",
+          "text": "borrowing money or engaging in significant financial transactions to fund gambling or pay gambling debts",
+          "evidence": "The Individual told the investigator that he had accessed the aforementioned credit cards to “get cash advances from the cards and deposit the money into his bank account and then transfer the money to the online gambling sites.”",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 20(a)",
+          "text": "the behavior happened so long ago, was so infrequent, or occurred under such circumstances that it is unlikely to recur and does not cast doubt on the individual's current reliability, trustworthiness, or good judgment",
+          "applicability": "PARTIAL",
+          "reasoning": "The credit card fraud occurred in 2012, which is a significant amount of time ago. However, the gambling and associated debt issues are more recent, occurring between 2019/2020 and 2024.",
+          "evidence": null
+        },
+        {
+          "code": "AG ¶ 20(d)",
+          "text": "the individual initiated and is adhering to a good-faith effort to repay overdue creditors or otherwise resolve debts",
+          "applicability": "PARTIAL",
+          "reasoning": "The Individual stated he was saving money to resolve all his outstanding debts within six to twelve months, anticipating a full resolution around June 2025. However, there is no concrete evidence of repayment plans or actions beyond stated intent.",
+          "evidence": "Furthermore, he was saving money to resolve all his outstanding debts within six to twelve months, anticipating a full resolution around June 2025."
+        }
+      ],
+      "reasoning": "The Individual's history of financial irresponsibility, including accumulating significant debt, using credit cards for gambling, and opening credit cards in his wife's name without her knowledge, raises serious concerns about his judgment, reliability, and willingness to abide by rules and regulations. While he has expressed intent to resolve his debts, the recency and severity of the issues are concerning.",
+      "confidence": 0.9
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information provided to suggest the Individual has issues with alcohol consumption.",
+      "confidence": 1.0
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information provided to suggest the Individual has issues with drug involvement or substance misuse.",
+      "confidence": 1.0
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 28(b)",
+          "text": "an opinion by a duly qualified mental health professional that the individual has a condition that may impair judgment, stability, reliability, or trustworthiness",
+          "evidence": "the DOE Psychologist concluded that, pursuant to the Diagnostic and Statistical Manual of Mental Disorders–Fifth Edition, the Individual suffers from Gambling Disorder, Moderate, Persistent, in Sustained Remission, and Attention Deficit Hyperactivity Disorder (ADHD), and further, the Gambling Disorder is a condition that can impair the Individual’s judgment, stability, reliability, and trustworthiness.",
+          "confidence": 1.0
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 29(c)",
+          "text": "recent opinion by a duly qualified mental health professional employed by, or acceptable to and approved by, the U.S. Government that an individual's previous condition is under control or in remission, and has a low probability of recurrence or exacerbation",
+          "applicability": "PARTIAL",
+          "reasoning": "The Gambling Disorder is in sustained remission, which is a positive factor. However, the DOE Psychologist also stated that the Gambling Disorder is a condition that *can* impair the Individual's judgment, stability, reliability, and trustworthiness, even in remission.",
+          "evidence": "Gambling Disorder, Moderate, Persistent, in Sustained Remission...the Gambling Disorder is a condition that can impair the Individual’s judgment, stability, reliability, and trustworthiness."
+        }
+      ],
+      "reasoning": "The Individual's diagnosis of Gambling Disorder, even in sustained remission, raises concerns about his judgment, stability, reliability, and trustworthiness, as stated by the DOE Psychologist. The ADHD diagnosis is also noted, although its direct impact on security concerns is less clear from the provided information.",
+      "confidence": 0.9
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "While the Individual opened credit cards in his wife's name without her permission, he was not arrested or charged. Therefore, this does not meet the threshold for disqualifying criminal conduct.",
+      "confidence": 1.0
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest the Individual has mishandled protected information.",
+      "confidence": 1.0
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest the Individual is involved in outside activities that pose a conflict of interest.",
+      "confidence": 1.0
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest the Individual has misused information technology.",
+      "confidence": 1.0
+    }
+  ],
+  "whole_person_analysis": [
+    {
+      "factor": "The nature, extent, and seriousness of the conduct",
+      "assessment": "The conduct involves significant financial irresponsibility, deception, and a diagnosed gambling disorder. The extent is considerable, involving substantial debt and a pattern of deceptive behavior.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The circumstances surrounding the conduct, to include knowledgeable participation",
+      "assessment": "The Individual knowingly engaged in the conduct, driven by a desire to live beyond his means and a gambling addiction.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The frequency and recency of the conduct",
+      "assessment": "The financial and gambling issues are relatively recent, occurring between 2019/2020 and 2024. The credit card fraud occurred in 2012.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The individual's age and maturity at the time of the conduct",
+      "assessment": "The Individual was an adult during all relevant periods, suggesting a level of maturity where he should have understood the consequences of his actions.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The extent to which participation is voluntary",
+      "assessment": "The Individual's participation was voluntary, driven by his own desires and addiction.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The presence or absence of rehabilitation and other permanent behavioral changes",
+      "assessment": "The Individual has deleted his gambling accounts and expressed intent to resolve his debts. The Gambling Disorder is in sustained remission. However, the DOE Psychologist's assessment still raises concerns.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The motivation for the conduct",
+      "assessment": "The motivation was to live beyond his means and to 'hit it big' through gambling.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The potential for pressure, coercion, exploitation, or duress",
+      "assessment": "There is no indication of pressure, coercion, exploitation, or duress.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The likelihood of continuation or recurrence",
+      "assessment": "While the Individual has taken steps to address his issues, the DOE Psychologist's assessment and the history of deception raise concerns about the likelihood of recurrence.",
+      "impact": "UNFAVORABLE"
+    }
+  ],
+  "follow_up_recommendations": [
+    {
+      "action": "Require a follow-up psychological evaluation by a DOE-approved psychologist to assess the Individual's current mental state and the likelihood of relapse regarding the Gambling Disorder.",
+      "priority": "HIGH",
+      "guideline": "I",
+      "rationale": "The DOE Psychologist's assessment raises concerns, and a follow-up evaluation is needed to determine the Individual's current risk level."
+    },
+    {
+      "action": "Require the Individual to provide documented proof of a repayment plan with creditors and evidence of consistent payments made towards resolving his outstanding debts.",
+      "priority": "HIGH",
+      "guideline": "F",
+      "rationale": "The Individual's stated intent to resolve his debts needs to be substantiated with concrete actions."
+    },
+    {
+      "action": "Conduct a more thorough investigation into the Individual's financial history to identify any other undisclosed debts or financial irregularities.",
+      "priority": "MEDIUM",
+      "guideline": "F",
+      "rationale": "Given the Individual's history of deception, it is prudent to conduct a more thorough investigation to ensure full disclosure."
+    }
+  ]
+}
+```

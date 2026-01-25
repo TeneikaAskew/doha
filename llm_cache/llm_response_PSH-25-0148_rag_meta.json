@@ -1,0 +1,17 @@
+{
+  "input_tokens": 12444,
+  "output_tokens": 3082,
+  "total_tokens": 15526,
+  "input_cost": 0.0012444,
+  "output_cost": 0.0012328,
+  "total_cost": 0.0024772,
+  "model": "gemini-2.0-flash",
+  "max_output_tokens": 8000,
+  "prompt_chars": 55620,
+  "response_chars": 13041,
+  "timestamp": "2026-01-25T18:30:52.784101",
+  "pricing": {
+    "input_per_1m": 0.1,
+    "output_per_1m": 0.4
+  }
+}
