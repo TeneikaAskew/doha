@@ -716,7 +716,7 @@ class ParallelBrowserDownloader:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
 
-    def _download_one(self, url: str) -> Optional[bytes]:
+    def _download_one(self, url: str, case_id: str = None) -> Optional[bytes]:
         """Download a single PDF using thread-local browser context.
 
         The URL may be:
@@ -724,10 +724,15 @@ class ParallelBrowserDownloader:
         2. An HTML page containing links to PDF and TXT files
 
         We first check if the response is a PDF, and if not, parse as HTML.
+
+        Args:
+            url: URL to download
+            case_id: Optional case identifier for logging
         """
         from bs4 import BeautifulSoup
 
         ctx = self._get_thread_browser()
+        log_prefix = f"[{case_id}] " if case_id else ""
 
         # Rate limiting per thread
         if not hasattr(self._local, 'last_request'):
@@ -736,14 +741,14 @@ class ParallelBrowserDownloader:
         if elapsed < self.rate_limit:
             time.sleep(self.rate_limit - elapsed)
 
-        logger.info(f"Fetching page: {url}")
+        logger.info(f"{log_prefix}Fetching: {url}")
         try:
             # Fetch the URL
             response = ctx.request.get(url, timeout=60000)
             self._local.last_request = time.time()
 
             if response.status != 200:
-                logger.warning(f"Failed to fetch page: HTTP {response.status} for {url}")
+                logger.warning(f"{log_prefix}Failed to fetch page: HTTP {response.status} for {url}")
                 return None
 
             # Get response body as bytes first
@@ -751,7 +756,7 @@ class ParallelBrowserDownloader:
 
             # Check if response is already a PDF (magic bytes: %PDF)
             if body and len(body) >= 4 and body[:4] == b'%PDF':
-                logger.debug(f"URL returned PDF directly: {url}")
+                logger.debug(f"{log_prefix}URL returned PDF directly: {url}")
                 return body
 
             # Not a PDF, try to parse as HTML to find PDF link
@@ -759,7 +764,7 @@ class ParallelBrowserDownloader:
                 html = body.decode('utf-8')
             except UnicodeDecodeError:
                 # Binary data that's not a PDF - can't parse
-                logger.warning(f"Response is binary but not a PDF: {url}")
+                logger.warning(f"{log_prefix}Response is binary but not a PDF: {url}")
                 return None
 
             # Parse HTML to find PDF link
@@ -780,10 +785,10 @@ class ParallelBrowserDownloader:
                     break
 
             if not pdf_link:
-                logger.warning(f"No PDF link found on page: {url}")
+                logger.warning(f"{log_prefix}No PDF link found on page: {url}")
                 return None
 
-            logger.info(f"Downloading PDF: {pdf_link}")
+            logger.info(f"{log_prefix}Downloading PDF: {pdf_link}")
 
             # Rate limit again before PDF download
             elapsed = time.time() - self._local.last_request
@@ -795,7 +800,7 @@ class ParallelBrowserDownloader:
             self._local.last_request = time.time()
 
             if pdf_response.status != 200:
-                logger.warning(f"Failed to download PDF: HTTP {pdf_response.status} for {pdf_link}")
+                logger.warning(f"{log_prefix}Failed to download PDF: HTTP {pdf_response.status} for {pdf_link}")
                 return None
 
             body = pdf_response.body()
@@ -803,13 +808,13 @@ class ParallelBrowserDownloader:
             # Validate we got a PDF (check magic bytes)
             if not body or len(body) < 4 or not body[:4] == b'%PDF':
                 preview = body[:100].decode('utf-8', errors='replace') if body else '(empty)'
-                logger.warning(f"Not a PDF: {pdf_link} - starts with: {preview[:50]}...")
+                logger.warning(f"{log_prefix}Not a PDF: {pdf_link} - starts with: {preview[:50]}...")
                 return None
 
             return body
 
         except Exception as e:
-            logger.warning(f"Download error for {url}: {e}")
+            logger.warning(f"{log_prefix}Download error for {url}: {e}")
             return None
 
     def download_batch(
@@ -833,7 +838,7 @@ class ParallelBrowserDownloader:
         def download_task(link):
             case_type, year, case_number, url = link
             try:
-                pdf_bytes = self._download_one(url)
+                pdf_bytes = self._download_one(url, case_id=case_number)
                 result = {
                     "case_type": case_type,
                     "year": year,

@@ -2,12 +2,14 @@
 """
 Reprocess existing cases to re-extract metadata from full_text.
 This updates judge, outcome, guidelines, sections, etc. without re-downloading PDFs.
+Also fixes case_number values by extracting from PDF text.
 """
 import sys
 import json
 import argparse
 import gc
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -25,6 +27,184 @@ except ImportError:
 
 # GitHub file size limit with buffer
 MAX_PARQUET_SIZE_MB = 90  # Stay under GitHub's 100MB limit
+
+def is_bad_case_number(case_number: str) -> bool:
+    """Check if case_number is missing or invalid.
+
+    Good case numbers: "17-01990", "14-06484", "19-02453" (XX-XXXXX format)
+    Bad case numbers: empty, "pre2016-*", "Unknown*", "YYYY-NNNNNN" patterns
+
+    Args:
+        case_number: The case number to check
+
+    Returns:
+        True if the case number is invalid or missing
+    """
+    if not case_number:
+        return True
+    if case_number.startswith('pre2016-'):
+        return True
+    if case_number.startswith('Unknown'):
+        return True
+    # Bad patterns: YYYY-NNNNNN (4-digit year + 6-digit number)
+    if re.match(r'^\d{4}-\d{6}$', case_number):
+        return True
+    return False
+
+
+def extract_case_number_from_text(text: str) -> str:
+    """Extract case number from PDF text as fallback.
+
+    Patterns found in DOHA cases:
+    - "ISCR Case No. 17-01990"
+    - "CAC Case No. 17-01990"
+    - "ADP Case No. 17-01990"
+    - "Case No. 17-01990"
+    - "Case No: 17-01990"
+
+    Args:
+        text: Full text from PDF
+
+    Returns:
+        Case number like "17-01990" or None if not found
+    """
+    match = re.search(
+        r'(?:ISCR|CAC|ADP)?\s*Case\s*No\.?\s*:?\s*(\d{2}-\d{4,6})',
+        text,
+        re.IGNORECASE
+    )
+    return match.group(1) if match else None
+
+
+def verify_and_fix_case_numbers(
+    input_file: str = "doha_parsed_cases/all_cases.json",
+    output_file: str = None,
+    fix: bool = False,
+    report_file: str = None
+) -> dict:
+    """
+    Verify all case numbers by extracting from PDF text.
+
+    This compares EVERY case number (not just "bad" ones) against
+    the case number extracted from full_text.
+
+    Args:
+        input_file: Path to cases file
+        output_file: Path to save fixed cases (only if fix=True)
+        fix: If True, fix mismatched case numbers
+        report_file: Path to save mismatch report JSON
+
+    Returns:
+        Dict with verification stats and mismatches
+    """
+    input_path = Path(input_file)
+    is_parquet = input_path.suffix == '.parquet'
+
+    if not input_path.exists():
+        logger.error(f"Input file not found: {input_path}")
+        return {}
+
+    # Load cases
+    logger.info(f"Loading cases from {input_path}")
+    if is_parquet:
+        if not HAS_PANDAS:
+            logger.error("pandas not installed - cannot read parquet files")
+            return {}
+        df = pd.read_parquet(input_path)
+        cases = df.to_dict('records')
+    else:
+        with open(input_path) as f:
+            cases = json.load(f)
+
+    logger.info(f"Loaded {len(cases)} cases")
+
+    # Verification results
+    mismatches = []
+    no_text_match = []
+    fixes_applied = 0
+
+    logger.info("Verifying all case numbers using text extraction...")
+
+    for i, case in enumerate(cases):
+        current_case_number = case.get('case_number', '')
+        full_text = case.get('full_text', '')
+
+        # Extract case number from text
+        text_case_number = extract_case_number_from_text(full_text) if full_text else None
+
+        # Check for mismatch
+        if text_case_number and text_case_number != current_case_number:
+            mismatch_info = {
+                'index': i,
+                'current': current_case_number,
+                'text_extracted': text_case_number,
+                'source_url': case.get('source_url', '')
+            }
+            mismatches.append(mismatch_info)
+
+            if fix:
+                case['case_number'] = text_case_number
+                fixes_applied += 1
+
+        # Track cases where text extraction failed
+        if not text_case_number and full_text:
+            no_text_match.append({
+                'index': i,
+                'case_number': current_case_number,
+                'text_preview': full_text[:200] if full_text else ''
+            })
+
+        # Progress logging
+        if (i + 1) % 1000 == 0:
+            logger.info(f"Verified {i+1}/{len(cases)} cases, {len(mismatches)} mismatches found")
+
+    # Summary
+    logger.info(f"\n{'='*60}")
+    logger.info("CASE NUMBER VERIFICATION COMPLETE")
+    logger.info(f"{'='*60}")
+    logger.info(f"Total cases: {len(cases)}")
+    logger.info(f"Mismatches found: {len(mismatches)}")
+    logger.info(f"Text extraction failed: {len(no_text_match)}")
+
+    if fix:
+        logger.info(f"Fixes applied: {fixes_applied}")
+
+    # Show sample mismatches
+    if mismatches:
+        logger.warning(f"\nSample mismatches (first 10):")
+        for m in mismatches[:10]:
+            logger.warning(f"  [{m['index']}] {m['current']} -> {m['text_extracted']}")
+
+    # Save report
+    report = {
+        'total_cases': len(cases),
+        'mismatches_count': len(mismatches),
+        'no_text_match_count': len(no_text_match),
+        'fixes_applied': fixes_applied if fix else 0,
+        'mismatches': mismatches,
+        'no_text_match': no_text_match[:100]  # Limit to first 100
+    }
+
+    if report_file:
+        report_path = Path(report_file)
+        with open(report_path, 'w') as f:
+            json.dump(report, f, indent=2)
+        logger.info(f"Report saved to: {report_path}")
+
+    # Save fixed cases
+    if fix and fixes_applied > 0:
+        output_path = Path(output_file) if output_file else input_path
+
+        if output_path.suffix == '.parquet':
+            df = pd.DataFrame(cases)
+            df.to_parquet(output_path, index=False)
+            validate_parquet_file(output_path, len(cases), "case number fix")
+        else:
+            atomic_write_json(cases, output_path)
+
+        logger.success(f"Fixed cases saved to: {output_path}")
+
+    return report
 
 
 def validate_parquet_file(file_path: Path, expected_rows: int, operation: str = "save") -> None:
@@ -234,6 +414,7 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
     # Create scraper instance for extraction methods
     scraper = DOHAScraper(output_dir=input_path.parent)
 
+    case_number_fixes = 0
     updated_count = 0
     skipped_count = 0
     error_count = 0
@@ -247,8 +428,9 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
             skipped_count += 1
             continue
 
-        # Check if needs reprocessing
-        needs_update = force_all or any([
+        # Check if needs reprocessing (including bad case_number)
+        has_bad_case_number = is_bad_case_number(case_number)
+        needs_update = force_all or has_bad_case_number or any([
             is_empty_or_unknown(case.get('outcome')),
             is_empty_or_unknown(case.get('judge')),
             is_empty_or_unknown(case.get('guidelines')),
@@ -260,6 +442,18 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
             continue
 
         try:
+            changes = []
+
+            # Always verify case_number using text extraction from PDF
+            old_case_number = case_number
+            new_case_number = extract_case_number_from_text(full_text)
+
+            if new_case_number and new_case_number != old_case_number:
+                case['case_number'] = new_case_number
+                case_number = new_case_number  # Update for logging
+                changes.append(f"case_number: {old_case_number} -> {new_case_number}")
+                case_number_fixes += 1
+
             # Re-extract all metadata from full_text
             old_outcome = case.get('outcome', 'Unknown')
             old_judge = case.get('judge', 'Unknown')
@@ -276,7 +470,7 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
             new_outcome = case['outcome']
             new_judge = case['judge']
 
-            changes = []
+            # Track metadata changes (case_number changes already tracked above)
             if old_outcome != new_outcome:
                 changes.append(f"outcome: {old_outcome} -> {new_outcome}")
             if old_judge != new_judge:
@@ -321,6 +515,7 @@ def reprocess_cases(input_file: str, output_file: str = None, force_all: bool = 
     logger.info(f"{'='*60}")
     logger.info(f"Total cases: {len(cases)}")
     logger.info(f"Updated: {updated_count}")
+    logger.info(f"Case numbers fixed: {case_number_fixes}")
     logger.info(f"Skipped: {skipped_count}")
     logger.info(f"Errors: {error_count}")
     logger.info(f"Saved to: {output_path}")
@@ -344,11 +539,36 @@ if __name__ == "__main__":
         action="store_true",
         help="Reprocess all cases, not just those with Unknown values"
     )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="Verify all case numbers against FileId lookup and text extraction (report only)"
+    )
+    parser.add_argument(
+        "--fix-case-numbers",
+        action="store_true",
+        help="Verify AND fix all mismatched case numbers"
+    )
+    parser.add_argument(
+        "--report",
+        default="doha_parsed_cases/case_number_report.json",
+        help="Path to save verification report (default: doha_parsed_cases/case_number_report.json)"
+    )
 
     args = parser.parse_args()
 
-    reprocess_cases(
-        input_file=args.input,
-        output_file=args.output,
-        force_all=args.force_all
-    )
+    if args.verify or args.fix_case_numbers:
+        # Run verification/fix mode
+        verify_and_fix_case_numbers(
+            input_file=args.input,
+            output_file=args.output,
+            fix=args.fix_case_numbers,
+            report_file=args.report
+        )
+    else:
+        # Run normal reprocessing
+        reprocess_cases(
+            input_file=args.input,
+            output_file=args.output,
+            force_all=args.force_all
+        )
