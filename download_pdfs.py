@@ -14,7 +14,7 @@ from typing import List, Tuple
 sys.path.insert(0, str(Path(__file__).parent / "sead4_llm"))
 
 from rag.scraper import DOHAScraper, ScrapedCase
-from rag.browser_scraper import DOHABrowserScraper, ParallelBrowserDownloader
+from rag.browser_scraper import DOHABrowserScraper, ParallelBrowserDownloader, DownloadResult, DownloadError, DownloadErrorType
 from loguru import logger
 import fitz  # PyMuPDF
 
@@ -500,6 +500,9 @@ def download_and_parse_pdfs(
                     url = result["url"]
                     pdf_bytes = result["pdf_bytes"]
                     error = result["error"]
+                    error_type = result.get("error_type")
+                    http_status = result.get("http_status")
+                    error_details = result.get("error_details")
 
                     # Find original link to get filename
                     original_link = next(
@@ -513,9 +516,16 @@ def download_and_parse_pdfs(
                     pdf_path = pdf_dir / f"{case_number}.pdf"
 
                     if error or pdf_bytes is None:
-                        logger.error(f"✗ [{case_type_result}] {case_number}: {error or 'No bytes returned'}")
+                        # Build detailed error message
+                        error_msg = error or "No bytes returned"
+                        if http_status:
+                            error_msg += f" (HTTP {http_status})"
+                        logger.error(f"✗ [{case_type_result}] {case_number}: {error_msg}")
                         failed.append({
                             "error": error or "Failed to download (no bytes returned)",
+                            "error_type": error_type or "unknown",
+                            "http_status": http_status,
+                            "error_details": error_details,
                             "case_type": case_type_result,
                             "case_number": case_number,
                             "url": url,
@@ -580,7 +590,12 @@ def download_and_parse_pdfs(
 
     else:
         # SINGLE-THREADED MODE: Use DOHABrowserScraper
-        browser_restart_interval = 5000  # Restart browser every N cases to clear memory
+        # Browser restart interval tuning notes:
+        # - 2000: Too frequent, adds ~5 minutes overhead per full scrape
+        # - 5000: Sweet spot - prevents memory degradation while minimizing overhead
+        # - 10000: Memory starts degrading around 8K cases (observed OOM on 16GB systems)
+        # The browser accumulates memory from PDF rendering; periodic restart clears it.
+        browser_restart_interval = 5000
         total_processed = 0
 
         iterator = enumerate(links_to_process, 1)
@@ -608,13 +623,18 @@ def download_and_parse_pdfs(
                 pdf_path = pdf_dir / f"{case_number}.pdf"
 
                 try:
-                    # Download PDF through browser
-                    pdf_bytes = browser_scraper.download_case_pdf_bytes(url)
+                    # Download PDF through browser with detailed error reporting
+                    result = browser_scraper.download_case_pdf(url)
 
-                    if pdf_bytes is None:
-                        logger.error(f"[{i}/{len(links_to_process)}] ✗ [{case_type}] {case_number}: Failed to download")
+                    if not result.success:
+                        error_info = result.error
+                        error_str = str(error_info) if error_info else "Unknown error"
+                        logger.error(f"[{i}/{len(links_to_process)}] ✗ [{case_type}] {case_number}: {error_str}")
                         failed.append({
-                            "error": "Failed to download (no bytes returned)",
+                            "error": error_info.message if error_info else "Failed to download (no bytes returned)",
+                            "error_type": error_info.error_type.value if error_info else "unknown",
+                            "http_status": error_info.http_status if error_info else None,
+                            "error_details": error_info.details if error_info else None,
                             "case_type": case_type,
                             "case_number": case_number,
                             "url": url,
@@ -622,6 +642,8 @@ def download_and_parse_pdfs(
                         })
                         total_processed += 1
                         continue
+
+                    pdf_bytes = result.pdf_bytes
 
                     # Save PDF
                     pdf_path.write_bytes(pdf_bytes)
@@ -673,9 +695,21 @@ def download_and_parse_pdfs(
                             logger.error(f"  Failed to save checkpoint: {e}")
 
                 except Exception as e:
-                    logger.error(f"[{i}/{len(links_to_process)}] ✗ [{case_type}] {case_number}: {str(e)}")
+                    # Classify the error type
+                    error_type = "parse_error"
+                    if "fitz" in str(type(e).__module__).lower() or "pdf" in str(e).lower():
+                        error_type = "parse_error"
+                    elif "timeout" in str(e).lower():
+                        error_type = "timeout"
+                    elif "network" in str(e).lower() or "connection" in str(e).lower():
+                        error_type = "network_error"
+
+                    logger.error(f"[{i}/{len(links_to_process)}] ✗ [{case_type}] {case_number}: {type(e).__name__}: {str(e)}")
                     failed.append({
-                        "error": f"Parse error: {str(e)}",
+                        "error": f"{type(e).__name__}: {str(e)}",
+                        "error_type": error_type,
+                        "http_status": None,
+                        "error_details": f"Exception class: {type(e).__module__}.{type(e).__name__}",
                         "case_type": case_type,
                         "case_number": case_number,
                         "url": url,
@@ -800,6 +834,39 @@ def download_and_parse_pdfs(
 if __name__ == "__main__":
     import argparse
 
+    # CLI argument validators
+    def positive_int(value):
+        """Validate that value is a positive integer."""
+        try:
+            ivalue = int(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"invalid int value: '{value}'")
+        if ivalue <= 0:
+            raise argparse.ArgumentTypeError(f"must be positive, got {ivalue}")
+        return ivalue
+
+    def positive_float(value):
+        """Validate that value is a positive float."""
+        try:
+            fvalue = float(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"invalid float value: '{value}'")
+        if fvalue <= 0:
+            raise argparse.ArgumentTypeError(f"must be positive, got {fvalue}")
+        return fvalue
+
+    def workers_int(value):
+        """Validate workers is 1-10 (reasonable range for browser parallelism)."""
+        try:
+            ivalue = int(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"invalid int value: '{value}'")
+        if ivalue < 1:
+            raise argparse.ArgumentTypeError(f"must be at least 1, got {ivalue}")
+        if ivalue > 10:
+            raise argparse.ArgumentTypeError(f"max 10 workers supported (browser memory limits), got {ivalue}")
+        return ivalue
+
     parser = argparse.ArgumentParser(
         description="Download and parse DOHA case PDFs using browser automation",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -823,14 +890,14 @@ Output:
                        help="Output directory for parsed cases")
     parser.add_argument("--case-type", choices=["hearings", "appeals", "both"], default="both",
                        help="Type of cases to download (default: both)")
-    parser.add_argument("--max-cases", type=int,
+    parser.add_argument("--max-cases", type=positive_int,
                        help="Maximum number of cases to download (for testing)")
     parser.add_argument("--force", action="store_true",
                        help="Force re-download even if PDFs exist")
-    parser.add_argument("--rate-limit", type=float, default=0.15,
+    parser.add_argument("--rate-limit", type=positive_float, default=0.15,
                        help="Seconds to wait between requests (default: 0.15 for ~6 cases/sec)")
-    parser.add_argument("--workers", type=int, default=1,
-                       help="Number of parallel download workers (default: 1, use 2-4 for faster downloads)")
+    parser.add_argument("--workers", type=workers_int, default=1,
+                       help="Number of parallel download workers (default: 1, max: 10)")
     parser.add_argument("--no-archive", action="store_true",
                        help="Skip archiving existing checkpoint files before starting")
 

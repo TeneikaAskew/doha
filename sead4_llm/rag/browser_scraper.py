@@ -7,20 +7,87 @@ bypassing bot protection that blocks requests-based scraping.
 import json
 import time
 import threading
+from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict, Any, Union
 from loguru import logger
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from queue import Queue
 
 try:
     from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
+    from playwright._impl._errors import TimeoutError as PlaywrightTimeoutError
     HAS_PLAYWRIGHT = True
 except ImportError:
     HAS_PLAYWRIGHT = False
+    PlaywrightTimeoutError = Exception  # Fallback for type hints
     logger.warning("playwright not installed. Install with: pip install playwright && playwright install chromium")
 
 from .scraper import DOHAScraper, ScrapedCase
+
+
+# =============================================================================
+# Error Taxonomy for Download Operations
+# =============================================================================
+
+class DownloadErrorType(Enum):
+    """Types of download errors for debugging and tracking."""
+    HTTP_ERROR = "http_error"           # Non-200 HTTP status code
+    TIMEOUT = "timeout"                 # Request timed out
+    NO_PDF_LINK = "no_pdf_link"         # HTML page but no PDF link found
+    INVALID_PDF = "invalid_pdf"         # Response wasn't valid PDF data
+    DECODE_ERROR = "decode_error"       # Couldn't decode response as text
+    NETWORK_ERROR = "network_error"     # Network-level failure (DNS, connection)
+    PARSE_ERROR = "parse_error"         # PDF parsing failed (fitz)
+    UNKNOWN = "unknown"                 # Unexpected error
+
+
+@dataclass
+class DownloadError:
+    """Structured error information from download operations."""
+    error_type: DownloadErrorType
+    message: str
+    http_status: Optional[int] = None
+    url: Optional[str] = None
+    details: Optional[str] = None
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "error_type": self.error_type.value,
+            "message": self.message,
+            "http_status": self.http_status,
+            "url": self.url,
+            "details": self.details
+        }
+
+    def __str__(self) -> str:
+        """Human-readable error string."""
+        parts = [f"{self.error_type.value}: {self.message}"]
+        if self.http_status:
+            parts.append(f"(HTTP {self.http_status})")
+        if self.details:
+            parts.append(f"- {self.details}")
+        return " ".join(parts)
+
+
+@dataclass
+class DownloadResult:
+    """Result from a download operation - either success with bytes or failure with error."""
+    success: bool
+    pdf_bytes: Optional[bytes] = None
+    error: Optional[DownloadError] = None
+
+    @classmethod
+    def ok(cls, pdf_bytes: bytes) -> "DownloadResult":
+        """Create a successful result."""
+        return cls(success=True, pdf_bytes=pdf_bytes, error=None)
+
+    @classmethod
+    def fail(cls, error: DownloadError) -> "DownloadResult":
+        """Create a failed result."""
+        return cls(success=False, pdf_bytes=None, error=error)
 
 
 class DOHABrowserScraper(DOHAScraper):
@@ -553,9 +620,9 @@ class DOHABrowserScraper(DOHAScraper):
             logger.error(f"Failed to scrape PDF from {url}: {e}")
             return None
 
-    def download_case_pdf_bytes(self, url: str) -> Optional[bytes]:
+    def download_case_pdf(self, url: str) -> DownloadResult:
         """
-        Download PDF bytes using browser (bypasses bot protection)
+        Download PDF using browser with detailed error reporting.
 
         The URL may be:
         1. A direct PDF file (FileId URLs now return PDF directly)
@@ -567,7 +634,7 @@ class DOHABrowserScraper(DOHAScraper):
             url: URL to case page or direct PDF
 
         Returns:
-            PDF bytes or None on failure
+            DownloadResult with pdf_bytes on success or detailed error on failure
         """
         from bs4 import BeautifulSoup
 
@@ -575,11 +642,28 @@ class DOHABrowserScraper(DOHAScraper):
             logger.debug(f"Fetching case page: {url}")
 
             # Fetch the URL
-            response = self.page.context.request.get(url, timeout=60000)
+            try:
+                response = self.page.context.request.get(url, timeout=60000)
+            except PlaywrightTimeoutError:
+                error = DownloadError(
+                    error_type=DownloadErrorType.TIMEOUT,
+                    message="Request timed out after 60 seconds",
+                    url=url,
+                    details="Initial page fetch timeout"
+                )
+                logger.error(str(error))
+                return DownloadResult.fail(error)
 
             if response.status != 200:
-                logger.error(f"Failed to fetch page: HTTP {response.status}")
-                return None
+                error = DownloadError(
+                    error_type=DownloadErrorType.HTTP_ERROR,
+                    message=f"Failed to fetch page",
+                    http_status=response.status,
+                    url=url,
+                    details=self._http_status_details(response.status)
+                )
+                logger.error(str(error))
+                return DownloadResult.fail(error)
 
             # Get response body as bytes first
             body = response.body()
@@ -587,15 +671,21 @@ class DOHABrowserScraper(DOHAScraper):
             # Check if response is already a PDF (magic bytes: %PDF)
             if body and len(body) >= 4 and body[:4] == b'%PDF':
                 logger.debug(f"URL returned PDF directly: {url}")
-                return body
+                return DownloadResult.ok(body)
 
             # Not a PDF, try to parse as HTML to find PDF link
             try:
                 html = body.decode('utf-8')
-            except UnicodeDecodeError:
+            except UnicodeDecodeError as e:
                 # Binary data that's not a PDF - can't parse
-                logger.warning(f"Response is binary but not a PDF: {url}")
-                return None
+                error = DownloadError(
+                    error_type=DownloadErrorType.DECODE_ERROR,
+                    message="Response is binary but not a PDF",
+                    url=url,
+                    details=f"Cannot decode as UTF-8: {e}"
+                )
+                logger.warning(str(error))
+                return DownloadResult.fail(error)
 
             # Parse HTML to find PDF link (skip .txt files)
             soup = BeautifulSoup(html, 'html.parser')
@@ -615,30 +705,109 @@ class DOHABrowserScraper(DOHAScraper):
                     break
 
             if not pdf_link:
-                logger.warning(f"No PDF link found on page: {url}")
-                return None
+                # Check what links ARE present for better debugging
+                all_links = [a.get('href', '') for a in soup.find_all('a', href=True)]
+                file_links = [l for l in all_links if any(l.endswith(ext) for ext in ['.pdf', '.txt', '.doc'])]
+                error = DownloadError(
+                    error_type=DownloadErrorType.NO_PDF_LINK,
+                    message="No PDF link found on page",
+                    url=url,
+                    details=f"Found {len(all_links)} links total, {len(file_links)} file links: {file_links[:5]}"
+                )
+                logger.warning(str(error))
+                return DownloadResult.fail(error)
 
             logger.debug(f"Downloading PDF: {pdf_link}")
 
             # Download the actual PDF
-            pdf_response = self.page.context.request.get(pdf_link, timeout=60000)
+            try:
+                pdf_response = self.page.context.request.get(pdf_link, timeout=60000)
+            except PlaywrightTimeoutError:
+                error = DownloadError(
+                    error_type=DownloadErrorType.TIMEOUT,
+                    message="PDF download timed out after 60 seconds",
+                    url=pdf_link,
+                    details="PDF file fetch timeout"
+                )
+                logger.error(str(error))
+                return DownloadResult.fail(error)
 
             if pdf_response.status != 200:
-                logger.error(f"Failed to download PDF: HTTP {pdf_response.status}")
-                return None
+                error = DownloadError(
+                    error_type=DownloadErrorType.HTTP_ERROR,
+                    message=f"Failed to download PDF",
+                    http_status=pdf_response.status,
+                    url=pdf_link,
+                    details=self._http_status_details(pdf_response.status)
+                )
+                logger.error(str(error))
+                return DownloadResult.fail(error)
 
             pdf_bytes = pdf_response.body()
 
             # Validate we got a PDF
             if not pdf_bytes or len(pdf_bytes) < 4 or not pdf_bytes[:4].startswith(b'%PDF'):
-                logger.warning(f"Response is not a PDF for {pdf_link}")
-                return None
+                error = DownloadError(
+                    error_type=DownloadErrorType.INVALID_PDF,
+                    message="Response is not a valid PDF",
+                    url=pdf_link,
+                    details=f"Expected %PDF header, got: {pdf_bytes[:20]!r}" if pdf_bytes else "Empty response"
+                )
+                logger.warning(str(error))
+                return DownloadResult.fail(error)
 
-            return pdf_bytes
+            return DownloadResult.ok(pdf_bytes)
 
         except Exception as e:
-            logger.error(f"Failed to download PDF from {url}: {e}")
-            return None
+            # Categorize the exception
+            error_type = DownloadErrorType.UNKNOWN
+            details = str(e)
+
+            if "net::" in str(e).lower() or "network" in str(e).lower():
+                error_type = DownloadErrorType.NETWORK_ERROR
+            elif "timeout" in str(e).lower():
+                error_type = DownloadErrorType.TIMEOUT
+
+            error = DownloadError(
+                error_type=error_type,
+                message=f"Download failed: {type(e).__name__}",
+                url=url,
+                details=details
+            )
+            logger.error(str(error))
+            return DownloadResult.fail(error)
+
+    def _http_status_details(self, status: int) -> str:
+        """Get human-readable description of HTTP status codes."""
+        status_descriptions = {
+            400: "Bad Request - malformed URL or parameters",
+            401: "Unauthorized - authentication required",
+            403: "Forbidden - access denied (may be bot protection)",
+            404: "Not Found - case may have been removed",
+            408: "Request Timeout - server took too long",
+            429: "Too Many Requests - rate limited",
+            500: "Internal Server Error - server issue",
+            502: "Bad Gateway - upstream server error",
+            503: "Service Unavailable - server overloaded or maintenance",
+            504: "Gateway Timeout - upstream server timeout",
+        }
+        return status_descriptions.get(status, f"HTTP status {status}")
+
+    def download_case_pdf_bytes(self, url: str) -> Optional[bytes]:
+        """
+        Download PDF bytes using browser (bypasses bot protection).
+
+        This is a backward-compatible wrapper around download_case_pdf().
+        For detailed error information, use download_case_pdf() instead.
+
+        Args:
+            url: URL to case page or direct PDF
+
+        Returns:
+            PDF bytes or None on failure
+        """
+        result = self.download_case_pdf(url)
+        return result.pdf_bytes if result.success else None
 
 
 class ParallelBrowserDownloader:
@@ -717,8 +886,8 @@ class ParallelBrowserDownloader:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
 
-    def _download_one(self, url: str, case_id: str = None) -> Optional[bytes]:
-        """Download a single PDF using thread-local browser context.
+    def _download_one(self, url: str, case_id: str = None) -> DownloadResult:
+        """Download a single PDF using thread-local browser context with detailed error reporting.
 
         The URL may be:
         1. A direct PDF file (FileId URLs now return PDF directly)
@@ -729,6 +898,9 @@ class ParallelBrowserDownloader:
         Args:
             url: URL to download
             case_id: Optional case identifier for logging
+
+        Returns:
+            DownloadResult with pdf_bytes on success or detailed error on failure
         """
         from bs4 import BeautifulSoup
 
@@ -745,12 +917,30 @@ class ParallelBrowserDownloader:
         logger.info(f"{log_prefix}Fetching: {url}")
         try:
             # Fetch the URL
-            response = ctx.request.get(url, timeout=60000)
+            try:
+                response = ctx.request.get(url, timeout=60000)
+            except PlaywrightTimeoutError:
+                error = DownloadError(
+                    error_type=DownloadErrorType.TIMEOUT,
+                    message="Request timed out after 60 seconds",
+                    url=url,
+                    details="Initial page fetch timeout"
+                )
+                logger.warning(f"{log_prefix}{error}")
+                return DownloadResult.fail(error)
+
             self._local.last_request = time.time()
 
             if response.status != 200:
-                logger.warning(f"{log_prefix}Failed to fetch page: HTTP {response.status} for {url}")
-                return None
+                error = DownloadError(
+                    error_type=DownloadErrorType.HTTP_ERROR,
+                    message=f"Failed to fetch page",
+                    http_status=response.status,
+                    url=url,
+                    details=self._http_status_description(response.status)
+                )
+                logger.warning(f"{log_prefix}{error}")
+                return DownloadResult.fail(error)
 
             # Get response body as bytes first
             body = response.body()
@@ -758,15 +948,20 @@ class ParallelBrowserDownloader:
             # Check if response is already a PDF (magic bytes: %PDF)
             if body and len(body) >= 4 and body[:4] == b'%PDF':
                 logger.debug(f"{log_prefix}URL returned PDF directly: {url}")
-                return body
+                return DownloadResult.ok(body)
 
             # Not a PDF, try to parse as HTML to find PDF link
             try:
                 html = body.decode('utf-8')
-            except UnicodeDecodeError:
-                # Binary data that's not a PDF - can't parse
-                logger.warning(f"{log_prefix}Response is binary but not a PDF: {url}")
-                return None
+            except UnicodeDecodeError as e:
+                error = DownloadError(
+                    error_type=DownloadErrorType.DECODE_ERROR,
+                    message="Response is binary but not a PDF",
+                    url=url,
+                    details=f"Cannot decode as UTF-8: {e}"
+                )
+                logger.warning(f"{log_prefix}{error}")
+                return DownloadResult.fail(error)
 
             # Parse HTML to find PDF link
             soup = BeautifulSoup(html, 'html.parser')
@@ -786,8 +981,16 @@ class ParallelBrowserDownloader:
                     break
 
             if not pdf_link:
-                logger.warning(f"{log_prefix}No PDF link found on page: {url}")
-                return None
+                all_links = [a.get('href', '') for a in soup.find_all('a', href=True)]
+                file_links = [l for l in all_links if any(l.endswith(ext) for ext in ['.pdf', '.txt', '.doc'])]
+                error = DownloadError(
+                    error_type=DownloadErrorType.NO_PDF_LINK,
+                    message="No PDF link found on page",
+                    url=url,
+                    details=f"Found {len(all_links)} links total, {len(file_links)} file links"
+                )
+                logger.warning(f"{log_prefix}{error}")
+                return DownloadResult.fail(error)
 
             logger.info(f"{log_prefix}Downloading PDF: {pdf_link}")
 
@@ -797,26 +1000,79 @@ class ParallelBrowserDownloader:
                 time.sleep(self.rate_limit - elapsed)
 
             # Download the actual PDF
-            pdf_response = ctx.request.get(pdf_link, timeout=60000)
+            try:
+                pdf_response = ctx.request.get(pdf_link, timeout=60000)
+            except PlaywrightTimeoutError:
+                error = DownloadError(
+                    error_type=DownloadErrorType.TIMEOUT,
+                    message="PDF download timed out after 60 seconds",
+                    url=pdf_link,
+                    details="PDF file fetch timeout"
+                )
+                logger.warning(f"{log_prefix}{error}")
+                return DownloadResult.fail(error)
+
             self._local.last_request = time.time()
 
             if pdf_response.status != 200:
-                logger.warning(f"{log_prefix}Failed to download PDF: HTTP {pdf_response.status} for {pdf_link}")
-                return None
+                error = DownloadError(
+                    error_type=DownloadErrorType.HTTP_ERROR,
+                    message=f"Failed to download PDF",
+                    http_status=pdf_response.status,
+                    url=pdf_link,
+                    details=self._http_status_description(pdf_response.status)
+                )
+                logger.warning(f"{log_prefix}{error}")
+                return DownloadResult.fail(error)
 
             body = pdf_response.body()
 
             # Validate we got a PDF (check magic bytes)
             if not body or len(body) < 4 or not body[:4] == b'%PDF':
                 preview = body[:100].decode('utf-8', errors='replace') if body else '(empty)'
-                logger.warning(f"{log_prefix}Not a PDF: {pdf_link} - starts with: {preview[:50]}...")
-                return None
+                error = DownloadError(
+                    error_type=DownloadErrorType.INVALID_PDF,
+                    message="Response is not a valid PDF",
+                    url=pdf_link,
+                    details=f"Expected %PDF header, got: {preview[:50]}..."
+                )
+                logger.warning(f"{log_prefix}{error}")
+                return DownloadResult.fail(error)
 
-            return body
+            return DownloadResult.ok(body)
 
         except Exception as e:
-            logger.warning(f"{log_prefix}Download error for {url}: {e}")
-            return None
+            # Categorize the exception
+            error_type = DownloadErrorType.UNKNOWN
+            if "net::" in str(e).lower() or "network" in str(e).lower():
+                error_type = DownloadErrorType.NETWORK_ERROR
+            elif "timeout" in str(e).lower():
+                error_type = DownloadErrorType.TIMEOUT
+
+            error = DownloadError(
+                error_type=error_type,
+                message=f"Download failed: {type(e).__name__}",
+                url=url,
+                details=str(e)
+            )
+            logger.warning(f"{log_prefix}{error}")
+            return DownloadResult.fail(error)
+
+    def _http_status_description(self, status: int) -> str:
+        """Get human-readable description of HTTP status codes."""
+        status_descriptions = {
+            400: "Bad Request - malformed URL or parameters",
+            401: "Unauthorized - authentication required",
+            403: "Forbidden - access denied (may be bot protection)",
+            404: "Not Found - case may have been removed",
+            408: "Request Timeout - server took too long",
+            429: "Too Many Requests - rate limited",
+            500: "Internal Server Error - server issue",
+            502: "Bad Gateway - upstream server error",
+            503: "Service Unavailable - server overloaded or maintenance",
+            504: "Gateway Timeout - upstream server timeout",
+        }
+        return status_descriptions.get(status, f"HTTP status {status}")
 
     def download_batch(
         self,
@@ -824,14 +1080,20 @@ class ParallelBrowserDownloader:
         callback=None
     ) -> List[Dict[str, Any]]:
         """
-        Download multiple PDFs in parallel.
+        Download multiple PDFs in parallel with detailed error reporting.
 
         Args:
             links: List of (case_type, year, case_number, url) tuples
             callback: Optional callback(case_number, pdf_bytes_or_none, error_or_none) called for each result
 
         Returns:
-            List of result dicts with keys: case_type, year, case_number, url, pdf_bytes, error
+            List of result dicts with keys:
+                - case_type, year, case_number, url: from input
+                - pdf_bytes: bytes on success, None on failure
+                - error: error message string (for backward compatibility)
+                - error_type: DownloadErrorType.value (e.g., "http_error", "timeout")
+                - http_status: HTTP status code if applicable
+                - error_details: Additional context about the error
         """
         results = []
         results_lock = threading.Lock()
@@ -839,23 +1101,45 @@ class ParallelBrowserDownloader:
         def download_task(link):
             case_type, year, case_number, url = link
             try:
-                pdf_bytes = self._download_one(url, case_id=case_number)
-                result = {
-                    "case_type": case_type,
-                    "year": year,
-                    "case_number": case_number,
-                    "url": url,
-                    "pdf_bytes": pdf_bytes,
-                    "error": None if pdf_bytes else "No bytes returned"
-                }
+                download_result = self._download_one(url, case_id=case_number)
+
+                if download_result.success:
+                    result = {
+                        "case_type": case_type,
+                        "year": year,
+                        "case_number": case_number,
+                        "url": url,
+                        "pdf_bytes": download_result.pdf_bytes,
+                        "error": None,
+                        "error_type": None,
+                        "http_status": None,
+                        "error_details": None
+                    }
+                else:
+                    error = download_result.error
+                    result = {
+                        "case_type": case_type,
+                        "year": year,
+                        "case_number": case_number,
+                        "url": url,
+                        "pdf_bytes": None,
+                        "error": error.message if error else "Unknown error",
+                        "error_type": error.error_type.value if error else "unknown",
+                        "http_status": error.http_status if error else None,
+                        "error_details": error.details if error else None
+                    }
             except Exception as e:
+                # Shouldn't normally reach here since _download_one handles exceptions
                 result = {
                     "case_type": case_type,
                     "year": year,
                     "case_number": case_number,
                     "url": url,
                     "pdf_bytes": None,
-                    "error": str(e)
+                    "error": f"{type(e).__name__}: {str(e)}",
+                    "error_type": "unknown",
+                    "http_status": None,
+                    "error_details": f"Unhandled exception in download task: {type(e).__module__}.{type(e).__name__}"
                 }
 
             with results_lock:
