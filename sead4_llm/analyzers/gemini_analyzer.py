@@ -35,6 +35,12 @@ from prompts.templates import (
 from config.guidelines import GUIDELINES
 
 
+# Gemini 2.0 Flash pricing (per 1M tokens, as of Jan 2025)
+# For prompts ≤128K tokens:
+GEMINI_FLASH_INPUT_PRICE = 0.10   # $0.10 per 1M input tokens
+GEMINI_FLASH_OUTPUT_PRICE = 0.40  # $0.40 per 1M output tokens
+
+
 class GeminiSEAD4Analyzer:
     """
     Google Gemini-powered SEAD-4 Adjudicative Guidelines Analyzer
@@ -56,6 +62,9 @@ class GeminiSEAD4Analyzer:
         self.model_name = model
         self.model = genai.GenerativeModel(model)
         self.max_tokens = max_tokens
+
+        # Track token usage from last analysis
+        self.last_usage = None
 
     def analyze(
         self,
@@ -120,12 +129,59 @@ class GeminiSEAD4Analyzer:
             response_text = response.text
             logger.debug(f"Response length: {len(response_text)} chars")
 
+            # Track token usage and metadata for cost calculation
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                usage = response.usage_metadata
+                input_tokens = getattr(usage, 'prompt_token_count', 0)
+                output_tokens = getattr(usage, 'candidates_token_count', 0)
+                total_tokens = getattr(usage, 'total_token_count', input_tokens + output_tokens)
+
+                # Calculate cost
+                input_cost = (input_tokens / 1_000_000) * GEMINI_FLASH_INPUT_PRICE
+                output_cost = (output_tokens / 1_000_000) * GEMINI_FLASH_OUTPUT_PRICE
+                total_cost = input_cost + output_cost
+
+                # Build comprehensive usage metadata
+                self.last_usage = {
+                    # Token counts
+                    'input_tokens': input_tokens,
+                    'output_tokens': output_tokens,
+                    'total_tokens': total_tokens,
+                    # Cost breakdown
+                    'input_cost': input_cost,
+                    'output_cost': output_cost,
+                    'total_cost': total_cost,
+                    # Model info
+                    'model': self.model_name,
+                    'max_output_tokens': self.max_tokens,
+                    # Request info
+                    'prompt_chars': len(full_prompt),
+                    'response_chars': len(response_text),
+                    'timestamp': datetime.now().isoformat(),
+                    # Pricing used (for reference)
+                    'pricing': {
+                        'input_per_1m': GEMINI_FLASH_INPUT_PRICE,
+                        'output_per_1m': GEMINI_FLASH_OUTPUT_PRICE
+                    }
+                }
+
+                # Add any additional usage metadata if available
+                if hasattr(usage, 'cached_content_token_count'):
+                    cached_tokens = getattr(usage, 'cached_content_token_count', 0)
+                    if cached_tokens:
+                        self.last_usage['cached_tokens'] = cached_tokens
+
+                logger.info(f"Token usage: {input_tokens:,} in / {output_tokens:,} out = ${total_cost:.4f}")
+            else:
+                self.last_usage = None
+                logger.debug("No usage metadata available")
+
             # Save raw response for debugging if verbose logging enabled
             if logger._core.min_level <= 10:  # DEBUG level
                 cache_dir = Path("llm_cache")
                 cache_dir.mkdir(exist_ok=True)
                 debug_path = cache_dir / f"llm_response_{case_id}.txt"
-                debug_path.write_text(response_text)
+                debug_path.write_text(response_text, encoding='utf-8')
                 logger.debug(f"Saved raw LLM response to {debug_path}")
 
         except Exception as e:
@@ -153,6 +209,15 @@ class GeminiSEAD4Analyzer:
             ]
 
         return result
+
+    def get_last_usage(self) -> Optional[dict]:
+        """Get token usage and cost from the last analysis.
+
+        Returns:
+            Dict with 'input_tokens', 'output_tokens', 'total_tokens',
+            'input_cost', 'output_cost', 'total_cost' or None if not available
+        """
+        return self.last_usage
 
     def _parse_response(
         self,

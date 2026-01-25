@@ -10,7 +10,44 @@ Interactive Streamlit interface to compare all 4 analysis approaches:
 import warnings
 warnings.filterwarnings('ignore', message='.*google.generativeai.*', category=FutureWarning)
 
+import logging
+import time
+
+# Configure logging - output to both console and file
+# Put log file next to the script for easy access
+from pathlib import Path as _Path
+LOG_FILE = _Path(__file__).parent / "demo_ui_debug.log"
+
+# Clear log file on module load (fresh start)
+with open(LOG_FILE, 'w') as f:
+    f.write("")
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s.%(msecs)03d | %(message)s',
+    datefmt='%H:%M:%S',
+    handlers=[
+        logging.StreamHandler(),  # Console output
+        logging.FileHandler(LOG_FILE, mode='a')  # File output (append within session)
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Track script start time
+_script_start = time.time()
+
+def log_timing(message: str):
+    """Log message with elapsed time since script start"""
+    elapsed = time.time() - _script_start
+    logger.info(f"[{elapsed:6.2f}s] {message}")
+
+log_timing("")
+log_timing("=" * 60)
+log_timing("=== SCRIPT RERUN START ===")
+log_timing(f"Logs writing to: {LOG_FILE}")
+
 import streamlit as st
+log_timing("Imported streamlit")
 from pathlib import Path
 import fitz  # PyMuPDF
 import json
@@ -30,13 +67,16 @@ from schemas.models import SEAD4AnalysisResult
 # Lazy import for heavy ML dependencies with background loading
 # This makes the app start instantly, then loads models in background
 @st.cache_resource
-def get_enhanced_analyzer():
+def get_enhanced_analyzer_instance():
     """
-    Lazy import and cache of EnhancedNativeSEAD4Analyzer.
-    First call downloads ML models (~80MB), subsequent calls use cache.
+    Lazy import and cache of EnhancedNativeSEAD4Analyzer INSTANCE.
+    First call downloads ML models (~80MB) and creates instance, subsequent calls reuse.
     """
+    log_timing("get_enhanced_analyzer_instance: Importing and creating instance...")
     from analyzers.enhanced_native_analyzer import EnhancedNativeSEAD4Analyzer
-    return EnhancedNativeSEAD4Analyzer
+    instance = EnhancedNativeSEAD4Analyzer(use_embeddings=True)
+    log_timing("get_enhanced_analyzer_instance: Instance ready with loaded model")
+    return instance
 
 
 @st.cache_resource
@@ -45,6 +85,7 @@ def get_gemini_parser():
     Lazy import and cache of GeminiSEAD4Analyzer for parsing cached results.
     First call imports google.generativeai (~15-20s), subsequent calls use cache.
     """
+    log_timing("get_gemini_parser: Starting (this may take 15-20s on first call)")
     # Create analyzer with dummy key just for parsing
     import os
     original_key = os.getenv("GEMINI_API_KEY")
@@ -52,6 +93,7 @@ def get_gemini_parser():
 
     try:
         analyzer = GeminiSEAD4Analyzer()
+        log_timing("get_gemini_parser: Created analyzer")
         return analyzer
     finally:
         # Restore original key
@@ -138,16 +180,136 @@ def display_pdf(file_path: Path, document_text: str = None):
 
 @st.cache_data
 def load_case_statistics():
-    """Load and cache case statistics from parquet file"""
-    parquet_path = Path(__file__).parent.parent / "doha_parsed_cases" / "all_cases.parquet"
-    if not parquet_path.exists():
-        return None
+    """Load and cache case statistics from parquet file(s)
 
-    df = pd.read_parquet(parquet_path, columns=['case_number', 'outcome', 'guidelines', 'date'])
-    return df
+    Handles both single file (all_cases.parquet) and split files
+    (all_cases_1.parquet, all_cases_2.parquet, etc.)
+    Prefers split files to avoid duplicates if both exist.
+    """
+    parquet_dir = Path(__file__).parent.parent / "doha_parsed_cases"
+
+    # Check for split files FIRST (all_cases_1.parquet, all_cases_2.parquet, etc.)
+    # to avoid loading both single and split files which causes duplicates
+    split_files = sorted(parquet_dir.glob("all_cases_*.parquet"))
+    if split_files:
+        dfs = []
+        for f in split_files:
+            dfs.append(pd.read_parquet(f, columns=['case_number', 'outcome', 'guidelines', 'date']))
+        df = pd.concat(dfs, ignore_index=True)
+        return df
+
+    # Fallback to single file
+    single_file = parquet_dir / "all_cases.parquet"
+    if single_file.exists():
+        df = pd.read_parquet(single_file, columns=['case_number', 'outcome', 'guidelines', 'date'])
+        return df
+
+    return None
 
 
-def load_cached_llm_result(case_id: str, suffix: str) -> SEAD4AnalysisResult | None:
+@st.fragment
+def analyst_assessment_form(case_id: str, sead4_guidelines: dict):
+    """Fragment for analyst assessment - reruns independently from main page"""
+    log_timing(f">>> FRAGMENT START (case_id={case_id})")
+    st.markdown("**Analyst Assessment**")
+    st.caption("Record your independent analysis of this case")
+
+    # Initialize session state for analyst input if not exists
+    if 'analyst_guidelines' not in st.session_state:
+        st.session_state.analyst_guidelines = []
+    if 'analyst_assessments' not in st.session_state:
+        st.session_state.analyst_assessments = {}
+
+    # Guideline multi-select with change detection
+    previous_guidelines = st.session_state.analyst_guidelines.copy() if st.session_state.analyst_guidelines else []
+
+    selected_guidelines = st.multiselect(
+        "Select applicable SEAD-4 Guidelines:",
+        options=list(sead4_guidelines.keys()),
+        format_func=lambda x: f"{x}: {sead4_guidelines[x]}",
+        default=st.session_state.analyst_guidelines,
+        help="Select all guidelines that apply to this case"
+    )
+
+    # Log changes
+    if selected_guidelines != previous_guidelines:
+        added = set(selected_guidelines) - set(previous_guidelines)
+        removed = set(previous_guidelines) - set(selected_guidelines)
+        if added:
+            log_timing(f"MULTISELECT: Added {added}")
+        if removed:
+            log_timing(f"MULTISELECT: Removed {removed}")
+
+    st.session_state.analyst_guidelines = selected_guidelines
+
+    st.divider()
+
+    # For each selected guideline, get severity and justification
+    if selected_guidelines:
+        st.markdown("**Guideline Details**")
+
+        for guideline in selected_guidelines:
+            with st.expander(f"**{guideline}: {sead4_guidelines[guideline]}**", expanded=True):
+                # Severity selection
+                severity_key = f"severity_{guideline}"
+                severity = st.selectbox(
+                    "Severity Level:",
+                    options=['A', 'B', 'C', 'D'],
+                    key=severity_key,
+                    help="A=Minimal, B=Low, C=Moderate, D=High"
+                )
+
+                # Justification text
+                justification_key = f"justification_{guideline}"
+                justification = st.text_area(
+                    "Justification:",
+                    key=justification_key,
+                    height=100,
+                    placeholder="Explain why this guideline applies and the severity level chosen..."
+                )
+
+                # Store in session state
+                st.session_state.analyst_assessments[guideline] = {
+                    'severity': severity,
+                    'justification': justification
+                }
+
+        st.divider()
+
+        # Overall recommendation
+        overall_recommendation = st.radio(
+            "Overall Recommendation:",
+            options=['FAVORABLE', 'UNFAVORABLE'],
+            help="Your final recommendation for this case"
+        )
+        st.session_state.analyst_overall = overall_recommendation
+
+        # Save button
+        if st.button("Save Analyst Assessment", type="primary"):
+            # Save to JSON file
+            analyst_data = {
+                'case_id': case_id,
+                'guidelines': selected_guidelines,
+                'assessments': st.session_state.analyst_assessments,
+                'overall_recommendation': overall_recommendation,
+                'timestamp': datetime.now().isoformat()
+            }
+
+            analyst_file = Path("analysis_results") / f"{case_id}_analyst.json"
+            analyst_file.parent.mkdir(exist_ok=True)
+
+            with open(analyst_file, 'w') as f:
+                json.dump(analyst_data, f, indent=2)
+
+            st.success(f"Analyst assessment saved to {analyst_file.name}")
+
+    else:
+        st.info("Select one or more guidelines above to begin your assessment")
+
+    log_timing(f"<<< FRAGMENT END (case_id={case_id})")
+
+
+def load_cached_llm_result(case_id: str, suffix: str) -> tuple[SEAD4AnalysisResult | None, dict | None]:
     """
     Load cached LLM result from llm_cache/llm_response_*.txt file if it exists
 
@@ -156,26 +318,55 @@ def load_cached_llm_result(case_id: str, suffix: str) -> SEAD4AnalysisResult | N
         suffix: Suffix like "llm", "native_rag", "enhanced_native_rag"
 
     Returns:
-        SEAD4AnalysisResult if cached file exists and can be parsed, None otherwise
+        Tuple of (SEAD4AnalysisResult, usage_dict) if cached file exists and can be parsed,
+        (None, None) otherwise. usage_dict may be None if no metadata file exists.
     """
     cache_file = Path("llm_cache") / f"llm_response_{case_id}_{suffix}.txt"
+    meta_file = Path("llm_cache") / f"llm_response_{case_id}_{suffix}_meta.json"
+    log_timing(f"load_cached_llm_result: Checking {cache_file}")
 
     if not cache_file.exists():
-        return None
+        log_timing(f"load_cached_llm_result: File not found")
+        return None, None
 
     try:
-        # Read cached response
-        response_text = cache_file.read_text()
+        log_timing(f"load_cached_llm_result: Reading file...")
+        # Read cached response (use UTF-8 for Windows compatibility)
+        response_text = cache_file.read_text(encoding='utf-8')
 
         # Use cached parser instance (fast after first load)
+        log_timing(f"load_cached_llm_result: Getting parser...")
         parser = get_gemini_parser()
+        log_timing(f"load_cached_llm_result: Parsing response...")
         result = parser._parse_response(response_text, f"{case_id}_{suffix}", "")
+        log_timing(f"load_cached_llm_result: Done")
+
+        # Load usage metadata if it exists
+        usage = None
+        if meta_file.exists():
+            try:
+                import json
+                usage = json.loads(meta_file.read_text(encoding='utf-8'))
+                log_timing(f"load_cached_llm_result: Loaded usage metadata")
+            except Exception:
+                pass
 
         st.caption(f"Loaded from cache: {cache_file.name}")
-        return result
+        return result, usage
     except Exception as e:
+        log_timing(f"load_cached_llm_result: FAILED - {e}")
         st.warning(f"Failed to load cache {cache_file.name}: {e}")
-        return None
+        return None, None
+
+
+def save_llm_cache_metadata(case_id: str, suffix: str, usage: dict):
+    """Save usage metadata alongside the cached LLM response."""
+    import json
+    cache_dir = Path("llm_cache")
+    cache_dir.mkdir(exist_ok=True)
+    meta_file = cache_dir / f"llm_response_{case_id}_{suffix}_meta.json"
+    meta_file.write_text(json.dumps(usage, indent=2), encoding='utf-8')
+    log_timing(f"Saved usage metadata to {meta_file.name}")
 
 
 # Page config
@@ -392,6 +583,26 @@ if test_reports_dir.exists():
     )
 
     selected_path = test_reports_dir / selected_file
+
+    log_timing(f"File selected: {selected_file}")
+
+    # Reset state when file selection changes
+    if 'last_selected_file' not in st.session_state:
+        st.session_state.last_selected_file = selected_file
+        log_timing("First file selection (initialized last_selected_file)")
+    elif st.session_state.last_selected_file != selected_file:
+        log_timing(f"FILE CHANGED: {st.session_state.last_selected_file} -> {selected_file}")
+        st.session_state.last_selected_file = selected_file
+        st.session_state.analyses_run = False  # Reset so analyses don't auto-run
+        # Reset analyst assessment for new case
+        st.session_state.analyst_guidelines = []
+        st.session_state.analyst_assessments = {}
+        st.session_state.pop('analyst_overall', None)
+        # Clear dynamic widget keys (severity_X, justification_X)
+        keys_to_remove = [k for k in st.session_state.keys()
+                         if k.startswith('severity_') or k.startswith('justification_')]
+        for k in keys_to_remove:
+            del st.session_state[k]
 else:
     st.sidebar.error("test_reports/ directory not found")
     st.stop()
@@ -431,148 +642,86 @@ include_llm = st.sidebar.checkbox(
 if not include_llm:
     st.sidebar.warning("LLM disabled — showing Native analyzers only")
 
-# Run analysis button
-analyze_button = st.sidebar.button("Run Comparison Analysis", type="primary")
+# Initialize state
+if 'case_results' not in st.session_state:
+    st.session_state.case_results = {}  # {case_id: {'native': result, 'enhanced': result, ...}}
 
-# Initialize analysis state in session
-if 'analysis_run' not in st.session_state:
-    st.session_state.analysis_run = False
+log_timing(f"include_llm={include_llm}")
 
-# Trigger analysis
-if analyze_button:
-    st.session_state.analysis_run = True
+# Main area - loads immediately when file is selected
+log_timing(">>> MAIN BLOCK START")
 
-# Main area
-if st.session_state.analysis_run:
-    # Load PDF silently (success message will show in Document View tab)
-    doc = fitz.open(selected_path)
-    document_text = ""
-    for page in doc:
-        document_text += page.get_text()
-    doc.close()
+# Load PDF text
+doc = fitz.open(selected_path)
+document_text = ""
+for page in doc:
+    document_text += page.get_text()
+doc.close()
 
-    # Create tabs for each approach
-    if include_llm:
-        tab_pdf, tab1, tab2, tab3, tab4, tab_compare, tab_dashboard = st.tabs([
-            "Document View",
-            "Basic Native",
-            "Enhanced Native",
-            "LLM (Independent)",
-            "Enhanced LLM (RAG)",
-            "Comparison",
-            "Dashboard"
-        ])
+# Get or initialize results for this case
+if case_id not in st.session_state.case_results:
+    st.session_state.case_results[case_id] = {}
+results = st.session_state.case_results[case_id]
+
+# Create tabs - analysis tabs only functional if analyses have run
+if include_llm:
+    tab_pdf, tab1, tab2, tab3, tab4, tab_compare, tab_dashboard = st.tabs([
+        "Document View",
+        "Basic Native",
+        "Enhanced Native",
+        "LLM (Independent)",
+        "Enhanced LLM (RAG)",
+        "Comparison",
+        "Dashboard"
+    ])
+else:
+    tab_pdf, tab1, tab2, tab_compare, tab_dashboard = st.tabs([
+        "Document View",
+        "Basic Native",
+        "Enhanced Native",
+        "Comparison",
+        "Dashboard"
+    ])
+
+# Document View Tab - Always available instantly
+with tab_pdf:
+    log_timing("Rendering Document View tab")
+    st.subheader("Case Document & Analyst Assessment")
+    st.markdown(f"**Viewing: {selected_file} — Loaded {len(document_text):,} characters from PDF. Review the case document below.**")
+
+    col_pdf, col_analyst = st.columns([2, 1])
+
+    with col_pdf:
+        display_pdf(selected_path)
+
+    with col_analyst:
+        analyst_assessment_form(case_id, SEAD4_GUIDELINES)
+
+# 1. Basic Native - auto-runs when tab is viewed
+with tab1:
+    log_timing("Rendering Basic Native tab")
+    st.subheader("Basic Native")
+    st.caption("Keyword matching and pattern recognition")
+
+    # Auto-run if not already done
+    if 'native' not in results:
+        with st.status("Running Basic Native analysis...", expanded=True) as status:
+            st.write("Analyzing document with keyword matching...")
+            log_timing("Basic Native: RUNNING...")
+            native_analyzer = NativeSEAD4Analyzer()
+            results['native'] = native_analyzer.analyze(document_text, case_id=f"{case_id}_native")
+            log_timing("Basic Native: COMPLETE")
+            status.update(label="Analysis complete!", state="complete", expanded=False)
     else:
-        tab_pdf, tab1, tab2, tab_compare, tab_dashboard = st.tabs([
-            "Document View",
-            "Basic Native",
-            "Enhanced Native",
-            "Comparison",
-            "Dashboard"
-        ])
-
-    # Run analyses
-    results = {}
-
-    # Document View Tab
-    with tab_pdf:
-        st.subheader("Case Document & Analyst Assessment")
-        st.markdown(f"**Viewing: {selected_file} — Loaded {len(document_text):,} characters from PDF. Review the case document below.**")
-
-        # Create two columns: PDF on left, analyst input on right
-        col_pdf, col_analyst = st.columns([2, 1])
-
-        with col_pdf:
-            display_pdf(selected_path)
-
-        with col_analyst:
-            st.markdown("**Analyst Assessment**")
-            st.caption("Record your independent analysis of this case")
-
-            # Initialize session state for analyst input if not exists
-            if 'analyst_guidelines' not in st.session_state:
-                st.session_state.analyst_guidelines = []
-            if 'analyst_assessments' not in st.session_state:
-                st.session_state.analyst_assessments = {}
-
-            # Guideline multi-select
-            selected_guidelines = st.multiselect(
-                "Select applicable SEAD-4 Guidelines:",
-                options=list(SEAD4_GUIDELINES.keys()),
-                format_func=lambda x: f"{x}: {SEAD4_GUIDELINES[x]}",
-                default=st.session_state.analyst_guidelines,
-                help="Select all guidelines that apply to this case"
-            )
-            st.session_state.analyst_guidelines = selected_guidelines
-
-            st.divider()
-
-            # For each selected guideline, get severity and justification
-            if selected_guidelines:
-                st.markdown("**Guideline Details**")
-
-                for guideline in selected_guidelines:
-                    with st.expander(f"**{guideline}: {SEAD4_GUIDELINES[guideline]}**", expanded=True):
-                        # Severity selection
-                        severity_key = f"severity_{guideline}"
-                        severity = st.selectbox(
-                            "Severity Level:",
-                            options=['A', 'B', 'C', 'D'],
-                            key=severity_key,
-                            help="A=Minimal, B=Low, C=Moderate, D=High"
-                        )
-
-                        # Justification text
-                        justification_key = f"justification_{guideline}"
-                        justification = st.text_area(
-                            "Justification:",
-                            key=justification_key,
-                            height=100,
-                            placeholder="Explain why this guideline applies and the severity level chosen..."
-                        )
-
-                        # Store in session state
-                        st.session_state.analyst_assessments[guideline] = {
-                            'severity': severity,
-                            'justification': justification
-                        }
-
-                st.divider()
-
-                # Overall recommendation
-                overall_recommendation = st.radio(
-                    "Overall Recommendation:",
-                    options=['FAVORABLE', 'UNFAVORABLE'],
-                    help="Your final recommendation for this case"
-                )
-                st.session_state.analyst_overall = overall_recommendation
-
-                # Save button
-                if st.button("Save Analyst Assessment", type="primary"):
-                    # Save to JSON file
-                    analyst_data = {
-                        'case_id': case_id,
-                        'guidelines': selected_guidelines,
-                        'assessments': st.session_state.analyst_assessments,
-                        'overall_recommendation': overall_recommendation,
-                        'timestamp': datetime.now().isoformat()
-                    }
-
-                    analyst_file = Path("analysis_results") / f"{case_id}_analyst.json"
-                    analyst_file.parent.mkdir(exist_ok=True)
-
-                    with open(analyst_file, 'w') as f:
-                        json.dump(analyst_data, f, indent=2)
-
-                    st.success(f"Analyst assessment saved to {analyst_file.name}")
-
-            else:
-                st.info("Select one or more guidelines above to begin your assessment")
-
-    # 1. Basic Native
-    with tab1:
-        st.subheader("Basic Native")
-        st.caption("Keyword matching and pattern recognition")
+        # Calculate precision against ground truth if available
+        native_relevant = [g.code for g in results['native'].get_relevant_guidelines()]
+        native_set = set(native_relevant)
+        gt_guidelines = set(GROUND_TRUTH[selected_file]['guidelines']) if selected_file in GROUND_TRUTH else None
+        if gt_guidelines and native_set:
+            native_precision = len(gt_guidelines & native_set) / len(native_set)
+            native_precision_display = f"{native_precision:.2%}"
+        else:
+            native_precision_display = "N/A"
 
         col_metric1, col_metric2, col_metric3 = st.columns(3)
         with col_metric1:
@@ -580,24 +729,18 @@ if st.session_state.analysis_run:
         with col_metric2:
             st.metric("Cost", "$0")
         with col_metric3:
-            st.metric("Precision", "~50%")
+            st.metric("Precision", native_precision_display)
 
         st.divider()
-
-        with st.spinner("Running basic native analysis..."):
-            native_analyzer = NativeSEAD4Analyzer()
-            results['native'] = native_analyzer.analyze(document_text, case_id=f"{case_id}_native")
-
         st.success("Analysis complete")
 
-        # Display results
         col1, col2 = st.columns([1, 2])
 
         with col1:
             st.markdown("**Overall Assessment**")
             result = results['native']
             st.metric("Recommendation", result.overall_assessment.recommendation.value)
-            st.metric("Confidence", f"{result.overall_assessment.confidence:.1%}")
+            st.metric("Confidence", f"{result.overall_assessment.confidence:.2%}")
 
             relevant = result.get_relevant_guidelines()
             st.metric("Guidelines Flagged", len(relevant))
@@ -607,17 +750,38 @@ if st.session_state.analysis_run:
         with col2:
             st.markdown("**Relevant Guidelines**")
             for g in results['native'].get_relevant_guidelines():
-                with st.expander(f"**{g.code}. {g.name}** - Severity {g.severity.value if g.severity else 'N/A'} (Confidence: {g.confidence:.1%})"):
+                with st.expander(f"**{g.code}. {g.name}** - Severity {g.severity.value if g.severity else 'N/A'} (Confidence: {g.confidence:.2%})"):
                     st.write(f"**Reasoning:** {g.reasoning}")
                     if g.disqualifiers:
                         st.write(f"**Disqualifiers ({len(g.disqualifiers)}):**")
                         for d in g.disqualifiers:
                             st.write(f"- {d.code}: {d.text[:100]}...")
 
-    # 2. Enhanced Native
-    with tab2:
-        st.subheader("Enhanced Native")
-        st.caption("N-grams + TF-IDF + Semantic Embeddings + Contextual Analysis")
+# 2. Enhanced Native - auto-runs when tab is viewed
+with tab2:
+    log_timing("Rendering Enhanced Native tab")
+    st.subheader("Enhanced Native")
+    st.caption("N-grams + TF-IDF + Semantic Embeddings + Contextual Analysis")
+
+    if 'enhanced' not in results:
+        with st.status("Running Enhanced Native analysis...", expanded=True) as status:
+            st.write("Loading ML models (sentence transformers)...")
+            log_timing("Enhanced Native: RUNNING...")
+            enhanced_analyzer = get_enhanced_analyzer_instance()
+            st.write("Analyzing document with ML models...")
+            results['enhanced'] = enhanced_analyzer.analyze(document_text, case_id=f"{case_id}_enhanced")
+            log_timing("Enhanced Native: COMPLETE")
+            status.update(label="Analysis complete!", state="complete", expanded=False)
+    else:
+        # Calculate precision against ground truth if available
+        enhanced_relevant = [g.code for g in results['enhanced'].get_relevant_guidelines()]
+        enhanced_set = set(enhanced_relevant)
+        gt_guidelines = set(GROUND_TRUTH[selected_file]['guidelines']) if selected_file in GROUND_TRUTH else None
+        if gt_guidelines and enhanced_set:
+            enhanced_precision = len(gt_guidelines & enhanced_set) / len(enhanced_set)
+            enhanced_precision_display = f"{enhanced_precision:.2%}"
+        else:
+            enhanced_precision_display = "N/A"
 
         col_metric1, col_metric2, col_metric3 = st.columns(3)
         with col_metric1:
@@ -625,25 +789,18 @@ if st.session_state.analysis_run:
         with col_metric2:
             st.metric("Cost", "$0")
         with col_metric3:
-            st.metric("Precision", "~83%")
+            st.metric("Precision", enhanced_precision_display)
 
         st.divider()
-
-        with st.spinner("Running enhanced native analysis (loading ML models)..."):
-            EnhancedNativeSEAD4Analyzer = get_enhanced_analyzer()
-            enhanced_analyzer = EnhancedNativeSEAD4Analyzer(use_embeddings=True)
-            results['enhanced'] = enhanced_analyzer.analyze(document_text, case_id=f"{case_id}_enhanced")
-
         st.success("Analysis complete")
 
-        # Display results
         col1, col2 = st.columns([1, 2])
 
         with col1:
             st.markdown("**Overall Assessment**")
             result = results['enhanced']
             st.metric("Recommendation", result.overall_assessment.recommendation.value)
-            st.metric("Confidence", f"{result.overall_assessment.confidence:.1%}")
+            st.metric("Confidence", f"{result.overall_assessment.confidence:.2%}")
 
             relevant = result.get_relevant_guidelines()
             st.metric("Guidelines Flagged", len(relevant))
@@ -653,174 +810,224 @@ if st.session_state.analysis_run:
         with col2:
             st.markdown("**Relevant Guidelines**")
             for g in results['enhanced'].get_relevant_guidelines():
-                with st.expander(f"**{g.code}. {g.name}** - Severity {g.severity.value if g.severity else 'N/A'} (Confidence: {g.confidence:.1%})"):
+                with st.expander(f"**{g.code}. {g.name}** - Severity {g.severity.value if g.severity else 'N/A'} (Confidence: {g.confidence:.2%})"):
                     st.write(f"**Reasoning:** {g.reasoning}")
                     if g.disqualifiers:
                         st.write(f"**Disqualifiers ({len(g.disqualifiers)}):**")
                         for d in g.disqualifiers:
                             st.write(f"- {d.code}: {d.text[:100]}...")
 
-    # 3. LLM (if enabled)
-    if include_llm:
-        with tab3:
-            st.subheader("LLM Analysis (Independent)")
-            st.caption("Gemini 2.0 Flash analyzing independently - no pre-filtering from native analyzer")
+# 3. LLM (if enabled) - auto-runs when tab is viewed
+if include_llm:
+    with tab3:
+        log_timing("Rendering LLM tab")
+        st.subheader("LLM Analysis (Independent)")
+        st.caption("Gemini 2.0 Flash analyzing independently - no pre-filtering from native analyzer")
+
+        if 'llm' not in results:
+            # Try loading from file cache first
+            cached_llm, cached_usage = load_cached_llm_result(case_id, "llm")
+            if cached_llm:
+                results['llm'] = cached_llm
+                st.session_state['llm_from_cache'] = True
+                if cached_usage:
+                    st.session_state['llm_usage'] = cached_usage
+            elif not api_key:
+                st.warning("No API key configured. Set GEMINI_API_KEY to run LLM analysis.")
+            else:
+                with st.status("Running LLM analysis...", expanded=True) as status:
+                    st.write("Calling Gemini API...")
+                    log_timing("LLM: RUNNING...")
+                    llm_analyzer = GeminiSEAD4Analyzer()
+                    results['llm'] = llm_analyzer.analyze(document_text, case_id=f"{case_id}_llm")
+                    # Capture token usage for cost calculation and save to cache
+                    if llm_analyzer.get_last_usage():
+                        st.session_state['llm_usage'] = llm_analyzer.get_last_usage()
+                        save_llm_cache_metadata(case_id, "llm", llm_analyzer.get_last_usage())
+                    st.session_state['llm_from_cache'] = False
+                    log_timing("LLM: COMPLETE")
+                    status.update(label="Analysis complete!", state="complete", expanded=False)
+                    # Rerun to display results
+                    st.rerun()
+        if 'llm' in results:
+            # Get actual cost from usage data if available
+            llm_usage = st.session_state.get('llm_usage')
+            llm_from_cache = st.session_state.get('llm_from_cache', False)
+            if llm_usage:
+                llm_cost_display = f"${llm_usage['total_cost']:.4f}"
+            elif llm_from_cache:
+                llm_cost_display = "(cached)"
+            else:
+                llm_cost_display = "~$0.02"
+
+            # Calculate precision against ground truth if available
+            llm_relevant = [g.code for g in results['llm'].get_relevant_guidelines()]
+            llm_set = set(llm_relevant)
+            gt_guidelines = set(GROUND_TRUTH[selected_file]['guidelines']) if selected_file in GROUND_TRUTH else None
+            if gt_guidelines and llm_set:
+                llm_precision = len(gt_guidelines & llm_set) / len(llm_set)
+                llm_precision_display = f"{llm_precision:.2%}"
+            else:
+                llm_precision_display = "N/A"
 
             col_metric1, col_metric2, col_metric3 = st.columns(3)
             with col_metric1:
                 st.metric("Speed", "~20s")
             with col_metric2:
-                st.metric("Cost", "~$0.02")
+                st.metric("Cost", llm_cost_display)
             with col_metric3:
-                st.metric("Precision", "~90%")
+                st.metric("Precision", llm_precision_display)
 
             st.divider()
+            st.success("Analysis complete")
 
-            # Try loading from cache first
-            cached_result = load_cached_llm_result(case_id, "llm")
+            col1, col2 = st.columns([1, 2])
 
-            if cached_result:
-                results['llm'] = cached_result
-                st.success("Loaded from cache (no API call needed)")
+            with col1:
+                st.markdown("**Overall Assessment**")
+                result = results['llm']
+                st.metric("Recommendation", result.overall_assessment.recommendation.value)
+                st.metric("Confidence", f"{result.overall_assessment.confidence:.2%}")
+
+                relevant = result.get_relevant_guidelines()
+                st.metric("Guidelines Flagged", len(relevant))
+                if relevant:
+                    st.write("**Flagged:** " + ", ".join([g.code for g in relevant]))
+
+            with col2:
+                st.markdown("**Relevant Guidelines**")
+                for g in results['llm'].get_relevant_guidelines():
+                    with st.expander(f"**{g.code}. {g.name}** - Severity {g.severity.value if g.severity else 'N/A'} (Confidence: {g.confidence:.2%})"):
+                        st.write(f"**Reasoning:** {g.reasoning}")
+                        if g.disqualifiers:
+                            st.write(f"**Disqualifiers ({len(g.disqualifiers)}):**")
+                            for d in g.disqualifiers:
+                                st.write(f"- {d.code}: {d.text[:100]}...")
+
+    # 4. Enhanced LLM (RAG) - runs independently, needs Enhanced Native first
+    with tab4:
+        log_timing("Rendering Enhanced LLM (RAG) tab")
+        st.subheader("Enhanced LLM (RAG)")
+        st.caption("Enhanced native guides LLM for focused analysis")
+
+        if 'rag' not in results:
+            # Try loading from file cache first
+            cached_rag, cached_usage = load_cached_llm_result(case_id, "enhanced_native_rag")
+            if cached_rag:
+                results['rag'] = cached_rag
+                st.session_state['rag_from_cache'] = True
+                if cached_usage:
+                    st.session_state['rag_usage'] = cached_usage
+            elif not api_key:
+                st.warning("No API key configured. Set GEMINI_API_KEY to run RAG analysis.")
+            elif 'enhanced' not in results:
+                st.warning("RAG analysis requires Enhanced Native results first. Click the Enhanced Native tab first.")
             else:
-                # Check if API key is available
-                if not api_key:
-                    st.error("GEMINI_API_KEY not configured")
-                    st.info("""
-                    **To use LLM analysis:**
-                    - **Streamlit Cloud:** Add `GEMINI_API_KEY = "your-key"` in App Settings → Secrets
-                    - **Local:** Run `export GEMINI_API_KEY=your_key` in terminal
-                    """)
-                else:
-                    with st.spinner("Running LLM analysis (this may take 20-30 seconds)..."):
-                        try:
-                            llm_analyzer = GeminiSEAD4Analyzer()
-                            results['llm'] = llm_analyzer.analyze(document_text, case_id=f"{case_id}_llm")
-                            st.success("Analysis complete")
-                        except Exception as e:
-                            st.error(f"LLM analysis failed: {e}")
-                            st.info("Check that your GEMINI_API_KEY is valid")
+                with st.status("Running RAG analysis...", expanded=True) as status:
+                    st.write("Preparing native guidance from Enhanced Native...")
+                    native_guidance = {
+                        'relevant_guidelines': [g.code for g in results['enhanced'].get_relevant_guidelines()],
+                        'severe_concerns': [g.code for g in results['enhanced'].get_relevant_guidelines()
+                                           if g.severity and g.severity.value in ['C', 'D']],
+                        'recommendation': results['enhanced'].overall_assessment.recommendation.value,
+                        'confidence': results['enhanced'].overall_assessment.confidence,
+                        'key_concerns': results['enhanced'].overall_assessment.key_concerns
+                    }
+                    st.write("Calling Gemini API with native guidance...")
+                    log_timing("RAG: RUNNING...")
+                    llm_analyzer = GeminiSEAD4Analyzer()
+                    results['rag'] = llm_analyzer.analyze(document_text, case_id=f"{case_id}_rag", native_analysis=native_guidance)
+                    # Capture token usage for cost calculation and save to cache
+                    if llm_analyzer.get_last_usage():
+                        st.session_state['rag_usage'] = llm_analyzer.get_last_usage()
+                        save_llm_cache_metadata(case_id, "enhanced_native_rag", llm_analyzer.get_last_usage())
+                    st.session_state['rag_from_cache'] = False
+                    log_timing("RAG: COMPLETE")
+                    status.update(label="Analysis complete!", state="complete", expanded=False)
+                    # Rerun to display results
+                    st.rerun()
+        if 'rag' in results:
+            # Get actual cost from usage data if available
+            rag_usage = st.session_state.get('rag_usage')
+            rag_from_cache = st.session_state.get('rag_from_cache', False)
+            if rag_usage:
+                rag_cost_display = f"${rag_usage['total_cost']:.4f}"
+            elif rag_from_cache:
+                rag_cost_display = "(cached)"
+            else:
+                rag_cost_display = "~$0.02"
 
-            # Display results (if available)
-            if 'llm' in results:
-                col1, col2 = st.columns([1, 2])
-
-                with col1:
-                    st.markdown("**Overall Assessment**")
-                    result = results['llm']
-                    st.metric("Recommendation", result.overall_assessment.recommendation.value)
-                    st.metric("Confidence", f"{result.overall_assessment.confidence:.1%}")
-
-                    relevant = result.get_relevant_guidelines()
-                    st.metric("Guidelines Flagged", len(relevant))
-                    if relevant:
-                        st.write("**Flagged:** " + ", ".join([g.code for g in relevant]))
-
-                with col2:
-                    st.markdown("**Relevant Guidelines**")
-                    for g in results['llm'].get_relevant_guidelines():
-                        with st.expander(f"**{g.code}. {g.name}** - Severity {g.severity.value if g.severity else 'N/A'} (Confidence: {g.confidence:.1%})"):
-                            st.write(f"**Reasoning:** {g.reasoning}")
-                            if g.disqualifiers:
-                                st.write(f"**Disqualifiers ({len(g.disqualifiers)}):**")
-                                for d in g.disqualifiers:
-                                    st.write(f"- {d.code}: {d.text[:100]}...")
-
-        # 4. Enhanced LLM (RAG)
-        with tab4:
-            st.subheader("Enhanced LLM (RAG)")
-            st.caption("Enhanced native guides LLM for focused analysis")
+            # Calculate precision against ground truth if available
+            rag_relevant = [g.code for g in results['rag'].get_relevant_guidelines()]
+            rag_set = set(rag_relevant)
+            gt_guidelines = set(GROUND_TRUTH[selected_file]['guidelines']) if selected_file in GROUND_TRUTH else None
+            if gt_guidelines and rag_set:
+                rag_precision = len(gt_guidelines & rag_set) / len(rag_set)
+                rag_precision_display = f"{rag_precision:.2%}"
+            else:
+                rag_precision_display = "N/A"
 
             col_metric1, col_metric2, col_metric3 = st.columns(3)
             with col_metric1:
                 st.metric("Speed", "~23s")
             with col_metric2:
-                st.metric("Cost", "~$0.02")
+                st.metric("Cost", rag_cost_display)
             with col_metric3:
-                st.metric("Precision", "~95%")
+                st.metric("Precision", rag_precision_display)
 
             st.divider()
+            st.success("Analysis complete")
 
-            # Try loading from cache first
-            cached_result = load_cached_llm_result(case_id, "enhanced_native_rag")
-
-            # Build guidance from enhanced native (needed for display even if cached)
             native_guidance = {
-                'relevant_guidelines': [g.code for g in results['enhanced'].get_relevant_guidelines()],
-                'severe_concerns': [g.code for g in results['enhanced'].get_relevant_guidelines()
-                                   if g.severity and g.severity.value in ['C', 'D']],
-                'recommendation': results['enhanced'].overall_assessment.recommendation.value,
-                'confidence': results['enhanced'].overall_assessment.confidence,
-                'key_concerns': results['enhanced'].overall_assessment.key_concerns
+                'relevant_guidelines': [g.code for g in results['enhanced'].get_relevant_guidelines()] if 'enhanced' in results else [],
             }
+            if native_guidance['relevant_guidelines']:
+                st.caption(f"**Native Guidance Provided:** Guidelines: {', '.join(native_guidance['relevant_guidelines'])}")
 
-            if cached_result:
-                results['rag'] = cached_result
-                st.success("Loaded from cache (no API call needed)")
-            else:
-                # Check if API key is available
-                if not api_key:
-                    st.error("GEMINI_API_KEY not configured")
-                    st.info("""
-                    **To use RAG analysis:**
-                    - **Streamlit Cloud:** Add `GEMINI_API_KEY = "your-key"` in App Settings → Secrets
-                    - **Local:** Run `export GEMINI_API_KEY=your_key` in terminal
-                    """)
-                else:
-                    with st.spinner("Running LLM with enhanced native guidance..."):
-                        try:
-                            llm_analyzer = GeminiSEAD4Analyzer()
-                            results['rag'] = llm_analyzer.analyze(
-                                document_text,
-                                case_id=f"{case_id}_rag",
-                                native_analysis=native_guidance
-                            )
-                            st.success("Analysis complete")
-                        except Exception as e:
-                            st.error(f"RAG analysis failed: {e}")
-                            st.info("Check that your GEMINI_API_KEY is valid")
+            col1, col2 = st.columns([1, 2])
 
-            # Display results (if available)
-            if 'rag' in results:
-                col1, col2 = st.columns([1, 2])
+            with col1:
+                st.markdown("**Overall Assessment**")
+                result = results['rag']
+                st.metric("Recommendation", result.overall_assessment.recommendation.value)
+                st.metric("Confidence", f"{result.overall_assessment.confidence:.2%}")
 
-                with col1:
-                    st.markdown("**Overall Assessment**")
-                    result = results['rag']
-                    st.metric("Recommendation", result.overall_assessment.recommendation.value)
-                    st.metric("Confidence", f"{result.overall_assessment.confidence:.1%}")
+                relevant = result.get_relevant_guidelines()
+                st.metric("Guidelines Flagged", len(relevant))
+                if relevant:
+                    st.write("**Flagged:** " + ", ".join([g.code for g in relevant]))
 
-                    relevant = result.get_relevant_guidelines()
-                    st.metric("Guidelines Flagged", len(relevant))
-                    if relevant:
-                        st.write("**Flagged:** " + ", ".join([g.code for g in relevant]))
+            with col2:
+                st.markdown("**Relevant Guidelines**")
+                for g in results['rag'].get_relevant_guidelines():
+                    with st.expander(f"**{g.code}. {g.name}** - Severity {g.severity.value if g.severity else 'N/A'} (Confidence: {g.confidence:.2%})"):
+                        st.write(f"**Reasoning:** {g.reasoning}")
+                        if g.disqualifiers:
+                            st.write(f"**Disqualifiers ({len(g.disqualifiers)}):**")
+                            for d in g.disqualifiers:
+                                st.write(f"- {d.code}: {d.text[:100]}...")
 
-                    # Show what enhanced native suggested
-                    st.divider()
-                    st.caption("**Native Guidance Provided:**")
-                    st.caption(f"Guidelines: {', '.join(native_guidance['relevant_guidelines'])}")
+# Comparison Tab - shows results for analyses that have been run
+with tab_compare:
+    log_timing("Rendering Comparison tab")
+    st.subheader("Comparative Analysis")
+    st.caption("Side-by-side comparison of all analysis approaches")
 
-                with col2:
-                    st.markdown("**Relevant Guidelines**")
-                    for g in results['rag'].get_relevant_guidelines():
-                        with st.expander(f"**{g.code}. {g.name}** - Severity {g.severity.value if g.severity else 'N/A'} (Confidence: {g.confidence:.1%})"):
-                            st.write(f"**Reasoning:** {g.reasoning}")
-                            if g.disqualifiers:
-                                st.write(f"**Disqualifiers ({len(g.disqualifiers)}):**")
-                                for d in g.disqualifiers:
-                                    st.write(f"- {d.code}: {d.text[:100]}...")
+    # Check what results are available
+    has_native = 'native' in results
+    has_enhanced = 'enhanced' in results
 
-    # Comparison Tab
-    with tab_compare:
-        st.subheader("Comparative Analysis")
-        st.caption("Side-by-side comparison of all analysis approaches")
+    if not has_native and not has_enhanced:
+        st.info("Run at least one analysis by clicking on the Basic Native or Enhanced Native tabs first.")
+    else:
         st.divider()
 
-        # Agreement check
-        recommendations = {
-            'Basic Native': results['native'].overall_assessment.recommendation.value,
-            'Enhanced Native': results['enhanced'].overall_assessment.recommendation.value
-        }
+        # Agreement check (only for available results)
+        recommendations = {}
+        if has_native:
+            recommendations['Basic Native'] = results['native'].overall_assessment.recommendation.value
+        if has_enhanced:
+            recommendations['Enhanced Native'] = results['enhanced'].overall_assessment.recommendation.value
 
         if include_llm and 'llm' in results:
             recommendations['LLM'] = results['llm'].overall_assessment.recommendation.value
@@ -839,59 +1046,98 @@ if st.session_state.analysis_run:
 
         summary_data = []
 
+        # Get ground truth for precision calculation
+        gt_guidelines = set(GROUND_TRUTH[selected_file]['guidelines']) if selected_file in GROUND_TRUTH else None
+
+        def calc_precision(predicted_set, gt_set):
+            """Calculate precision: correct predictions / total predictions"""
+            if not predicted_set or not gt_set:
+                return None
+            return len(gt_set & predicted_set) / len(predicted_set)
+
         # Basic Native
         native_relevant = [g.code for g in results['native'].get_relevant_guidelines()]
+        native_set = set(native_relevant)
+        native_precision = calc_precision(native_set, gt_guidelines)
         summary_data.append({
             "Approach": "1. Basic Native",
             "Method": "Keywords",
             "Guidelines": ", ".join(native_relevant),
             "Count": len(native_relevant),
             "Recommendation": results['native'].overall_assessment.recommendation.value,
-            "Confidence": f"{results['native'].overall_assessment.confidence:.1%}",
+            "Confidence": f"{results['native'].overall_assessment.confidence:.2%}",
+            "Precision": "N/A" if native_precision is None else f"{native_precision:.2%}",
             "Speed": "~100ms",
             "Cost": "$0"
         })
 
         # Enhanced Native
         enhanced_relevant = [g.code for g in results['enhanced'].get_relevant_guidelines()]
+        enhanced_set = set(enhanced_relevant)
+        enhanced_precision = calc_precision(enhanced_set, gt_guidelines)
         summary_data.append({
             "Approach": "2. Enhanced Native",
             "Method": "ML (N-grams + TF-IDF + Embeddings)",
             "Guidelines": ", ".join(enhanced_relevant),
             "Count": len(enhanced_relevant),
             "Recommendation": results['enhanced'].overall_assessment.recommendation.value,
-            "Confidence": f"{results['enhanced'].overall_assessment.confidence:.1%}",
+            "Confidence": f"{results['enhanced'].overall_assessment.confidence:.2%}",
+            "Precision": "N/A" if enhanced_precision is None else f"{enhanced_precision:.2%}",
             "Speed": "~3s",
             "Cost": "$0"
         })
 
         if include_llm and 'llm' in results:
             llm_relevant = [g.code for g in results['llm'].get_relevant_guidelines()]
+            llm_set = set(llm_relevant)
+            llm_precision = calc_precision(llm_set, gt_guidelines)
+            # Get actual cost from usage data (or show cached/estimated)
+            llm_usage = st.session_state.get('llm_usage')
+            llm_from_cache = st.session_state.get('llm_from_cache', False)
+            if llm_usage:
+                llm_cost = f"${llm_usage['total_cost']:.4f}"
+            elif llm_from_cache:
+                llm_cost = "(cached)"
+            else:
+                llm_cost = "~$0.02"
             summary_data.append({
                 "Approach": "3. LLM",
                 "Method": "Gemini 2.0 Flash",
                 "Guidelines": ", ".join(llm_relevant),
                 "Count": len(llm_relevant),
                 "Recommendation": results['llm'].overall_assessment.recommendation.value,
-                "Confidence": f"{results['llm'].overall_assessment.confidence:.1%}",
+                "Confidence": f"{results['llm'].overall_assessment.confidence:.2%}",
+                "Precision": "N/A" if llm_precision is None else f"{llm_precision:.2%}",
                 "Speed": "~20s",
-                "Cost": "~$0.02"
+                "Cost": llm_cost
             })
 
         if include_llm and 'rag' in results:
             rag_relevant = [g.code for g in results['rag'].get_relevant_guidelines()]
+            rag_set = set(rag_relevant)
+            rag_precision = calc_precision(rag_set, gt_guidelines)
+            # Get actual cost from usage data (or show cached/estimated)
+            rag_usage = st.session_state.get('rag_usage')
+            rag_from_cache = st.session_state.get('rag_from_cache', False)
+            if rag_usage:
+                rag_cost = f"${rag_usage['total_cost']:.4f}"
+            elif rag_from_cache:
+                rag_cost = "(cached)"
+            else:
+                rag_cost = "~$0.02"
             summary_data.append({
                 "Approach": "4. Enhanced LLM (RAG)",
                 "Method": "Enhanced guides Gemini",
                 "Guidelines": ", ".join(rag_relevant),
                 "Count": len(rag_relevant),
                 "Recommendation": results['rag'].overall_assessment.recommendation.value,
-                "Confidence": f"{results['rag'].overall_assessment.confidence:.1%}",
+                "Confidence": f"{results['rag'].overall_assessment.confidence:.2%}",
+                "Precision": "N/A" if rag_precision is None else f"{rag_precision:.2%}",
                 "Speed": "~23s",
-                "Cost": "~$0.02"
+                "Cost": rag_cost
             })
 
-        st.dataframe(summary_data)
+        st.dataframe(summary_data, width='stretch')
 
         # Ground truth comparison
         if selected_file in GROUND_TRUTH:
@@ -970,201 +1216,168 @@ if st.session_state.analysis_run:
                     if guideline and guideline.relevant:
                         st.success(f"**{name.upper()}**")
                         st.caption(f"Severity: {guideline.severity.value if guideline.severity else 'N/A'}")
-                        st.caption(f"Confidence: {guideline.confidence:.1%}")
+                        st.caption(f"Confidence: {guideline.confidence:.2%}")
                     else:
                         st.error(f"**{name.upper()}**")
                         st.caption("Not flagged")
 
-    # Dashboard Tab
-    with tab_dashboard:
-        st.subheader("DOHA Case Statistics Dashboard")
-        st.caption("Historical case data from the DOHA database")
+# Dashboard Tab
+with tab_dashboard:
+    log_timing("Rendering Dashboard tab")
+    st.subheader("DOHA Case Statistics Dashboard")
+    st.caption("Historical case data from the DOHA database")
 
-        # Load case statistics
-        df = load_case_statistics()
+    # Load case statistics
+    df = load_case_statistics()
 
-        if df is not None:
-            # Overview metrics
-            total_cases = len(df)
-            granted = len(df[df['outcome'] == 'GRANTED'])
-            denied = len(df[df['outcome'] == 'DENIED'])
-            other = total_cases - granted - denied
+    if df is not None:
+        # Overview metrics
+        total_cases = len(df)
+        granted = len(df[df['outcome'] == 'GRANTED'])
+        denied = len(df[df['outcome'] == 'DENIED'])
+        other = total_cases - granted - denied
 
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Total Cases", f"{total_cases:,}")
-            with col2:
-                st.metric("Granted", f"{granted:,}", f"{granted/total_cases:.1%}")
-            with col3:
-                st.metric("Denied", f"{denied:,}", f"{denied/total_cases:.1%}")
-            with col4:
-                st.metric("Other", f"{other:,}", f"{other/total_cases:.1%}")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Cases", f"{total_cases:,}")
+        with col2:
+            st.metric("Granted", f"{granted:,}", f"{granted/total_cases:.1%}")
+        with col3:
+            st.metric("Denied", f"{denied:,}", f"{denied/total_cases:.1%}")
+        with col4:
+            st.metric("Other", f"{other:,}", f"{other/total_cases:.1%}")
 
-            st.divider()
+        st.divider()
 
-            # Charts side by side
-            chart_col1, chart_col2 = st.columns(2)
+        # Charts side by side
+        chart_col1, chart_col2 = st.columns(2)
 
-            with chart_col1:
-                st.markdown("#### Outcome Distribution")
-                outcome_counts = df['outcome'].value_counts()
-                st.bar_chart(outcome_counts)
+        with chart_col1:
+            st.markdown("#### Outcome Distribution")
+            outcome_counts = df['outcome'].value_counts()
+            st.bar_chart(outcome_counts)
 
-            with chart_col2:
-                st.markdown("#### Cases by Guideline")
-                # Build stacked bar data with outcome breakdown per guideline
-                import altair as alt
+        with chart_col2:
+            st.markdown("#### Cases by Guideline")
+            # Build stacked bar data with outcome breakdown per guideline
+            import altair as alt
 
-                stacked_data = []
-                for guidelines, outcome in zip(df['guidelines'], df['outcome']):
-                    if guidelines is not None:
-                        # Categorize outcome
-                        if outcome == 'GRANTED':
-                            cat = 'Granted'
-                        elif outcome == 'DENIED':
-                            cat = 'Denied'
-                        else:
-                            cat = 'Other'
-                        for g in guidelines:
-                            stacked_data.append({'Guideline': g, 'Outcome': cat})
-
-                if stacked_data:
-                    stacked_df = pd.DataFrame(stacked_data)
-                    # Aggregate counts
-                    agg_df = stacked_df.groupby(['Guideline', 'Outcome']).size().reset_index(name='Count')
-
-                    # Create stacked bar chart with custom colors
-                    chart = alt.Chart(agg_df).mark_bar().encode(
-                        x=alt.X('Guideline:N', sort=list('ABCDEFGHIJKLM'), title='Guideline'),
-                        y=alt.Y('Count:Q', title='Cases'),
-                        color=alt.Color('Outcome:N',
-                            scale=alt.Scale(
-                                domain=['Granted', 'Denied', 'Other'],
-                                range=['#1f77b4', '#aec7e8', '#d4a82e']  # Blue, Light Blue, Gold
-                            ),
-                            legend=alt.Legend(title='Outcome')
-                        ),
-                        order=alt.Order('Outcome:N', sort='ascending')
-                    ).properties(height=400)
-
-                    st.altair_chart(chart, use_container_width=True)
-
-            st.divider()
-
-            # Cross-tabulation: Guidelines vs Outcomes
-            st.markdown("#### Approval/Denial Rates by Guideline")
-
-            # Get all unique guidelines
-            all_guidelines = set()
-            for guidelines in df['guidelines']:
+            stacked_data = []
+            for guidelines, outcome in zip(df['guidelines'], df['outcome']):
                 if guidelines is not None:
-                    all_guidelines.update(guidelines)
+                    # Categorize outcome
+                    if outcome == 'GRANTED':
+                        cat = 'Granted'
+                    elif outcome == 'DENIED':
+                        cat = 'Denied'
+                    else:
+                        cat = 'Other'
+                    for g in guidelines:
+                        stacked_data.append({'Guideline': g, 'Outcome': cat})
 
-            # Build cross-tab data
-            crosstab_data = []
-            for guideline in sorted(all_guidelines):
-                # Filter cases that have this guideline
-                mask = df['guidelines'].apply(lambda x: guideline in x if x is not None else False)
-                guideline_cases = df[mask]
-                g_total = len(guideline_cases)
-                g_granted = len(guideline_cases[guideline_cases['outcome'] == 'GRANTED'])
-                g_denied = len(guideline_cases[guideline_cases['outcome'] == 'DENIED'])
+            if stacked_data:
+                stacked_df = pd.DataFrame(stacked_data)
+                # Aggregate counts
+                agg_df = stacked_df.groupby(['Guideline', 'Outcome']).size().reset_index(name='Count')
 
-                crosstab_data.append({
-                    'Guideline': guideline,
-                    'Total Cases': g_total,
-                    'Granted': g_granted,
-                    'Denied': g_denied,
-                    'Approval Rate': f"{g_granted/g_total:.1%}" if g_total > 0 else "N/A",
-                    'Denial Rate': f"{g_denied/g_total:.1%}" if g_total > 0 else "N/A"
-                })
+                # Calculate percentages and stack positions
+                totals = agg_df.groupby('Guideline')['Count'].transform('sum')
+                agg_df['Percentage'] = (agg_df['Count'] / totals * 100).round(0).astype(int)
+                # Only show label if segment is >= 10% (enough room for text)
+                agg_df['Label'] = agg_df['Percentage'].apply(lambda x: f'{x}%' if x >= 10 else '')
 
-            crosstab_df = pd.DataFrame(crosstab_data)
-            st.dataframe(crosstab_df, hide_index=True)
+                # Calculate y positions for text (center of each segment)
+                # Sort by guideline and outcome to match stacking order
+                agg_df = agg_df.sort_values(['Guideline', 'Outcome'])
+                agg_df['y_end'] = agg_df.groupby('Guideline')['Count'].cumsum()
+                agg_df['y_start'] = agg_df['y_end'] - agg_df['Count']
+                agg_df['y_mid'] = (agg_df['y_start'] + agg_df['y_end']) / 2
 
-        else:
-            st.warning("Case statistics not available. Parquet file not found.")
+                # Create percentage label for display
+                agg_df['Pct_Label'] = agg_df['Percentage'].apply(lambda x: f'{x}%')
 
-else:
-    # Welcome screen
-    st.info("Select a test case from the sidebar and click **Run Comparison Analysis** to begin")
+                # Common tooltip for both layers
+                tooltip_fields = [
+                    alt.Tooltip('Guideline:N', title='Guideline'),
+                    alt.Tooltip('Outcome:N', title='Outcome'),
+                    alt.Tooltip('Count:Q', title='Cases', format=','),
+                    alt.Tooltip('Pct_Label:N', title='Percentage')
+                ]
 
-    col1, col2 = st.columns(2)
+                # Bars
+                bars = alt.Chart(agg_df).mark_bar().encode(
+                    x=alt.X('Guideline:N', sort=list('ABCDEFGHIJKLM'), title='Guideline'),
+                    y=alt.Y('Count:Q', title='Cases'),
+                    color=alt.Color('Outcome:N',
+                        scale=alt.Scale(
+                            domain=['Granted', 'Denied', 'Other'],
+                            range=['#1f77b4', '#aec7e8', '#d4a82e']  # Blue, Light Blue, Gold
+                        ),
+                        legend=alt.Legend(title='Outcome')
+                    ),
+                    order=alt.Order('Outcome:N', sort='ascending'),
+                    tooltip=tooltip_fields
+                )
 
-    with col1:
-        st.markdown("""
-        ### Approach Overview
+                # Text labels centered in each segment
+                text = alt.Chart(agg_df).mark_text(
+                    align='center',
+                    baseline='middle',
+                    color='white',
+                    fontSize=10,
+                    fontWeight='bold'
+                ).encode(
+                    x=alt.X('Guideline:N', sort=list('ABCDEFGHIJKLM')),
+                    y=alt.Y('y_mid:Q'),
+                    text='Label:N',
+                    tooltip=tooltip_fields
+                )
 
-        This tool compares **4 different analysis methods** for SEAD-4 security clearance evaluation:
+                chart = (bars + text).properties(height=400)
 
-        **1. Basic Native**
-        - Keyword matching and pattern recognition
-        - Fast (~100ms), 0 cost, ~50% precision
-        - Fully offline, no ML dependencies
+                st.altair_chart(chart, width='stretch')
 
-        **2. Enhanced Native**
-        - N-gram phrase matching + TF-IDF weighting
-        - Semantic embeddings (sentence transformers)
-        - Contextual co-occurrence analysis
-        - Moderate speed (~3s), 0 cost, ~83% precision
+        st.divider()
 
-        **3. LLM (Independent)**
-        - Deep semantic understanding (Gemini 2.0 Flash)
-        - Independent analysis without pre-filtering from native analyzer
-        - Slower (~20s), ~$0.02 cost, ~90% precision
+        # Cross-tabulation: Guidelines vs Outcomes
+        st.markdown("#### Approval/Denial Rates by Guideline")
 
-        **4. Enhanced LLM (RAG)**
-        - Enhanced native identifies key guidelines
-        - LLM performs targeted deep analysis
-        - Best of both: precision + reasoning
-        - Speed (~23s), ~$0.02 cost, ~95% precision
-        """)
+        # Get all unique guidelines
+        all_guidelines = set()
+        for guidelines in df['guidelines']:
+            if guidelines is not None:
+                all_guidelines.update(guidelines)
 
-    with col2:
-        st.markdown("""
-        ### Available Test Cases
+        # Build cross-tab data
+        crosstab_data = []
+        for guideline in sorted(all_guidelines):
+            # Filter cases that have this guideline
+            mask = df['guidelines'].apply(lambda x: guideline in x if x is not None else False)
+            guideline_cases = df[mask]
+            g_total = len(guideline_cases)
+            g_granted = len(guideline_cases[guideline_cases['outcome'] == 'GRANTED'])
+            g_denied = len(guideline_cases[guideline_cases['outcome'] == 'DENIED'])
 
-        Three cases with verified ground truth:
+            crosstab_data.append({
+                'Guideline': guideline,
+                'Total Cases': g_total,
+                'Granted': g_granted,
+                'Denied': g_denied,
+                'Approval Rate': f"{g_granted/g_total:.1%}" if g_total > 0 else "N/A",
+                'Denial Rate': f"{g_denied/g_total:.1%}" if g_total > 0 else "N/A"
+            })
 
-        **PSH-25-0137**
-        - Alcohol + PTSD case
-        - Expected: Guidelines G, I
+        crosstab_df = pd.DataFrame(crosstab_data)
+        st.dataframe(crosstab_df, hide_index=True)
 
-        **PSH-25-0214**
-        - DUI + Lack of Candor
-        - Expected: Guidelines E, G
+    else:
+        st.warning("Case statistics not available. Parquet file not found.")
 
-        **PSH-25-0181**
-        - Alcohol case
-        - Expected: Guideline G
-
-        ### Metrics
-
-        Each approach is evaluated on:
-        - **Precision:** Accuracy of flagged guidelines
-        - **Recall:** Coverage of relevant guidelines
-        - **Speed:** Analysis completion time
-        - **Cost:** API usage charges
-        """)
+log_timing("<<< MAIN ANALYSIS BLOCK END")
 
 # Footer
 st.sidebar.divider()
 st.sidebar.caption("SEAD-4 Analyzer Demo v1.0")
 st.sidebar.caption("Built with Streamlit")
 
-# Background loading: Pre-load ML models and parsers after UI renders
-# This ensures models are ready when user clicks "Run Comparison Analysis"
-# First load takes ~3-5 seconds, cached for all subsequent uses
-try:
-    get_enhanced_analyzer()
-except Exception:
-    # Silent fail - models will load on first use instead
-    pass
-
-# Pre-load Gemini parser for instant cache loading
-# First load takes ~15-20s (imports google.generativeai), then cached
-try:
-    get_gemini_parser()
-except Exception:
-    # Silent fail - parser will load on first use instead
-    pass
+log_timing("=== SCRIPT END ===")

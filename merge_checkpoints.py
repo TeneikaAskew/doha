@@ -13,8 +13,9 @@ try:
 except ImportError:
     HAS_PANDAS = False
 
-# GitHub file size limit with buffer
-MAX_PARQUET_SIZE_MB = 90  # Stay under GitHub's 100MB limit
+# GitHub file size limits
+GITHUB_FILE_LIMIT_MB = 100  # GitHub's actual hard limit
+MAX_PARQUET_SIZE_MB = 95  # Target for splitting (leaves room for compression variance)
 
 
 def validate_parquet_file(file_path: Path, expected_rows: int, operation: str = "save") -> None:
@@ -81,6 +82,15 @@ def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size
 
     # If it fits in one file, save directly
     if total_size_mb <= max_size_mb:
+        # Clean up any old split files first
+        base_name = output_path.stem
+        suffix = output_path.suffix
+        old_split_files = list(output_path.parent.glob(f"{base_name}_*{suffix}"))
+        if old_split_files:
+            logger.info(f"Cleaning up {len(old_split_files)} old split files (data now fits in single file)")
+            for old_file in old_split_files:
+                old_file.unlink()
+
         df.to_parquet(output_path, index=False, engine='pyarrow', compression='gzip')
         validate_parquet_file(output_path, len(df), "single file save")
         size_mb = output_path.stat().st_size / (1024 * 1024)
@@ -98,6 +108,18 @@ def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size
     suffix = output_path.suffix   # e.g., ".parquet"
     parent = output_path.parent
 
+    # Clean up old single file if it exists (we're creating split files now)
+    if output_path.exists():
+        logger.info(f"Removing old single file {output_path.name} (will be replaced by split files)")
+        output_path.unlink()
+
+    # Also clean up any old split files (in case number of splits changed)
+    old_split_files = list(parent.glob(f"{base_name}_*{suffix}"))
+    if old_split_files:
+        logger.info(f"Cleaning up {len(old_split_files)} old split files before creating new ones")
+        for old_file in old_split_files:
+            old_file.unlink()
+
     for i, start_idx in enumerate(range(0, len(df), cases_per_file), 1):
         chunk = df.iloc[start_idx:start_idx + cases_per_file]
         chunk_path = parent / f"{base_name}_{i}{suffix}"
@@ -105,10 +127,10 @@ def save_parquet_with_size_limit(df: "pd.DataFrame", output_path: Path, max_size
         validate_parquet_file(chunk_path, len(chunk), f"chunk {i} save")
         size_mb = chunk_path.stat().st_size / (1024 * 1024)
 
-        # Verify chunk doesn't exceed size limit
-        if size_mb > max_size_mb:
-            logger.error(f"❌ Chunk {i} exceeds {max_size_mb}MB: {size_mb:.1f}MB")
-            raise ValueError(f"Parquet splitting failed, chunk {i} too large: {size_mb:.1f}MB > {max_size_mb}MB")
+        # Verify chunk doesn't exceed GitHub's limit
+        if size_mb > GITHUB_FILE_LIMIT_MB:
+            logger.error(f"❌ Chunk {i} exceeds GitHub's {GITHUB_FILE_LIMIT_MB}MB limit: {size_mb:.1f}MB")
+            raise ValueError(f"Parquet splitting failed, chunk {i} too large: {size_mb:.1f}MB > {GITHUB_FILE_LIMIT_MB}MB")
 
         logger.success(f"Saved {len(chunk)} cases to {chunk_path} ({size_mb:.1f}MB)")
         created_files.append(chunk_path)
@@ -132,11 +154,24 @@ def merge_checkpoints(input_dir: str = "doha_parsed_cases", output_parquet: bool
         # New format: checkpoint_hearing_50 or checkpoint_appeal_50
         if len(parts) == 3:
             case_type = parts[1]
-            num = int(parts[2])
+            # Handle both numeric (50) and batch (batch27) formats
+            num_str = parts[2]
+            if num_str.startswith('batch'):
+                num = int(num_str.replace('batch', ''))
+            else:
+                try:
+                    num = int(num_str)
+                except ValueError:
+                    num = 0  # Fallback for unexpected formats
             return (case_type, num)
         # Old format: checkpoint_50
+        elif len(parts) == 2:
+            try:
+                return ('', int(parts[1]))
+            except ValueError:
+                return ('', 0)
         else:
-            return ('', int(parts[1]))
+            return ('', 0)
 
     # Find checkpoint files in main directory and all archive subdirectories
     checkpoint_files = list(input_path.glob("checkpoint_*.json"))

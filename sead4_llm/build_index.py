@@ -107,7 +107,15 @@ def build_from_cases(cases_path: Path, output_path: Path, update: bool = False):
     output_path = Path(output_path)
 
     # PREFER parquet files (more consistent, always under size limit)
-    parquet_files = list(cases_path.parent.glob(f"{cases_path.stem}*.parquet"))
+    # Check for split files first (all_cases_1.parquet, all_cases_2.parquet, etc.)
+    # to avoid loading both single and split files which causes duplicates
+    split_files = list(cases_path.parent.glob(f"{cases_path.stem}_*.parquet"))
+    if split_files:
+        parquet_files = split_files
+    elif cases_path.with_suffix('.parquet').exists():
+        parquet_files = [cases_path.with_suffix('.parquet')]
+    else:
+        parquet_files = []
 
     if parquet_files:
         logger.info(f"Found {len(parquet_files)} parquet file(s) - using parquet (most consistent format)")
