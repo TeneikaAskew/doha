@@ -2,9 +2,9 @@
 
 ## ✅ Summary - SCRAPING WORKS!
 
-**Status**: Successfully scraped **~31,860 DOHA cases** using browser automation (Playwright):
-- **30,850+ Hearing decisions** (initial adjudications)
-- **1,010+ Appeal decisions** (DOHA Appeal Board reviews)
+**Status**: Successfully scraped **~36,700 DOHA cases** using browser automation (Playwright):
+- **~28,650 Hearing decisions** (initial adjudications)
+- **~8,050 Appeal decisions** (DOHA Appeal Board reviews)
 
 While the DOHA website (doha.ogc.osd.mil) has Akamai bot protection that blocks standard HTTP requests, **browser-based scraping with Playwright successfully bypasses this protection** for both case types.
 
@@ -36,7 +36,7 @@ python run_full_scrape.py --case-type appeals    # Only appeals
 
 # 2. Download and parse PDFs (browser-based, bypasses bot protection)
 python download_pdfs.py --max-cases 10           # Test with 10 cases
-python download_pdfs.py                           # Download all cases (both types)
+python download_pdfs.py --workers 4              # Download all cases with 4 workers (~3 hours)
 python download_pdfs.py --case-type hearings     # Download only hearings
 python download_pdfs.py --case-type appeals      # Download only appeals
 
@@ -84,7 +84,7 @@ What this does:
 Output structure:
 ```
 doha_full_scrape/
-├── all_case_links.json          # Combined: ~31,860 links
+├── all_case_links.json          # Combined: ~36,700 links
 ├── hearing_links_2019.json      # Per-year files
 ├── hearing_links_2020.json
 ├── appeal_links_2019.json
@@ -92,15 +92,15 @@ doha_full_scrape/
 └── ...
 ```
 
-**Step 2: Download and Parse PDFs** (~1.5-9 hours)
+**Step 2: Download and Parse PDFs** (~3 hours with 4 workers)
 
 From project root directory:
 ```bash
 # Test with 10 cases first
 python download_pdfs.py --max-cases 10
 
-# If successful, download all
-python download_pdfs.py
+# If successful, download all with parallel workers
+python download_pdfs.py --workers 4
 ```
 
 What this does:
@@ -122,11 +122,11 @@ doha_parsed_cases/
 ├── all_cases.parquet           # Compressed format (<90MB, committed)
 ├── checkpoint_hearing_50.json  # Resume checkpoints
 ├── checkpoint_appeal_50.json
-├── hearing_pdfs/               # ~30,850 PDFs
+├── hearing_pdfs/               # ~28,650 PDFs
 │   ├── 19-12345.pdf
 │   ├── 20-67890.pdf
 │   └── ...
-└── appeal_pdfs/                # ~1,010+ PDFs
+└── appeal_pdfs/                # ~8,050 PDFs
     ├── appeal-2019-108848.pdf
     ├── appeal-2020-234567.pdf
     └── ...
@@ -231,9 +231,9 @@ python reprocess_cases.py
 
 ## 📊 What We Found
 
-Successfully scraped **~31,860 total cases** (hearings + appeals) across all years:
+Successfully scraped **~36,700 total cases** (hearings + appeals) across all years:
 
-**Hearings (~30,850 cases)**:
+**Hearings (~28,650 cases)**:
 | Year | Cases | Type |
 |------|-------|------|
 | 2016 and Prior | 19,648 | Archived (17 pages) |
@@ -248,7 +248,7 @@ Successfully scraped **~31,860 total cases** (hearings + appeals) across all yea
 | 2025 | 637 | Current |
 | 2026 | 19 | Current |
 
-**Appeals (~1,010+ cases)** from years **2016-2026**:
+**Appeals (~8,050 cases)** from years **2016-2026**:
 | Year | Cases | Type |
 |------|-------|------|
 | 2016 and Prior | TBD | Archived (3+ pages) |
@@ -420,8 +420,8 @@ The `download_pdfs.py` script uses Playwright's browser request context API:
 - `page.context.request.get(url)` makes HTTP requests through the browser's session
 - Inherits browser cookies and authentication state
 - Bypasses Akamai protection without triggering download dialogs
-- Fast: ~5-8 cases/second (~0.15-0.2 seconds per PDF)
-- Sequential processing: ~8-10 hours for 30,850 cases (reasonable for overnight run)
+- Supports parallel workers: `--workers 4` for ~200 cases/minute
+- Single worker: ~50 cases/minute (~0.8 cases/sec)
 - **Automatic browser restart every 100 cases** to prevent memory buildup and maintain consistent speed
 
 ## 📝 Scripts Overview
@@ -429,7 +429,7 @@ The `download_pdfs.py` script uses Playwright's browser request context API:
 | Script | Purpose | Status | Notes |
 |--------|---------|--------|-------|
 | `run_full_scrape.py` | Collect case links | ✅ Works | Uses browser, ~11 minutes for all links (hearings + appeals) |
-| `download_pdfs.py` | Download PDFs | ✅ Works | Browser-based, ~8-9 hours for all cases, supports case type filtering |
+| `download_pdfs.py` | Download PDFs | ✅ Works | Browser-based, ~3 hours (4 workers), supports case type filtering |
 
 ## 📝 Usage
 
@@ -469,8 +469,8 @@ python run_full_scrape.py
 # Test with first 10 cases
 python download_pdfs.py --max-cases 10
 
-# Download all cases (~8-9 hours)
-python download_pdfs.py                           # Both hearings and appeals
+# Download all cases with parallel workers (~3 hours)
+python download_pdfs.py --workers 4              # Both hearings and appeals
 python download_pdfs.py --case-type hearings     # Only hearings
 python download_pdfs.py --case-type appeals      # Only appeals
 
@@ -485,15 +485,24 @@ python download_pdfs.py --force
 
 **The browser-based downloader**:
 - Uses Playwright's browser request context (bypasses bot protection)
-- Downloads PDFs at ~5-8 cases/second consistently
+- Supports parallel workers: `--workers 4` for ~200 cases/minute
 - **Automatic browser restart every 100 cases** to prevent memory buildup
 - Organizes PDFs by type (hearing_pdfs/ and appeal_pdfs/)
 - Parses with PyMuPDF
 - Extracts metadata (outcome, guidelines, judge, case_type, etc.)
 - Saves checkpoints every 50 cases
 - Smart resume: skips already downloaded cases
+- **PDF/case consistency validation**: detects orphaned PDFs and missing files
 - Logs failures separately
 - Supports case type filtering
+
+**Output Summary:**
+
+After each download run, you'll see a clear summary:
+- **This run**: Cases downloaded in current session
+- **Previously in all_cases.json**: Cases already in your dataset
+- **Total in all_cases.json now**: Combined total (existing + new)
+- **In RAG search index**: Cases indexed for precedent search (if built)
 
 ### 3. Build RAG Index
 
@@ -573,7 +582,7 @@ python build_index.py --local-dir ./downloaded_cases --output ./doha_index
 
 **Fallback 3: Use Existing Data**
 ```bash
-# You already have 30,850 case links in:
+# You already have 36,700 case links in:
 doha_full_scrape/all_case_links.json
 
 # Just run the PDF downloader:
@@ -589,10 +598,10 @@ python download_pdfs.py
 | **Purpose** | Initial adjudication | Review of hearing decision |
 | **Decision Maker** | DOHA Administrative Judge | DOHA Appeal Board (3 members) |
 | **Outcomes** | GRANTED / DENIED | AFFIRM / REVERSE / REMAND |
-| **Volume** | ~30,850 cases (2016-2026) | ~1,010+ cases (2016-2026) |
+| **Volume** | ~28,650 cases (2016-2026) | ~8,050 cases (2016-2026) |
 | **URL Pattern** | `.../ISCR-Hearing-Decisions/` | `.../DOHA-Appeal-Board/` |
 | **Archive Years** | 2017-2018 + 17-page pre-2016 | 2017-2018 + 3+ page pre-2016 |
-| **Pre-2017 Data** | ✅ Available (19,648 cases) | ✅ Available (count TBD) |
+| **Pre-2017 Data** | ✅ Available | ✅ Available |
 
 ### Why Fewer Appeals?
 - Only cases where the applicant contests the hearing decision
@@ -645,7 +654,7 @@ The download script creates **both JSON and Parquet** formats automatically:
 ### After Link Collection
 ```
 doha_full_scrape/
-├── all_case_links.json       # All ~31,860 links (hearings + appeals)
+├── all_case_links.json       # All ~36,700 links (hearings + appeals)
 ├── hearing_links_2019.json   # Per-year, per-type files (for resume)
 ├── hearing_links_2020.json
 ├── appeal_links_2019.json
@@ -706,9 +715,10 @@ python download_pdfs.py    # Downloads only new PDFs
 
 ## 📊 Performance
 
-- **Link collection**: ~11 minutes for ~31,860 cases (hearings + appeals)
-- **PDF download**: ~5-8 cases/second with browser automation
-- **Total download time**: ~8-10 hours for all cases
+- **Link collection**: ~11 minutes for ~36,700 cases (hearings + appeals)
+- **PDF download (4 workers)**: ~200 cases/minute (~3.3 cases/sec total)
+- **PDF download (1 worker)**: ~50 cases/minute (~0.8 cases/sec)
+- **Total download time**: ~3 hours (4 workers) or ~12 hours (1 worker)
 - **Index building**: ~5-10 minutes for all cases
 
 ### Browser Memory Management
@@ -727,7 +737,7 @@ This optimization is critical for processing 30,000+ cases efficiently and saves
 ## 🎉 Success Rate
 
 From our scrape:
-- **Link collection**: 100% success (~31,860 links collected)
+- **Link collection**: 100% success (~36,700 links collected)
 - **PDF download**: High success rate with browser automation
 - **Both hearings and appeals**: Fully supported
 
@@ -739,6 +749,12 @@ From our scrape:
 - [download_pdfs.py](download_pdfs.py) - Browser-based PDF downloader
 - [sead4_llm/rag/browser_scraper.py](sead4_llm/rag/browser_scraper.py) - Browser scraper implementation
 - [sead4_llm/build_index.py](sead4_llm/build_index.py) - Index builder
+
+## 🌐 Live Demo
+
+Explore the scraped data: **https://doha-analysis.streamlit.app/**
+
+Browse and search ~36,700 DOHA cases with filtering by outcome, guidelines, year, and case type.
 
 ## ❓ FAQ
 
@@ -797,7 +813,7 @@ The site distinguishes between automated HTTP tools and real browser behavior.
 If protection increases:
 1. Try from different network/IP address
 2. Increase rate limits (slower = more human-like)
-3. Use existing scraped data (30,850 cases already collected)
+3. Use existing scraped data (36,700 cases already collected)
 4. Contact DOHA for official data access
 5. Submit FOIA request for bulk data
 

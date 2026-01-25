@@ -21,6 +21,20 @@ An LLM-powered system for analyzing security clearance reports against SEAD-4 ad
 - **Precedent Matching** (Optional): RAG-based retrieval of similar DOHA cases
 - **Batch Processing**: Analyze multiple reports efficiently
 
+## Live Demo
+
+Try the DOHA Case Explorer: **https://doha-analysis.streamlit.app/**
+
+Browse and search ~36,700 DOHA cases with filtering by outcome, guidelines, year, and case type.
+
+### Run Locally
+
+```bash
+python -m streamlit run sead4_llm/demo_ui.py
+```
+
+The app opens at `http://localhost:8501`.
+
 ## Complete Workflow
 
 The typical workflow consists of three main phases:
@@ -29,21 +43,21 @@ The typical workflow consists of three main phases:
 
 **Run from project root directory:**
 
-1. **Collect case links** (~11 minutes for all ~31,860 cases):
+1. **Collect case links** (~11 minutes for all ~36,700 cases):
    ```bash
    python run_full_scrape.py
    # Or filter by case type:
-   python run_full_scrape.py --case-type hearings   # ~30,850 cases
-   python run_full_scrape.py --case-type appeals    # ~1,010+ cases
+   python run_full_scrape.py --case-type hearings   # ~28,650 cases
+   python run_full_scrape.py --case-type appeals    # ~8,050 cases
    ```
    - Uses Playwright browser automation to bypass bot protection
    - Creates `./doha_full_scrape/all_case_links.json`
    - Automatically resumes if interrupted - loads completed years
 
-2. **Download and parse PDFs** (~1.5-9 hours depending on system):
+2. **Download and parse PDFs** (~3 hours with 4 workers):
    ```bash
    python download_pdfs.py --max-cases 10           # Test with 10 first
-   python download_pdfs.py                           # Then download all (~31,860 cases)
+   python download_pdfs.py --workers 4              # Download all (~36,700 cases) with 4 parallel workers
    python download_pdfs.py --case-type hearings     # Only hearings
    python download_pdfs.py --case-type appeals      # Only appeals
    ```
@@ -170,9 +184,9 @@ doha/                       # Project root
 ### Browser-Based Scraping (Recommended)
 
 ✅ **SCRAPING WORKS!** The project includes a **Playwright-based browser scraper** that successfully bypasses bot protection:
-- **30,850+ Hearing decisions** (2016-2026) - Initial adjudications by DOHA administrative judges (GRANTED/DENIED)
-- **1,010+ Appeal decisions** (2017-2026) - DOHA Appeal Board reviews of hearing decisions (AFFIRM/REVERSE/REMAND)
-- **2016 and Prior Appeals** - Additional appeal cases in archived pages (exact count TBD after scraping)
+- **~28,650 Hearing decisions** (2016-2026) - Initial adjudications by DOHA administrative judges (GRANTED/DENIED)
+- **~8,050 Appeal decisions** (2016-2026) - DOHA Appeal Board reviews of hearing decisions (AFFIRM/REVERSE/REMAND)
+- **Total: ~36,700 cases** available for precedent matching
 
 See [**DOHA_SCRAPING_GUIDE.md**](DOHA_SCRAPING_GUIDE.md) for complete details on:
 - How browser automation bypasses Akamai bot protection
@@ -185,8 +199,8 @@ See [**DOHA_SCRAPING_GUIDE.md**](DOHA_SCRAPING_GUIDE.md) for complete details on
 
 ```bash
 # Step 1: Collect all case links using browser automation
-# Hearings: Initial adjudication decisions (2016-2026, ~30,850 cases)
-# Appeals: Appeal Board reviews (2016-2026, ~1,010+ cases)
+# Hearings: Initial adjudication decisions (2016-2026, ~28,650 cases)
+# Appeals: Appeal Board reviews (2016-2026, ~8,050 cases)
 # Both hearings and appeals include "2016 and Prior" archived pages
 python run_full_scrape.py                         # Both hearings and appeals (default)
 python run_full_scrape.py --case-type hearings   # Only hearings
@@ -197,7 +211,7 @@ python run_full_scrape.py --case-type appeals    # Only appeals
 # Step 2: Download and parse PDFs using browser automation
 # Note: Use --max-cases for testing to avoid long download times
 python download_pdfs.py --max-cases 10           # Test with 10 cases first
-python download_pdfs.py                           # Download all cases (both types)
+python download_pdfs.py --workers 4              # Download all cases with 4 workers (~3 hours)
 python download_pdfs.py --case-type hearings     # Download only hearings
 python download_pdfs.py --case-type appeals      # Download only appeals
 
@@ -213,6 +227,18 @@ python build_index.py --from-cases ../doha_parsed_cases/all_cases.parquet --outp
 # Step 4: Test the index
 python build_index.py --test --index ../doha_index
 ```
+
+**Output Summary:**
+
+After each download run, you'll see a clear summary:
+- **This run**: Cases downloaded in current session
+- **Previously in all_cases.json**: Cases already in your dataset
+- **Total in all_cases.json now**: Combined total (existing + new)
+- **In RAG search index**: Cases indexed for precedent search (if built)
+
+The script also validates PDF/case consistency automatically, detecting:
+- Orphaned PDFs (PDF exists but no matching case in all_cases.json)
+- Missing PDFs (case exists but PDF file is missing)
 
 **Troubleshooting:**
 
@@ -232,11 +258,11 @@ python download_pdfs.py
 ```
 
 **Performance:**
-- **GitHub Codespaces**: ~5-6 cases per second
-- **Local desktop**: ~1-2 cases per second
-- Estimated time for full dataset (31,860 cases):
-  - Codespaces: ~1.5-1.8 hours
-  - Local: ~4.5-9 hours
+- **With 4 workers**: ~200 cases/minute (~3.3 cases/sec total)
+- **Single worker**: ~50 cases/minute (~0.8 cases/sec)
+- Estimated time for full dataset (~36,700 cases):
+  - 4 workers: ~3 hours
+  - Single worker: ~12 hours
 
 **Important Notes:**
 - Individual PDF URLs are protected by bot detection and require browser automation to download

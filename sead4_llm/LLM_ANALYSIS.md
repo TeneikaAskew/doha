@@ -268,7 +268,7 @@ The optional RAG system finds similar DOHA cases to inform analysis:
 The index requires:
 - Parsed DOHA case data (JSON or Parquet format)
 - sentence-transformers library
-- ~5-10 minutes to build for ~31,000 cases
+- ~5-10 minutes to build for ~36,700 cases
 
 See [`../README.md`](../README.md) for data collection workflow.
 

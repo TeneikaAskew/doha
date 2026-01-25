@@ -183,9 +183,9 @@ Fix: Use browser automation
 ## Performance Benchmarks
 
 ### Expected Performance (DOHA Scraper)
-- Link collection: ~11 minutes for 30,850 links
-- PDF download: ~7-8 cases/second
-- Full download: ~8-9 hours for 30,850 cases
+- Link collection: ~11 minutes for ~36,700 links
+- PDF download: ~200 cases/minute (4 workers), ~50 cases/minute (1 worker)
+- Full download: ~3 hours (4 workers) for ~36,700 cases
 - Index building: ~5-10 minutes
 
 ### Red Flags

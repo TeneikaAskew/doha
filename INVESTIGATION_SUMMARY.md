@@ -80,10 +80,11 @@ I mapped the **entire DOHA case archive**:
 
 **What Works**:
 - ✅ Playwright browser automation (Chromium) - FULLY FUNCTIONAL
-- ✅ Link collection: ~11 minutes for all cases
-- ✅ PDF download: ~8-9 hours for 30K+ cases
+- ✅ Link collection: ~11 minutes for ~36,700 cases
+- ✅ PDF download: ~3 hours (4 workers) for ~36,700 cases
 - ✅ Automatic resume capability for interrupted downloads
 - ✅ Checkpoint saves every 50 cases
+- ✅ Parallel workers support via `--workers N` flag
 
 ---
 
@@ -163,9 +164,9 @@ python build_index.py --local-dir ../my_downloaded_cases --output ../doha_index
 # Step 1: Collect all case links (~11 minutes)
 python run_full_scrape.py
 
-# Step 2: Download and parse PDFs (~8-9 hours for all cases)
+# Step 2: Download and parse PDFs (~3 hours with 4 workers)
 python download_pdfs.py --max-cases 10           # Test with 10 first
-python download_pdfs.py                           # Then download all
+python download_pdfs.py --workers 4              # Then download all with parallel workers
 
 # Step 3: Build RAG index
 cd sead4_llm

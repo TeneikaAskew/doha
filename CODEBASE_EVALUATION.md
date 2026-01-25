@@ -511,10 +511,10 @@ The rate limit of `3.0` seconds for browser requests and `0.15` seconds for PDF 
 ### 6. Documentation-Code Mismatch
 **Example**: README shows:
 ```bash
-python download_pdfs.py  # ~8-10 hours for all cases
+python download_pdfs.py --workers 4  # ~3 hours for all cases
 ```
 
-But recent changes increased browser restart interval which may change performance characteristics. Documentation not updated.
+Documentation has been updated to reflect parallel worker support and improved performance.
 
 ---
 

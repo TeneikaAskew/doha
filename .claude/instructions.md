@@ -68,10 +68,10 @@ This is an LLM-powered system for analyzing security clearance reports against S
 - Checkpoints: `doha_parsed_cases/checkpoint_N.json`
 
 ### Performance Expectations
-- Link collection: ~11 minutes for 30,850 cases
-- PDF download: ~7-8 cases/second, ~8-9 hours total
-- Index building: ~5-10 minutes for 30K cases
-- Parallel downloads DON'T work due to bot protection
+- Link collection: ~11 minutes for ~36,700 cases
+- PDF download: ~200 cases/minute (4 workers), ~3 hours total
+- Index building: ~5-10 minutes for ~36,700 cases
+- Parallel downloads supported via `--workers N` flag
 
 ## File Structure
 
