@@ -103,7 +103,10 @@ def display_pdf(file_path: Path, document_text: str = None):
 
         function renderPage(num) {{
             pdfDoc.getPage(num).then(function(page) {{
-                var viewport = page.getViewport({{scale: 1.5}});
+                var container = document.getElementById('pdf-container');
+                var baseViewport = page.getViewport({{scale: 1}});
+                var scale = (container.clientWidth - 20) / baseViewport.width;
+                var viewport = page.getViewport({{scale: scale}});
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
                 page.render({{canvasContext: ctx, viewport: viewport}});
