@@ -74,13 +74,63 @@ def get_api_key() -> str | None:
     return os.getenv('GEMINI_API_KEY')
 
 
-def display_pdf(file_path: Path):
-    """Display PDF in an iframe using base64 encoding"""
+def display_pdf(file_path: Path, document_text: str = None):
+    """Display PDF using PDF.js for cross-platform compatibility"""
     with open(file_path, "rb") as f:
-        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        pdf_bytes = f.read()
+        base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
 
-    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
-    st.markdown(pdf_display, unsafe_allow_html=True)
+    # PDF.js viewer with inline rendering
+    pdf_js_html = f'''
+    <div id="pdf-container" style="width:100%; height:700px; overflow:auto; border:1px solid #ddd; background:#f5f5f5;">
+        <canvas id="pdf-canvas"></canvas>
+    </div>
+    <div style="margin-top:10px;">
+        <button onclick="prevPage()" style="padding:5px 15px; margin-right:5px;">◀ Prev</button>
+        <span id="page-info">Page 1 of 1</span>
+        <button onclick="nextPage()" style="padding:5px 15px; margin-left:5px;">Next ▶</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        var pdfData = atob("{base64_pdf}");
+        var pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        var pdfDoc = null;
+        var pageNum = 1;
+        var canvas = document.getElementById('pdf-canvas');
+        var ctx = canvas.getContext('2d');
+
+        function renderPage(num) {{
+            pdfDoc.getPage(num).then(function(page) {{
+                var viewport = page.getViewport({{scale: 1.5}});
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                page.render({{canvasContext: ctx, viewport: viewport}});
+                document.getElementById('page-info').textContent = 'Page ' + num + ' of ' + pdfDoc.numPages;
+            }});
+        }}
+
+        function prevPage() {{ if (pageNum > 1) {{ pageNum--; renderPage(pageNum); }} }}
+        function nextPage() {{ if (pageNum < pdfDoc.numPages) {{ pageNum++; renderPage(pageNum); }} }}
+
+        var loadingTask = pdfjsLib.getDocument({{data: pdfData}});
+        loadingTask.promise.then(function(pdf) {{
+            pdfDoc = pdf;
+            renderPage(1);
+        }});
+    </script>
+    '''
+
+    st.components.v1.html(pdf_js_html, height=800)
+
+    # Download button as backup
+    st.download_button(
+        label="Download PDF",
+        data=pdf_bytes,
+        file_name=file_path.name,
+        mime="application/pdf"
+    )
 
 
 @st.cache_data
