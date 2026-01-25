@@ -17,6 +17,7 @@ import json
 from datetime import datetime
 import base64
 import os
+import pandas as pd
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -80,6 +81,17 @@ def display_pdf(file_path: Path):
 
     pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
     st.markdown(pdf_display, unsafe_allow_html=True)
+
+
+@st.cache_data
+def load_case_statistics():
+    """Load and cache case statistics from parquet file"""
+    parquet_path = Path(__file__).parent.parent / "doha_parsed_cases" / "all_cases.parquet"
+    if not parquet_path.exists():
+        return None
+
+    df = pd.read_parquet(parquet_path, columns=['case_number', 'outcome', 'guidelines', 'date'])
+    return df
 
 
 def load_cached_llm_result(case_id: str, suffix: str) -> SEAD4AnalysisResult | None:
@@ -388,20 +400,22 @@ if st.session_state.analysis_run:
 
     # Create tabs for each approach
     if include_llm:
-        tab_pdf, tab1, tab2, tab3, tab4, tab_compare = st.tabs([
+        tab_pdf, tab1, tab2, tab3, tab4, tab_compare, tab_dashboard = st.tabs([
             "Document View",
             "Basic Native",
             "Enhanced Native",
             "LLM (Independent)",
             "Enhanced LLM (RAG)",
-            "Comparison"
+            "Comparison",
+            "Dashboard"
         ])
     else:
-        tab_pdf, tab1, tab2, tab_compare = st.tabs([
+        tab_pdf, tab1, tab2, tab_compare, tab_dashboard = st.tabs([
             "Document View",
             "Basic Native",
             "Enhanced Native",
-            "Comparison"
+            "Comparison",
+            "Dashboard"
         ])
 
     # Run analyses
@@ -410,9 +424,7 @@ if st.session_state.analysis_run:
     # Document View Tab
     with tab_pdf:
         st.subheader("Case Document & Analyst Assessment")
-        st.caption(f"Viewing: {selected_file}")
-
-        st.success(f"Loaded {len(document_text):,} characters from PDF")
+        st.caption(f"Viewing: {selected_file} — Loaded {len(document_text):,} characters from PDF")
 
         # Create two columns: PDF on left, analyst input on right
         col_pdf, col_analyst = st.columns([2, 1])
@@ -827,7 +839,7 @@ if st.session_state.analysis_run:
                 "Cost": "~$0.02"
             })
 
-        st.dataframe(summary_data, width='stretch')
+        st.dataframe(summary_data)
 
         # Ground truth comparison
         if selected_file in GROUND_TRUTH:
@@ -910,6 +922,116 @@ if st.session_state.analysis_run:
                     else:
                         st.error(f"**{name.upper()}**")
                         st.caption("Not flagged")
+
+    # Dashboard Tab
+    with tab_dashboard:
+        st.subheader("DOHA Case Statistics Dashboard")
+        st.caption("Historical case data from the DOHA database")
+
+        # Load case statistics
+        df = load_case_statistics()
+
+        if df is not None:
+            # Overview metrics
+            total_cases = len(df)
+            granted = len(df[df['outcome'] == 'GRANTED'])
+            denied = len(df[df['outcome'] == 'DENIED'])
+            other = total_cases - granted - denied
+
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Total Cases", f"{total_cases:,}")
+            with col2:
+                st.metric("Granted", f"{granted:,}", f"{granted/total_cases:.1%}")
+            with col3:
+                st.metric("Denied", f"{denied:,}", f"{denied/total_cases:.1%}")
+            with col4:
+                st.metric("Other", f"{other:,}", f"{other/total_cases:.1%}")
+
+            st.divider()
+
+            # Charts side by side
+            chart_col1, chart_col2 = st.columns(2)
+
+            with chart_col1:
+                st.markdown("#### Outcome Distribution")
+                outcome_counts = df['outcome'].value_counts()
+                st.bar_chart(outcome_counts)
+
+            with chart_col2:
+                st.markdown("#### Cases by Guideline")
+                # Build stacked bar data with outcome breakdown per guideline
+                import altair as alt
+
+                stacked_data = []
+                for guidelines, outcome in zip(df['guidelines'], df['outcome']):
+                    if guidelines is not None:
+                        # Categorize outcome
+                        if outcome == 'GRANTED':
+                            cat = 'Granted'
+                        elif outcome == 'DENIED':
+                            cat = 'Denied'
+                        else:
+                            cat = 'Other'
+                        for g in guidelines:
+                            stacked_data.append({'Guideline': g, 'Outcome': cat})
+
+                if stacked_data:
+                    stacked_df = pd.DataFrame(stacked_data)
+                    # Aggregate counts
+                    agg_df = stacked_df.groupby(['Guideline', 'Outcome']).size().reset_index(name='Count')
+
+                    # Create stacked bar chart with custom colors
+                    chart = alt.Chart(agg_df).mark_bar().encode(
+                        x=alt.X('Guideline:N', sort=list('ABCDEFGHIJKLM'), title='Guideline'),
+                        y=alt.Y('Count:Q', title='Cases'),
+                        color=alt.Color('Outcome:N',
+                            scale=alt.Scale(
+                                domain=['Granted', 'Denied', 'Other'],
+                                range=['#1f77b4', '#aec7e8', '#d4a82e']  # Blue, Light Blue, Gold
+                            ),
+                            legend=alt.Legend(title='Outcome')
+                        ),
+                        order=alt.Order('Outcome:N', sort='ascending')
+                    ).properties(height=400)
+
+                    st.altair_chart(chart, use_container_width=True)
+
+            st.divider()
+
+            # Cross-tabulation: Guidelines vs Outcomes
+            st.markdown("#### Approval/Denial Rates by Guideline")
+
+            # Get all unique guidelines
+            all_guidelines = set()
+            for guidelines in df['guidelines']:
+                if guidelines is not None:
+                    all_guidelines.update(guidelines)
+
+            # Build cross-tab data
+            crosstab_data = []
+            for guideline in sorted(all_guidelines):
+                # Filter cases that have this guideline
+                mask = df['guidelines'].apply(lambda x: guideline in x if x is not None else False)
+                guideline_cases = df[mask]
+                g_total = len(guideline_cases)
+                g_granted = len(guideline_cases[guideline_cases['outcome'] == 'GRANTED'])
+                g_denied = len(guideline_cases[guideline_cases['outcome'] == 'DENIED'])
+
+                crosstab_data.append({
+                    'Guideline': guideline,
+                    'Total Cases': g_total,
+                    'Granted': g_granted,
+                    'Denied': g_denied,
+                    'Approval Rate': f"{g_granted/g_total:.1%}" if g_total > 0 else "N/A",
+                    'Denial Rate': f"{g_denied/g_total:.1%}" if g_total > 0 else "N/A"
+                })
+
+            crosstab_df = pd.DataFrame(crosstab_data)
+            st.dataframe(crosstab_df, hide_index=True)
+
+        else:
+            st.warning("Case statistics not available. Parquet file not found.")
 
 else:
     # Welcome screen
