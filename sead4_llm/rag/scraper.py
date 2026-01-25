@@ -152,11 +152,14 @@ class DOHAScraper:
             r'clearance\s+granted',
             r'clearance\s+eligibility\s+is\s+granted',
             r'cac\s+eligibility\s+is\s+granted',  # Common Access Card cases
-            # Trustworthiness/ADP cases
-            r'trustworthiness\s+(?:designation\s+)?is\s+granted',
-            r'adp.{0,20}eligibility\s+is\s+granted',
-            r'eligibility\s+for\s+a\s+public\s+trust\s+position\s+is\s+granted',
-            r'public\s+trust\s+position\s+is\s+granted',
+            # Trustworthiness/ADP cases (with or without "is")
+            r'trustworthiness\s+(?:designation\s+)?(?:is\s+)?granted',
+            r'adp.{0,20}eligibility\s+(?:is\s+)?granted',
+            r'eligibility\s+for\s+(?:a\s+)?(?:adp|public\s+trust)\s+position\s+(?:is\s+)?granted',
+            r'(?:adp|public\s+trust)\s+position\s+(?:is\s+)?granted',
+            # "request for a position of trust is granted" (sensitive info cases)
+            r'request\s+for\s+(?:a\s+)?position\s+of\s+trust\s+is\s+granted',
+            r'eligibility\s+for\s+access\s+to\s+sensitive\s+information.*?(?:is\s+)?granted',
             # Sensitive positions/duties
             r'eligibility\s+for\s+(?:assignment\s+to\s+)?sensitive\s+(?:positions?|duties)\s+is\s+granted',
             r'assignment\s+to\s+sensitive\s+(?:positions?|duties)\s+is\s+granted',
@@ -167,6 +170,12 @@ class DOHAScraper:
             r'clearly\s+consistent[\s\d]*with\s+the\s+national\s+interests?\s+to\s+grant',
             r'clearly\s+consistent[\s\d]*with\s+the\s+interests\s+of\s+national\s+security',
             r'clearly\s+consistent[\s\d]*with\s+the\s+security\s+interests',
+            # "clearly consistent with national security to approve/continue"
+            r'clearly\s+consistent[\s\n]*with\s+national\s+security\s+to\s+(?:approve|grant|continue)',
+            # "clearly consistent to grant" (without "with national security")
+            r'(?:it\s+is\s+)?clearly[\s\n]+consistent[\s\n]+to[\s\n]+grant',
+            # "clearly consistent...to make or continue" (trustworthiness cases)
+            r'clearly\s+consistent[\s\n]*with\s+the\s+national\s+interests?\s+to[\s\n]+(?:make|continue)',
             r'national\s+security\s+eligibility\s+is\s+granted',
             # Appeal Board: favorable decision affirmed = grant upheld
             r'favorable\s+decision\s+(?:is\s+)?affirmed',
@@ -201,10 +210,20 @@ class DOHAScraper:
             r'not\s+clearly\s+consistent[\s\d]*with\s+the\s+national\s+interest',
             r'not\s+clearly\s+consistent[\s\d]*with\s+the\s+interests\s+of\s+national\s+security',
             r'not\s+clearly\s+consistent[\s\d]*with\s+the\s+security\s+interests',
+            # "not clearly consistent with national security" (without "the")
+            r'not[\s\n]+clearly\s+consistent\s+with\s+national\s+security',
             # Alternative phrasing: "clearly not consistent" (same meaning)
             r'it\s+is\s+clearly\s+not\s+consistent[\s\d]*with\s+the\s+national\s+interest',
             r'clearly\s+not\s+consistent[\s\d]*with\s+the\s+national\s+interest',
             r'national\s+security\s+eligibility\s+is\s+denied',
+            # ADP/Public trust position denied (with or without "is")
+            r'eligibility\s+for\s+(?:a\s+)?(?:adp|public\s+trust)\s+position\s+(?:is\s+)?denied',
+            r'(?:adp|public\s+trust)\s+position\s+(?:is\s+)?denied',
+            # "request for a position of trust is denied" (sensitive info cases)
+            r'request\s+for\s+(?:a\s+)?position\s+of\s+trust\s+is\s+denied',
+            r'eligibility\s+for\s+access\s+to\s+sensitive\s+information.*?(?:is\s+)?denied',
+            # "clearly consistent...to deny" (unusual phrasing but valid)
+            r'clearly\s+consistent[\s\n]*with\s+the\s+national\s+interests?\s+to[\s\n]+deny',
             # Appeal Board: adverse decision affirmed = denial upheld
             r'adverse\s+decision\s+(?:is\s+)?affirmed',
             # Appeal Board: favorable decision reversed = grant overturned = denied
@@ -959,6 +978,20 @@ class DOHAScraper:
             if judge_denied_all and not judge_granted_all:
                 return "DENIED"
 
+            # Layer 3: Simple keyword presence fallback
+            # When patterns conflict, check for strong denial/grant indicators
+            has_unfavorable = 'unfavorable' in body_text
+            has_adverse = 'adverse' in body_text
+            has_not_clearly = 'not clearly consistent' in body_text
+            has_favorable = 'favorable' in body_text and not has_unfavorable  # Exclude "unfavorable"
+
+            # If clear denial indicators without favorable context
+            if (has_unfavorable or has_adverse or has_not_clearly) and not has_favorable:
+                return "DENIED"
+            # If clear favorable indicator without denial context
+            if has_favorable and not has_unfavorable and not has_adverse and not has_not_clearly:
+                return "GRANTED"
+
             # If patterns conflict or none match, return UNKNOWN
             # This is more conservative but avoids false matches from discussion text
 
@@ -1034,16 +1067,41 @@ class DOHAScraper:
         # Search in last 2000 chars for these patterns
         last_text = text_lower[-2000:]
 
-        # "Board affirms the Judge's adverse decision"
-        if re.search(r'board\s+affirms\s+(?:the\s+)?(?:administrative\s+)?judge.{0,30}adverse', last_text, re.DOTALL):
+        # "Board affirms the Judge's adverse/unfavorable decision"
+        if re.search(r'board\s+affirm(?:s|ed)\s+(?:the\s+)?(?:administrative\s+)?judge.{0,30}(?:adverse|unfavorable)', last_text, re.DOTALL):
             return "DENIED"
+        # "Board affirms the Judge's favorable decision"
+        if re.search(r'board\s+affirm(?:s|ed)\s+(?:the\s+)?(?:administrative\s+)?judge.{0,30}favorable', last_text, re.DOTALL):
+            return "GRANTED"
+        # "decision below is affirmed" - common HTML format pattern
+        if re.search(r'decision\s+(?:below|of\s+the\s+(?:administrative\s+)?judge)\s+is\s+(?:therefore\s+)?affirmed', last_text):
+            # Check body for denial context (unfavorable, adverse, not clearly consistent, denied)
+            if 'unfavorable' in text_lower or 'adverse' in text_lower or 'not clearly consistent' in text_lower:
+                return "DENIED"
+            # Check body for grant context
+            if 'favorable' in text_lower and 'unfavorable' not in text_lower:
+                return "GRANTED"
         # "Board affirms the Judge's [date] decision" when context shows denial
-        if re.search(r'board\s+affirms\s+(?:the\s+)?(?:administrative\s+)?judge', last_text):
-            # Check body for denial context
-            if 'not clearly consistent' in text_lower or 'denied' in digest_text:
+        if re.search(r'board\s+affirm(?:s|ed)\s+(?:the\s+)?(?:administrative\s+)?judge', last_text):
+            # Check body for denial context (include unfavorable)
+            if 'unfavorable' in text_lower or 'not clearly consistent' in text_lower or 'denied' in digest_text:
                 return "DENIED"
             # Check body for grant context
             if 'clearly consistent' in text_lower[:5000] and 'not clearly' not in text_lower[:5000]:
+                return "GRANTED"
+
+        # Pattern 8: "judge's adverse/unfavorable...decision" + "decision is affirmed" (HTML format)
+        # Check last 2000 chars for "adverse" or "unfavorable" near "affirmed"
+        if ('adverse' in last_text or 'unfavorable' in last_text) and re.search(r'(?:administrative\s+)?judge.{0,50}decision\s+is\s+(?:therefore\s+)?affirmed', last_text, re.DOTALL):
+            return "DENIED"
+
+        # Pattern 9: Generic "administrative judge's decision is affirmed" with body context
+        if re.search(r'(?:administrative\s+)?judge.{0,30}decision\s+is\s+(?:therefore\s+)?affirmed', last_text, re.DOTALL):
+            # Check body for denial context (adverse, unfavorable, not clearly consistent, denied)
+            if 'adverse' in text_lower or 'unfavorable' in text_lower or 'not clearly consistent' in text_lower:
+                return "DENIED"
+            # Check for favorable context
+            if 'favorable' in text_lower and 'unfavorable' not in text_lower:
                 return "GRANTED"
 
         return "UNKNOWN"
