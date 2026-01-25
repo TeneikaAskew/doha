@@ -33,5 +33,7 @@ doha_index/
 # LLM cache files
 sead4_llm/llm_cache/
 
-# Large data files
+# Large data files (over GitHub's 100MB limit)
 doha_parsed_cases/all_cases.parquet
+doha_parsed_cases/all_cases.json
+doha_parsed_cases/checkpoints_archive/

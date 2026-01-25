@@ -1,0 +1,263 @@
+```json
+{
+  "case_id": "PSH-25-0148",
+  "overall_assessment": {
+    "recommendation": "UNFAVORABLE",
+    "confidence": 0.8,
+    "summary": "The individual has a history of significant mental health issues, including multiple hospitalizations for suicidal ideation and diagnoses of Major Depression, GAD, and PTSD. While the individual has engaged in treatment, a recent hospitalization and the DOE Psychologist's opinion raise concerns about her judgment, stability, reliability, and trustworthiness.",
+    "key_concerns": [
+      "History of suicidal ideation and attempts",
+      "Multiple hospitalizations for mental health reasons",
+      "DOE Psychologist's opinion that conditions could impair judgment, stability, reliability, or trustworthiness",
+      "Recent hospitalization in September 2025"
+    ],
+    "key_mitigations": [
+      "Engagement in therapy and medication management",
+      "Development of a safety plan",
+      "Support network of friends and family"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": null
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues regarding allegiance to the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any foreign contacts or interests that could create a risk of foreign influence or coercion.",
+      "confidence": 1.0
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any preference for a foreign country over the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any sexual behavior that is of security concern.",
+      "confidence": 1.0
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "While the psychological issues could potentially lead to questionable judgment, there is no specific evidence of dishonesty, lack of candor, or unwillingness to comply with rules and regulations in this document.",
+      "confidence": 0.9
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any financial issues that could be of security concern.",
+      "confidence": 1.0
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to alcohol consumption.",
+      "confidence": 1.0
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any drug involvement or substance misuse.",
+      "confidence": 1.0
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 28(a)",
+          "text": "behavior that casts doubt on an individual's judgment, stability, reliability, or trustworthiness, not covered under any other guideline and that may indicate an emotional, mental, or personality condition, including, but not limited to, irresponsible, violent, self-harm, suicidal, paranoid, manipulative, impulsive, chronic lying, deceitful, exploitative, or bizarre behaviors",
+          "evidence": "The PSIR indicated that she was admitted to the hospital due to suicidal ideation and had been diagnosed with “Major [D]epression.”",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG ¶ 28(b)",
+          "text": "an opinion by a duly qualified mental health professional that the individual has a condition that may impair judgment, stability, reliability, or trustworthiness",
+          "evidence": "Following the evaluation, the DOE Psychologist issued a report of the evaluation (Report) in which he endorsed diagnoses of Major Depression, Recurrent, Generalized Anxiety Disorder (GAD), and Post Traumatic Stress Disorder (PTSD) previously made by the Individual’s treating clinicians and opined that these conditions could impair her judgment, stability, reliability, or trustworthiness.",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG ¶ 28(c)",
+          "text": "voluntary or involuntary inpatient hospitalization",
+          "evidence": "In February 2025, the Individual submitted a Personnel Security Information Report (PSIR) to the local security office (LSO) disclosing that she had been voluntarily hospitalized for mental health reasons in January 2025.",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 29(a)",
+          "text": "the identified condition is readily controllable with treatment, and the individual has demonstrated ongoing and consistent compliance with the treatment plan",
+          "applicability": "PARTIAL",
+          "reasoning": "The individual is engaged in treatment, including therapy and medication management, but the recent hospitalization in September 2025 suggests that the condition is not yet fully controlled.",
+          "evidence": "Since the psychological evaluation with the DOE Psychologist, the Individual continued medication management with a VA psychiatrist and took the medication prescribed to her – including several antidepressant medications, an anti-anxiety medication, and an antipsychotic medication – as directed."
+        },
+        {
+          "code": "AG ¶ 29(b)",
+          "text": "the individual has voluntarily entered a counseling or treatment program for a condition that is amenable to treatment, and the individual is currently receiving counseling or treatment with a favorable prognosis by a duly qualified mental health professional",
+          "applicability": "PARTIAL",
+          "reasoning": "The individual is voluntarily participating in counseling and treatment, but the DOE Psychologist's opinion and the recent hospitalization raise concerns about the prognosis.",
+          "evidence": "In July 2025, the Individual began seeing a therapist for weekly “goal-oriented” therapy focused on “recognizing your life values” and applying them to support behaviors “congruent with your values . . . .”"
+        },
+        {
+          "code": "AG ¶ 29(e)",
+          "text": "there is no indication of a current problem",
+          "applicability": "NONE",
+          "reasoning": "The recent hospitalization in September 2025 indicates a current problem.",
+          "evidence": "That month, the Individual was voluntarily admitted to a hospital for psychiatric treatment for two days."
+        }
+      ],
+      "reasoning": "The individual's history of mental health issues, including suicidal ideation and multiple hospitalizations, raises significant concerns under Guideline I. While the individual is engaged in treatment, the recent hospitalization and the DOE Psychologist's opinion suggest that the condition is not yet fully controlled. The mitigating factors are not sufficient to overcome the disqualifying conditions at this time.",
+      "confidence": 0.8
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any criminal conduct.",
+      "confidence": 1.0
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to handling protected information.",
+      "confidence": 1.0
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any outside activities that could be of security concern.",
+      "confidence": 1.0
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any misuse of information technology.",
+      "confidence": 1.0
+    }
+  ],
+  "whole_person_analysis": [
+    {
+      "factor": "The nature, extent, and seriousness of the conduct",
+      "assessment": "The individual has a history of serious mental health issues, including suicidal ideation and multiple hospitalizations.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The circumstances surrounding the conduct, to include knowledgeable participation",
+      "assessment": "The individual's mental health issues appear to stem from traumatic experiences and other stressors. She is actively participating in treatment.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The frequency and recency of the conduct",
+      "assessment": "The individual has experienced multiple episodes of mental health issues, including a recent hospitalization in September 2025.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The individual's age and maturity at the time of the conduct",
+      "assessment": "The individual is an adult, and the issues have occurred over a period of several years.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The extent to which participation is voluntary",
+      "assessment": "The individual is voluntarily participating in treatment.",
+      "impact": "FAVORABLE"
+    },
+    {
+      "factor": "The presence or absence of rehabilitation and other permanent behavioral changes",
+      "assessment": "The individual is engaged in treatment, but the recent hospitalization suggests that rehabilitation is ongoing.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The motivation for the conduct",
+      "assessment": "The individual's motivation is to improve her mental health and well-being.",
+      "impact": "FAVORABLE"
+    },
+    {
+      "factor": "The potential for pressure, coercion, exploitation, or duress",
+      "assessment": "There is no information to suggest that the individual is subject to pressure, coercion, exploitation, or duress.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The likelihood of continuation or recurrence",
+      "assessment": "Given the history of mental health issues and the recent hospitalization, there is a risk of recurrence.",
+      "impact": "UNFAVORABLE"
+    }
+  ],
+  "follow_up_recommendations": [
+    {
+      "action": "Obtain an updated psychological evaluation from a DOE-approved mental health professional.",
+      "priority": "HIGH",
+      "guideline": "I",
+      "rationale": "An updated evaluation is needed to assess the individual's current mental health status and prognosis."
+    },
+    {
+      "action": "Obtain records from the individual's recent hospitalization in September 2025.",
+      "priority": "HIGH",
+      "guideline": "I",
+      "rationale": "The records will provide more information about the circumstances surrounding the hospitalization and the treatment received."
+    },
+    {
+      "action": "Request a statement from the individual's therapist regarding her progress in treatment and prognosis.",
+      "priority": "MEDIUM",
+      "guideline": "I",
+      "rationale": "The therapist's statement will provide valuable insight into the individual's progress and potential for future stability."
+    }
+  ]
+}
+```

@@ -1,0 +1,268 @@
+```json
+{
+  "case_id": "PSH-25-0151",
+  "overall_assessment": {
+    "recommendation": "UNFAVORABLE",
+    "confidence": 0.95,
+    "summary": "The individual's security clearance should not be restored due to concerns related to alcohol consumption. The individual has a recent diagnosis of Alcohol Use Disorder, severe, and has demonstrated a pattern of excessive alcohol consumption, including an incident of reporting to work with a BAC higher than the acceptable limit.",
+    "key_concerns": [
+      "Recent diagnosis of Alcohol Use Disorder, severe",
+      "Positive PEth test indicating recent alcohol consumption",
+      "Reporting to work with elevated BAC",
+      "Inconsistent reporting and minimization of alcohol problem"
+    ],
+    "key_mitigations": [
+      "Spouse's testimony that the individual has not consumed alcohol since February or March 2025"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": null
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to allegiance to the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any foreign contacts or interests that could create a risk of foreign influence or exploitation.",
+      "confidence": 1.0
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any preference for a foreign country over the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any concerns related to sexual behavior.",
+      "confidence": 1.0
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "While there is some concern about candor due to inconsistent reporting of alcohol consumption, it is primarily addressed under Guideline G. There is no other information to suggest questionable judgment, lack of candor, or unwillingness to comply with rules and regulations outside of the alcohol-related issues.",
+      "confidence": 0.8
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any financial issues or concerns.",
+      "confidence": 1.0
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 22(b)",
+          "text": "alcohol-related incidents at work, such as reporting for work or duty in an intoxicated or impaired condition, drinking on the job, or jeopardizing the welfare and safety of others, regardless of whether the individual is diagnosed with alcohol use disorder",
+          "evidence": "In February 2024, the Individual submitted to a random alcohol test at work which yielded results of .046 g/210L at 8:03 a.m. and .047 g/210L at 8:20 a.m.",
+          "confidence": 1.0
+        },
+        {
+          "code": "AG ¶ 22(c)",
+          "text": "habitual or binge consumption of alcohol to the point of impaired judgment, regardless of whether the individual is diagnosed with alcohol use disorder",
+          "evidence": "The Psychologist noted that this pattern of consumption was greater than what the Individual had reported drinking in the past and was, therefore, inconsistent with his statement that his alcohol consumption had not changed over the previous year. She further opined that the pattern of consumption the Individual reported for January 2025 was “a pattern of binge drinking as well as heavy and very high-risk drinking.”",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG ¶ 22(d)",
+          "text": "diagnosis by a duly qualified medical or mental health professional (e.g., physician, clinical psychologist, psychiatrist, or licensed clinical social worker) of alcohol use disorder",
+          "evidence": "In the report, the Psychologist concluded that the Individual met sufficient Diagnostic and Statistical Manual of Mental Disorders–Fifth Edition, Text Revision (DSM-5-TR) criteria for a diagnosis of Alcohol Use Disorder, severe.",
+          "confidence": 1.0
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 23(a)",
+          "text": "so much time has passed, or the behavior was so infrequent, or it happened under such unusual circumstances that it is unlikely to recur or does not cast doubt on the individual's current reliability, trustworthiness, or judgment",
+          "applicability": "NONE",
+          "reasoning": "The behavior is relatively recent (February 2024 and January 2025) and the diagnosis of Alcohol Use Disorder, severe, indicates an ongoing issue.",
+          "evidence": null
+        },
+        {
+          "code": "AG ¶ 23(b)",
+          "text": "the individual acknowledges his or her pattern of maladaptive alcohol use, provides evidence of actions taken to overcome this problem, and has demonstrated a clear and established pattern of modified consumption or abstinence in accordance with treatment recommendations",
+          "applicability": "NONE",
+          "reasoning": "The Psychologist noted that the Individual denied having a problem with alcohol and has not demonstrated a clear and established pattern of modified consumption or abstinence.",
+          "evidence": "The Psychologist wrote that the Individual acknowledged that his alcohol use had caused him a problem once at work, but he denied “that his pattern of use was problematic or excessive.”"
+        },
+        {
+          "code": "AG ¶ 23(c)",
+          "text": "the individual is participating in counseling or a treatment program, has no previous history of treatment and relapse, and is making satisfactory progress in a treatment program",
+          "applicability": "NONE",
+          "reasoning": "The individual has not participated in an IOP or been evaluated for suitability for a substance abuse program.",
+          "evidence": "However, she testified that the Individual had not tried to enter an IOP or been evaluated for suitability for a substance abuse program."
+        },
+        {
+          "code": "AG ¶ 23(d)",
+          "text": "the individual has successfully completed a treatment program along with any required aftercare, and has demonstrated a clear and established pattern of modified consumption or abstinence in accordance with treatment recommendations",
+          "applicability": "NONE",
+          "reasoning": "The individual has not successfully completed a treatment program.",
+          "evidence": null
+        }
+      ],
+      "reasoning": "The individual's alcohol consumption raises significant security concerns due to the positive alcohol test at work, the diagnosis of Alcohol Use Disorder, severe, and the lack of evidence of rehabilitation or reformation. While the spouse testified to abstinence since Feb/March 2025, this is insufficient to overcome the Psychologist's assessment.",
+      "confidence": 0.95
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The document focuses on alcohol consumption, and there is no information to suggest any illegal drug use or misuse of other substances.",
+      "confidence": 1.0
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The diagnosis of Alcohol Use Disorder is addressed under Guideline G. There is no other information to suggest any other psychological conditions that could impair judgment, reliability, or trustworthiness.",
+      "confidence": 0.9
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any criminal conduct.",
+      "confidence": 1.0
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to handling protected information.",
+      "confidence": 1.0
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any concerns related to outside activities.",
+      "confidence": 1.0
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any misuse of information technology.",
+      "confidence": 1.0
+    }
+  ],
+  "whole_person_analysis": [
+    {
+      "factor": "The nature, extent, and seriousness of the conduct",
+      "assessment": "The conduct involves a diagnosis of Alcohol Use Disorder, severe, and a pattern of excessive alcohol consumption, including reporting to work with an elevated BAC. This is a serious concern.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The circumstances surrounding the conduct, to include knowledgeable participation",
+      "assessment": "The individual's minimization of his alcohol problem and inconsistent reporting suggest a lack of full acknowledgment of the issue.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The frequency and recency of the conduct",
+      "assessment": "The conduct is relatively recent, with incidents occurring in February 2024 and January 2025. The Psychologist's report indicates an ongoing pattern of alcohol consumption.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The individual's age and maturity at the time of the conduct",
+      "assessment": "The individual is an adult, and his age and maturity do not mitigate the concerns.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The extent to which participation is voluntary",
+      "assessment": "The alcohol consumption is voluntary.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The presence or absence of rehabilitation and other permanent behavioral changes",
+      "assessment": "The Psychologist concluded that the individual had not displayed evidence of rehabilitation or reformation because he continued to consume alcohol.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The motivation for the conduct",
+      "assessment": "The individual's motivation for alcohol consumption is not fully clear, but the Psychologist suggests it may be related to stress or a lack of awareness of the extent of his problem.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The potential for pressure, coercion, exploitation, or duress",
+      "assessment": "There is no indication of pressure, coercion, exploitation, or duress.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The likelihood of continuation or recurrence",
+      "assessment": "Given the diagnosis of Alcohol Use Disorder, severe, and the lack of evidence of rehabilitation, the likelihood of continuation or recurrence is a concern.",
+      "impact": "UNFAVORABLE"
+    }
+  ],
+  "follow_up_recommendations": [
+    {
+      "action": "Obtain updated information on the individual's current alcohol consumption, including PEth tests and breathalyzer results.",
+      "priority": "HIGH",
+      "guideline": "G",
+      "rationale": "To assess whether the individual has abstained from alcohol since February/March 2025, as claimed by his spouse."
+    },
+    {
+      "action": "Obtain documentation of the individual's participation in counseling or a treatment program for Alcohol Use Disorder.",
+      "priority": "HIGH",
+      "guideline": "G",
+      "rationale": "To assess whether the individual is taking steps to address his alcohol problem."
+    },
+    {
+      "action": "Obtain an updated evaluation from a qualified mental health professional regarding the individual's prognosis and evidence of rehabilitation.",
+      "priority": "HIGH",
+      "guideline": "G",
+      "rationale": "To assess the individual's current risk of relapse and his ability to control his alcohol consumption."
+    }
+  ]
+}
+```

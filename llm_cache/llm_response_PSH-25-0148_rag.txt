@@ -1,0 +1,241 @@
+```json
+{
+  "case_id": "PSH-25-0148",
+  "overall_assessment": {
+    "recommendation": "UNFAVORABLE",
+    "confidence": 0.9,
+    "summary": "The Individual's history of recurrent major depression, generalized anxiety disorder, and PTSD, coupled with multiple hospitalizations and the DOE Psychologist's opinion that these conditions could impair her judgment, stability, reliability, or trustworthiness, raise significant security concerns. While the Individual has engaged in treatment, the recency and severity of the issues, as well as the DOE Psychologist's assessment, outweigh the mitigating factors.",
+    "key_concerns": [
+      "History of Major Depression, GAD, and PTSD",
+      "Multiple hospitalizations for mental health reasons",
+      "DOE Psychologist's opinion of potential impairment"
+    ],
+    "key_mitigations": [
+      "Engagement in therapy and medication management",
+      "Voluntary hospitalization and treatment seeking"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": null
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to allegiance to the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to foreign influence.",
+      "confidence": 1.0
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to foreign preference.",
+      "confidence": 1.0
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to sexual behavior.",
+      "confidence": 1.0
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "While the psychological conditions could indirectly impact personal conduct, there is no specific evidence of questionable judgment, lack of candor, or dishonesty separate from the psychological issues themselves.",
+      "confidence": 0.8
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to financial considerations.",
+      "confidence": 1.0
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to alcohol consumption.",
+      "confidence": 1.0
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to drug involvement or substance misuse.",
+      "confidence": 1.0
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 28(a)",
+          "text": "behavior that casts doubt on an individual's judgment, stability, reliability, or trustworthiness, not covered under any other guideline and that may indicate an emotional, mental, or personality condition, including, but not limited to, irresponsible, violent, self-harm, suicidal, paranoid, manipulative, impulsive, chronic lying, deceitful, exploitative, or bizarre behaviors",
+          "evidence": "The PSIR indicated that she was admitted to the hospital due to suicidal ideation and had been diagnosed with “Major [D]epression.”",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG ¶ 28(b)",
+          "text": "an opinion by a duly qualified mental health professional that the individual has a condition that may impair judgment, stability, reliability, or trustworthiness",
+          "evidence": "Following the evaluation, the DOE Psychologist issued a report of the evaluation (Report) in which he endorsed diagnoses of Major Depression, Recurrent, Generalized Anxiety Disorder (GAD), and Post Traumatic Stress Disorder (PTSD) previously made by the Individual’s treating clinicians and opined that these conditions could impair her judgment, stability, reliability, or trustworthiness.",
+          "confidence": 1.0
+        },
+        {
+          "code": "AG ¶ 28(c)",
+          "text": "voluntary or involuntary inpatient hospitalization",
+          "evidence": "In February 2025, the Individual submitted a Personnel Security Information Report (PSIR) to the local security office (LSO) disclosing that she had been voluntarily hospitalized for mental health reasons in January 2025.",
+          "confidence": 1.0
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 29(b)",
+          "text": "the individual has voluntarily entered a counseling or treatment program for a condition that is amenable to treatment, and the individual is currently receiving counseling or treatment with a favorable prognosis by a duly qualified mental health professional",
+          "applicability": "PARTIAL",
+          "reasoning": "The Individual has sought treatment, including therapy, medication management, and inpatient hospitalization. However, the DOE Psychologist's opinion suggests that the treatment has not fully mitigated the concerns.",
+          "evidence": "The Individual met with the psychiatrist for approximately eight months, during which the psychiatrist prescribed the Individual numerous medications and adjusted the medications to manage the Individual’s symptoms and various side effects the Individual experienced from the medications."
+        }
+      ],
+      "reasoning": "The Individual's history of mental health issues, including multiple diagnoses and hospitalizations, coupled with the DOE Psychologist's opinion, raises significant concerns under Guideline I. While the Individual has sought treatment, the recency and severity of the issues warrant an unfavorable determination.",
+      "confidence": 0.9
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to criminal conduct.",
+      "confidence": 1.0
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to handling protected information.",
+      "confidence": 1.0
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to outside activities.",
+      "confidence": 1.0
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the record to suggest any issues related to the use of information technology.",
+      "confidence": 1.0
+    }
+  ],
+  "whole_person_analysis": [
+    {
+      "factor": "The nature, extent, and seriousness of the conduct",
+      "assessment": "The Individual has a history of serious mental health issues, including multiple diagnoses and hospitalizations. The DOE Psychologist's opinion further underscores the seriousness of the conditions.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The circumstances surrounding the conduct, to include knowledgeable participation",
+      "assessment": "The Individual has voluntarily sought treatment and has been forthcoming about her mental health issues.",
+      "impact": "FAVORABLE"
+    },
+    {
+      "factor": "The frequency and recency of the conduct",
+      "assessment": "The most recent hospitalization occurred in early 2025, indicating that the issues are recent.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The individual's age and maturity at the time of the conduct",
+      "assessment": "The Individual is an adult, and her age and maturity do not significantly mitigate the concerns.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The extent to which participation is voluntary",
+      "assessment": "The Individual has voluntarily sought treatment, which is a positive factor.",
+      "impact": "FAVORABLE"
+    },
+    {
+      "factor": "The presence or absence of rehabilitation and other permanent behavioral changes",
+      "assessment": "While the Individual has engaged in treatment, the DOE Psychologist's opinion suggests that the treatment has not fully mitigated the concerns.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The motivation for the conduct",
+      "assessment": "The Individual's motivation for seeking treatment is positive.",
+      "impact": "FAVORABLE"
+    },
+    {
+      "factor": "The potential for pressure, coercion, exploitation, or duress",
+      "assessment": "There is no information in the record to suggest any issues related to pressure, coercion, exploitation, or duress.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The likelihood of continuation or recurrence",
+      "assessment": "Given the history of recurrent mental health issues and the DOE Psychologist's opinion, there is a concern about the likelihood of continuation or recurrence.",
+      "impact": "UNFAVORABLE"
+    }
+  ],
+  "follow_up_recommendations": [
+    {
+      "action": "Obtain an updated psychological evaluation from a DOE-approved mental health professional.",
+      "priority": "HIGH",
+      "guideline": "I",
+      "rationale": "A more recent evaluation is needed to determine the Individual's current mental state and the effectiveness of ongoing treatment."
+    },
+    {
+      "action": "Request additional information from the Individual's treating clinicians regarding her prognosis and treatment plan.",
+      "priority": "MEDIUM",
+      "guideline": "I",
+      "rationale": "Further information from the treating clinicians could provide additional insight into the Individual's progress and potential for improvement."
+    }
+  ]
+}
+```

@@ -1,0 +1,335 @@
+```json
+{
+  "case_id": "PSH-25-0155",
+  "overall_assessment": {
+    "recommendation": "UNFAVORABLE",
+    "confidence": 0.85,
+    "summary": "The individual presents security concerns due to a pattern of criminal conduct, including traffic violations, shoplifting, drug paraphernalia possession, and engaging with prostitutes. Additionally, a diagnosis of Bipolar II Disorder raises concerns about judgment, stability, and reliability, despite ongoing treatment. The recency and pattern of these issues, coupled with inconsistencies in the individual's testimony, outweigh mitigating factors.",
+    "key_concerns": [
+      "Pattern of criminal conduct (traffic violations, shoplifting, drug paraphernalia, failure to appear in court)",
+      "Engagement with prostitutes",
+      "Diagnosis of Bipolar II Disorder",
+      "Inconsistencies in testimony"
+    ],
+    "key_mitigations": [
+      "Ongoing treatment for Bipolar II Disorder",
+      "Acknowledgement of past misconduct"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": "The Bond Amendment does not appear to apply as there is no indication of unlawful drug use at the time of adjudication, no conviction with a sentence >1 year and incarceration >= 1 year, and no determination of mental incompetence by a court or administrative proceeding."
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest disloyalty or allegiance to another country.",
+      "confidence": 1.0
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest foreign contacts or interests that could create vulnerability to coercion or manipulation.",
+      "confidence": 1.0
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest preference for a foreign country over the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 13(c)",
+          "text": "sexual behavior that causes an individual to be vulnerable to coercion, exploitation, or duress",
+          "evidence": "In his response, the Individual stated that he had paid prostitutes for sexual services on four occasions from May 2023 to July 2024 because he had “lost self control.”",
+          "confidence": 0.8
+        },
+        {
+          "code": "AG ¶ 13(d)",
+          "text": "sexual behavior of a public nature or that reflects lack of discretion or judgment",
+          "evidence": "In his response, the Individual stated that he had paid prostitutes for sexual services on four occasions from May 2023 to July 2024 because he had “lost self control.”",
+          "confidence": 0.8
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 14(b)",
+          "text": "the sexual behavior happened so long ago, so infrequently, or under such unusual circumstances, that it is unlikely to recur and does not cast doubt on the individual's current reliability, trustworthiness, or judgment",
+          "applicability": "PARTIAL",
+          "reasoning": "The behavior occurred within the past two years, which is relatively recent. While the individual claims it has stopped, the recency limits the mitigating effect.",
+          "evidence": "In his response, the Individual stated that he had paid prostitutes for sexual services on four occasions from May 2023 to July 2024 because he had “lost self control.”"
+        }
+      ],
+      "reasoning": "The individual's engagement with prostitutes raises concerns about judgment and potential vulnerability to exploitation. While the behavior has reportedly ceased, the recency and the underlying reasons (loss of self-control) are concerning.",
+      "confidence": 0.75
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 16(b)",
+          "text": "deliberately providing false or misleading information; or concealing or omitting information, concerning relevant facts to an employer, investigator, security official, competent medical or mental health professional involved in making a recommendation relevant to a national security eligibility determination, or other official government representative",
+          "evidence": "The Individual told the DOE Psychologist that he had experienced symptoms he reported to the NP, such as racing thoughts and impulsive spending, since childhood. However, he did not disclose his encounters with prostitutes to the DOE Psychologist.",
+          "confidence": 0.7
+        },
+        {
+          "code": "AG ¶ 16(c)",
+          "text": "credible adverse information in several adjudicative issue areas that is not sufficient for an adverse determination under any other single guideline, but which, when considered as a whole, supports a whole-person assessment of questionable judgment, untrustworthiness, unreliability, lack of candor, unwillingness to comply with rules and regulations, or other characteristics indicating that the individual may not properly safeguard classified or sensitive information",
+          "evidence": "The Individual’s Possession of Drug Paraphernalia offense, three shoplifting offenses, numerous traffic offenses, multiple arrests on bench warrants for failure to appear in court related to his traffic offenses, and admission to having paid for sexual intercourse with prostitutes on four occasions.",
+          "confidence": 0.8
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 17(d)",
+          "text": "the individual has acknowledged the behavior and obtained counseling to change the behavior or taken other positive steps to alleviate the stressors, circumstances, or factors that contributed to untrustworthy, unreliable, or other inappropriate behavior, and such behavior is unlikely to recur",
+          "applicability": "PARTIAL",
+          "reasoning": "The individual has acknowledged some of the behavior and sought counseling, but the inconsistencies in his testimony and the recency of the issues limit the mitigating effect.",
+          "evidence": "At some point in the summer of 2024, the Individual began meeting with a counselor for individual counseling sessions."
+        }
+      ],
+      "reasoning": "The individual's pattern of misconduct, coupled with inconsistencies in his statements, raises concerns about his candor, judgment, and willingness to comply with rules and regulations.",
+      "confidence": 0.7
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 19(c)",
+          "text": "a history of not meeting financial obligations",
+          "evidence": "However, he did not pay the fine as required and was charged with failing to pay the court-ordered fine. Id. at 187. The Individual was found guilty and ultimately paid the fine. Id. at 163, 187.",
+          "confidence": 0.7
+        },
+        {
+          "code": "AG ¶ 19(a)",
+          "text": "inability to satisfy debts",
+          "evidence": "On April 10, 2025, a warrant was issued for the Individual’s arrest for failure to pay the fine.",
+          "confidence": 0.7
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 20(a)",
+          "text": "the behavior happened so long ago, was so infrequent, or occurred under such circumstances that it is unlikely to recur and does not cast doubt on the individual's current reliability, trustworthiness, or good judgment",
+          "applicability": "PARTIAL",
+          "reasoning": "Some of the financial issues are older, but the recent warrants for failure to pay fines indicate an ongoing problem.",
+          "evidence": "In April 2025, a warrant was issued for the Individual’s arrest for failure to pay the fine."
+        }
+      ],
+      "reasoning": "The individual's history of failing to meet financial obligations, including recent warrants for unpaid fines, raises concerns about his reliability and judgment.",
+      "confidence": 0.7
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest problematic alcohol consumption.",
+      "confidence": 1.0
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": true,
+      "severity": "B",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 25(a)",
+          "text": "any substance misuse",
+          "evidence": "In 2007, the Individual was arrested and charged with Possession of Drug Paraphernalia after a law enforcement officer observed a pipe used by the Individual to smoke marijuana in his vehicle during a traffic stop.",
+          "confidence": 0.8
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 26(a)",
+          "text": "the behavior happened so long ago, was so infrequent, or happened under such circumstances that it is unlikely to recur or does not cast doubt on the individual's current reliability, trustworthiness, or good judgment",
+          "applicability": "FULL",
+          "reasoning": "The drug involvement occurred in 2007, which is a significant amount of time ago. The individual claims to have ceased use since then.",
+          "evidence": "According to the Individual, he has not used marijuana since his 2007 arrest."
+        }
+      ],
+      "reasoning": "The past drug involvement is mitigated by the passage of time and the individual's claim of abstinence. However, the initial involvement is still a consideration.",
+      "confidence": 0.8
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 28(b)",
+          "text": "an opinion by a duly qualified mental health professional that the individual has a condition that may impair judgment, stability, reliability, or trustworthiness",
+          "evidence": "She endorsed the NP’s diagnosis of the Individual with Bipolar II Disorder and opined that the condition could, and in fact had, impaired the Individual’s judgment, stability, reliability, and trustworthiness.",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 29(a)",
+          "text": "the identified condition is readily controllable with treatment, and the individual has demonstrated ongoing and consistent compliance with the treatment plan",
+          "applicability": "PARTIAL",
+          "reasoning": "The individual is receiving treatment and taking medication, but the DOE Psychologist opined that he would need to remain in treatment and in remission for 12 months to establish that his Bipolar II Disorder was no longer impairing his judgment, stability, reliability, and trustworthiness.",
+          "evidence": "The Individual met with the NP every two to three months since July 2024 and took his prescribed medication as directed."
+        }
+      ],
+      "reasoning": "The diagnosis of Bipolar II Disorder and the opinion that it could impair judgment, stability, reliability, and trustworthiness are concerning. While the individual is receiving treatment, the DOE Psychologist's opinion suggests that more time is needed to assess the effectiveness of the treatment.",
+      "confidence": 0.8
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG ¶ 31(a)",
+          "text": "a pattern of minor offenses, any one of which on its own would be unlikely to affect a national security eligibility decision, but which in combination cast doubt on the individual's judgment, reliability, or trustworthiness",
+          "evidence": "The SSC cited the Individual’s Possession of Drug Paraphernalia offense, three shoplifting offenses, numerous traffic offenses, multiple arrests on bench warrants for failure to appear in court related to his traffic offenses, and admission to having paid for sexual intercourse with prostitutes on four occasions.",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG ¶ 31(b)",
+          "text": "evidence (including, but not limited to, a credible allegation, an admission, and matters of official record) of criminal conduct, regardless of whether the individual was formally charged, prosecuted, or convicted",
+          "evidence": "The SSC cited the Individual’s Possession of Drug Paraphernalia offense, three shoplifting offenses, numerous traffic offenses, multiple arrests on bench warrants for failure to appear in court related to his traffic offenses, and admission to having paid for sexual intercourse with prostitutes on four occasions.",
+          "confidence": 0.9
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG ¶ 32(a)",
+          "text": "so much time has elapsed since the criminal behavior happened, or it happened under such unusual circumstances, that it is unlikely to recur and does not cast doubt on the individual's reliability, trustworthiness, or good judgment",
+          "applicability": "PARTIAL",
+          "reasoning": "Some of the criminal behavior is older, but the recent traffic offenses and warrants indicate an ongoing pattern.",
+          "evidence": "On January 2, 2025, the Individual was arrested on the warrants related to his failure to appear in court in connection with the 2022 and 2023 traffic offenses."
+        }
+      ],
+      "reasoning": "The individual's pattern of criminal conduct, including recent traffic offenses and warrants, raises significant concerns about his judgment, reliability, and trustworthiness.",
+      "confidence": 0.9
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest mishandling of protected information, although the use of a government phone to arrange meetings with prostitutes shows poor judgment.",
+      "confidence": 1.0
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest outside activities that pose a conflict of interest.",
+      "confidence": 1.0
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information to suggest misuse of information technology systems, although the use of a government phone to arrange meetings with prostitutes shows poor judgment.",
+      "confidence": 1.0
+    }
+  ],
+  "whole_person_analysis": [
+    {
+      "factor": "The nature, extent, and seriousness of the conduct",
+      "assessment": "The conduct includes a pattern of criminal offenses, engagement with prostitutes, and a psychological condition that could impair judgment. The extent is significant due to the multiple incidents and the potential impact of the psychological condition.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The circumstances surrounding the conduct, to include knowledgeable participation",
+      "assessment": "The individual knowingly participated in the criminal conduct and engagement with prostitutes. The circumstances surrounding the psychological condition are relevant, but do not fully excuse the other behaviors.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The frequency and recency of the conduct",
+      "assessment": "The conduct is frequent and recent, with traffic offenses and engagement with prostitutes occurring within the past two years.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The individual's age and maturity at the time of the conduct",
+      "assessment": "The individual was an adult at the time of the conduct, suggesting a level of maturity and responsibility.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The extent to which participation is voluntary",
+      "assessment": "The participation in the criminal conduct and engagement with prostitutes was voluntary.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The presence or absence of rehabilitation and other permanent behavioral changes",
+      "assessment": "The individual is receiving treatment for his psychological condition, but the effectiveness of the treatment is still being assessed. There is limited evidence of rehabilitation regarding the criminal conduct.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The motivation for the conduct",
+      "assessment": "The motivation for the criminal conduct is unclear. The individual attributes the engagement with prostitutes to his psychological condition, but this does not fully excuse the behavior.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "The potential for pressure, coercion, exploitation, or duress",
+      "assessment": "There is no indication of pressure, coercion, exploitation, or duress.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The likelihood of continuation or recurrence",
+      "assessment": "The likelihood of continuation or recurrence is uncertain. The individual is receiving treatment for his psychological condition, but the pattern of criminal conduct raises concerns.",
+      "impact": "UNFAVORABLE"
+    }
+  ],
+  "follow_up_recommendations": [
+    {
+      "action": "Obtain updated psychological evaluation from a DOE-approved mental health professional.",
+      "priority": "HIGH",
+      "guideline": "I",
+      "rationale": "A current evaluation is needed to assess the individual's current mental state and the effectiveness of his treatment."
+    },
+    {
+      "action": "Verify the status of all outstanding warrants and fines.",
+      "priority": "HIGH",
+      "guideline": "F, J",
+      "rationale": "Confirmation of the resolution of these issues is critical to assessing the individual's reliability and trustworthiness."
+    },
+    {
+      "action": "Conduct a follow-up interview to address inconsistencies in the individual's testimony.",
+      "priority": "MEDIUM",
+      "guideline": "E",
+      "rationale": "Clarifying the discrepancies in the individual's statements is important for assessing his candor."
+    }
+  ]
+}
+```

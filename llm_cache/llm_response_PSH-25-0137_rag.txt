@@ -1,0 +1,278 @@
+```json
+{
+  "case_id": "PSH-25-0137",
+  "overall_assessment": {
+    "recommendation": "CONDITIONAL",
+    "confidence": 0.75,
+    "summary": "The individual's history of severe Alcohol Use Disorder (AUD) and Post-Traumatic Stress Disorder (PTSD) initially raised significant security concerns. However, the individual has demonstrated a commitment to treatment, including residential treatment, IOP, and AA attendance, and has provided evidence of abstinence through negative PEth and EtG tests. Continued compliance with treatment recommendations and sustained abstinence are crucial for a favorable determination.",
+    "key_concerns": [
+      "History of severe Alcohol Use Disorder (AUD)",
+      "Untreated Post-Traumatic Stress Disorder (PTSD) impairing judgment"
+    ],
+    "key_mitigations": [
+      "Completion of residential alcohol treatment program",
+      "Completion of Intensive Outpatient Program (IOP)",
+      "Consistent attendance at AA meetings",
+      "Evidence of abstinence through negative PEth and EtG tests",
+      "Commitment to PTSD treatment"
+    ],
+    "bond_amendment_applies": false,
+    "bond_amendment_details": "The Bond Amendment does not appear to apply as there is no indication of unlawful drug use, addiction as defined in 21 USC 802, a felony conviction with incarceration >1 year, dishonorable discharge, or mental incompetence determined by a court/administrative proceeding."
+  },
+  "guidelines": [
+    {
+      "code": "A",
+      "name": "Allegiance to the United States",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to allegiance to the United States.",
+      "confidence": 1.0
+    },
+    {
+      "code": "B",
+      "name": "Foreign Influence",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to foreign influence.",
+      "confidence": 1.0
+    },
+    {
+      "code": "C",
+      "name": "Foreign Preference",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to foreign preference.",
+      "confidence": 1.0
+    },
+    {
+      "code": "D",
+      "name": "Sexual Behavior",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to sexual behavior.",
+      "confidence": 1.0
+    },
+    {
+      "code": "E",
+      "name": "Personal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to personal conduct.",
+      "confidence": 1.0
+    },
+    {
+      "code": "F",
+      "name": "Financial Considerations",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to financial considerations.",
+      "confidence": 1.0
+    },
+    {
+      "code": "G",
+      "name": "Alcohol Consumption",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG � 22(c)",
+          "text": "habitual or binge consumption of alcohol to the point of impaired judgment, regardless of whether the individual is diagnosed with alcohol use disorder",
+          "evidence": "By 2022, the Individual was consuming approximately 750 mL of bourbon on a daily basis.",
+          "confidence": 0.9
+        },
+        {
+          "code": "AG � 22(d)",
+          "text": "diagnosis by a duly qualified medical or mental health professional (e.g., physician, clinical psychologist, psychiatrist, or licensed clinical social worker) of alcohol use disorder",
+          "evidence": "the DOE Psychologist issued a report in which he concluded that the Individual met sufficient criteria for a diagnosis of AUD, severe.",
+          "confidence": 1.0
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG � 23(b)",
+          "text": "the individual acknowledges his or her pattern of maladaptive alcohol use, provides evidence of actions taken to overcome this problem, and has demonstrated a clear and established pattern of modified consumption or abstinence in accordance with treatment recommendations",
+          "applicability": "PARTIAL",
+          "reasoning": "The individual acknowledges her maladaptive alcohol use and has taken actions to overcome the problem, including completing a residential treatment program, IOP, and attending AA meetings. She has also provided evidence of abstinence through negative PEth and EtG tests. However, the period of abstinence is relatively short, and a longer period of sustained abstinence is needed to fully mitigate the concern.",
+          "evidence": "The Individual testified that she stopped consuming alcohol entirely on May 19, 2025. She provided three negative PEth tests to support this assertion, and those tests are dated August 4, 2025, September 22, 2025, and November 17, 2025."
+        },
+        {
+          "code": "AG � 23(c)",
+          "text": "the individual is participating in counseling or a treatment program, has no previous history of treatment and relapse, and is making satisfactory progress in a treatment program",
+          "applicability": "FULL",
+          "reasoning": "The individual has participated in a residential treatment program, IOP, and is currently attending AA meetings. There is no indication of prior treatment or relapse. The DOE Psychologist's report indicates that the individual is making progress.",
+          "evidence": "The Individual completed a thirty-two-day residential alcohol treatment program in June 2025...Upon completing her residential treatment program, the Individual enrolled in a fourteen-week IOP, which she completed in October 2025...After completing the IOP, according to the Individual뭩 testimony, she began attending AA meetings consistently about three times a week"
+        }
+      ],
+      "reasoning": "The individual's history of severe AUD raises a significant security concern. While the individual has taken positive steps toward rehabilitation, including completing treatment programs and demonstrating abstinence, the relatively short period of abstinence and the need for continued monitoring warrant a 'Serious' severity assessment. Continued compliance with treatment recommendations and sustained abstinence are crucial.",
+      "confidence": 0.8
+    },
+    {
+      "code": "H",
+      "name": "Drug Involvement and Substance Misuse",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "The document does not indicate any issues related to drug involvement or substance misuse other than alcohol.",
+      "confidence": 1.0
+    },
+    {
+      "code": "I",
+      "name": "Psychological Conditions",
+      "relevant": true,
+      "severity": "C",
+      "disqualifiers": [
+        {
+          "code": "AG � 28(b)",
+          "text": "an opinion by a duly qualified mental health professional that the individual has a condition that may impair judgment, stability, reliability, or trustworthiness",
+          "evidence": "The DOE Psychologist also found that the Individual뭩 judgment was impaired by untreated symptoms of Post Traumatic Stress Disorder (PTSD).",
+          "confidence": 1.0
+        }
+      ],
+      "mitigators": [
+        {
+          "code": "AG � 29(b)",
+          "text": "the individual has voluntarily entered a counseling or treatment program for a condition that is amenable to treatment, and the individual is currently receiving counseling or treatment with a favorable prognosis by a duly qualified mental health professional",
+          "applicability": "PARTIAL",
+          "reasoning": "The DOE Psychologist stated that should the Individual be willing to commit to treatment for her PTSD, her prognosis would be good. The document indicates that the individual is willing to commit to treatment, but there is no evidence that she has started treatment. Mitigation is only partial until treatment has commenced and is showing progress.",
+          "evidence": "He stated that should the Individual be willing to commit to treatment for her PTSD, her prognosis would be good."
+        },
+        {
+          "code": "AG � 29(e)",
+          "text": "there is no indication of a current problem",
+          "applicability": "NONE",
+          "reasoning": "The PTSD is an ongoing issue that requires treatment. The individual's judgment is currently impaired by the untreated PTSD.",
+          "evidence": "The DOE Psychologist also found that the Individual뭩 judgment was impaired by untreated symptoms of Post Traumatic Stress Disorder (PTSD)."
+        }
+      ],
+      "reasoning": "The DOE Psychologist's diagnosis of PTSD and the determination that it impairs the individual's judgment raise a security concern. The individual's willingness to commit to treatment is a positive factor, but the lack of current treatment warrants a 'Serious' severity assessment. Commencement of treatment and a favorable prognosis are needed for further mitigation.",
+      "confidence": 0.8
+    },
+    {
+      "code": "J",
+      "name": "Criminal Conduct",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to criminal conduct.",
+      "confidence": 1.0
+    },
+    {
+      "code": "K",
+      "name": "Handling Protected Information",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to handling protected information.",
+      "confidence": 1.0
+    },
+    {
+      "code": "L",
+      "name": "Outside Activities",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to outside activities.",
+      "confidence": 1.0
+    },
+    {
+      "code": "M",
+      "name": "Use of Information Technology",
+      "relevant": false,
+      "severity": null,
+      "disqualifiers": [],
+      "mitigators": [],
+      "reasoning": "There is no information in the document to suggest any issues related to the use of information technology.",
+      "confidence": 1.0
+    }
+  ],
+  "whole_person_analysis": [
+    {
+      "factor": "Nature, extent, and seriousness of the conduct",
+      "assessment": "The individual's alcohol consumption was severe and had a negative impact on her work performance and judgment. The PTSD diagnosis further complicates the issue.",
+      "impact": "UNFAVORABLE"
+    },
+    {
+      "factor": "Circumstances surrounding the conduct, to include knowledgeable participation",
+      "assessment": "The individual's alcohol consumption increased due to stress related to the COVID-19 pandemic and the death of her grandfather. She has acknowledged the problem and is actively participating in treatment.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "Frequency and recency of the conduct",
+      "assessment": "The excessive alcohol consumption was frequent and recent. However, the individual has been abstinent since May 2025.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The individual's age and maturity at the time of the conduct",
+      "assessment": "The individual was an adult during the period of excessive alcohol consumption.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The extent to which participation is voluntary",
+      "assessment": "The individual is voluntarily participating in treatment and AA meetings.",
+      "impact": "FAVORABLE"
+    },
+    {
+      "factor": "The presence or absence of rehabilitation and other permanent behavioral changes",
+      "assessment": "The individual has demonstrated a commitment to rehabilitation and has shown evidence of behavioral changes, including abstinence from alcohol.",
+      "impact": "FAVORABLE"
+    },
+    {
+      "factor": "The motivation for the conduct",
+      "assessment": "The individual's motivation for alcohol consumption was to cope with stress and depression.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The potential for pressure, coercion, exploitation, or duress",
+      "assessment": "There is no indication of pressure, coercion, exploitation, or duress.",
+      "impact": "NEUTRAL"
+    },
+    {
+      "factor": "The likelihood of continuation or recurrence",
+      "assessment": "The individual's participation in treatment and AA meetings reduces the likelihood of recurrence. However, continued monitoring is necessary.",
+      "impact": "FAVORABLE"
+    }
+  ],
+  "follow_up_recommendations": [
+    {
+      "action": "Obtain updated psychological evaluation from a DOE-approved mental health professional.",
+      "priority": "HIGH",
+      "guideline": "I",
+      "rationale": "An updated evaluation is needed to assess the individual's current mental state and prognosis for PTSD treatment."
+    },
+    {
+      "action": "Require continued monitoring of alcohol abstinence through regular PEth and EtG testing.",
+      "priority": "HIGH",
+      "guideline": "G",
+      "rationale": "Continued monitoring is necessary to ensure sustained abstinence from alcohol."
+    },
+    {
+      "action": "Verify consistent attendance at AA meetings and active participation in the program.",
+      "priority": "MEDIUM",
+      "guideline": "G",
+      "rationale": "AA attendance provides ongoing support and reduces the risk of relapse."
+    },
+    {
+      "action": "Confirm commencement of PTSD treatment and assess progress.",
+      "priority": "HIGH",
+      "guideline": "I",
+      "rationale": "Treatment for PTSD is essential to address the underlying cause of the individual's impaired judgment."
+    }
+  ]
+}
+```
