@@ -13,23 +13,29 @@ warnings.filterwarnings('ignore', message='.*google.generativeai.*', category=Fu
 import logging
 import time
 
-# Configure logging - output to both console and file
-# Put log file next to the script for easy access
+# Configure logging - output to console (and file if running locally)
+# Streamlit Cloud runs from /mount/src/ - disable file logging there to avoid inotify spam
 from pathlib import Path as _Path
-LOG_FILE = _Path(__file__).parent / "demo_ui_debug.log"
+_IS_STREAMLIT_CLOUD = str(_Path(__file__)).startswith('/mount/src/')
 
-# Clear log file on module load (fresh start)
-with open(LOG_FILE, 'w') as f:
-    f.write("")
+# Set up handlers based on environment
+_handlers = [logging.StreamHandler()]  # Console always enabled
+
+if not _IS_STREAMLIT_CLOUD:
+    # Local development: also log to file
+    LOG_FILE = _Path(__file__).parent / "demo_ui_debug.log"
+    # Clear log file on module load (fresh start)
+    with open(LOG_FILE, 'w') as f:
+        f.write("")
+    _handlers.append(logging.FileHandler(LOG_FILE, mode='a'))
+else:
+    LOG_FILE = None  # No file logging on Streamlit Cloud
 
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s.%(msecs)03d | %(message)s',
     datefmt='%H:%M:%S',
-    handlers=[
-        logging.StreamHandler(),  # Console output
-        logging.FileHandler(LOG_FILE, mode='a')  # File output (append within session)
-    ]
+    handlers=_handlers
 )
 logger = logging.getLogger(__name__)
 
@@ -44,7 +50,10 @@ def log_timing(message: str):
 log_timing("")
 log_timing("=" * 60)
 log_timing("=== SCRIPT RERUN START ===")
-log_timing(f"Logs writing to: {LOG_FILE}")
+if LOG_FILE:
+    log_timing(f"Logs writing to: {LOG_FILE}")
+else:
+    log_timing("Running on Streamlit Cloud (file logging disabled)")
 
 import streamlit as st
 log_timing("Imported streamlit")
