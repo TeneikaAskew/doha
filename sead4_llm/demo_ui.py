@@ -1365,7 +1365,7 @@ with tab_dashboard:
 
                 chart = (bars + text).properties(height=400)
 
-                st.altair_chart(chart, width='stretch')
+                st.altair_chart(chart, use_container_width=True)
 
         st.divider()
 
