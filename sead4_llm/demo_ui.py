@@ -1167,7 +1167,7 @@ with tab_compare:
                 "Cost": rag_cost
             })
 
-        st.dataframe(summary_data, width='stretch')
+        st.dataframe(summary_data, use_container_width=True)
 
         # Ground truth comparison
         if selected_file in GROUND_TRUTH:
